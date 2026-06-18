@@ -7,6 +7,7 @@ const DETAILS_MASK = [
   "businessStatus", "primaryType", "types", "rating", "userRatingCount",
   "reviews", "photos", "regularOpeningHours", "specialDays",
   "editorialSummary", "priceLevel", "reservable", "servesLunch", "servesDinner",
+  "servesBreakfast", "takeout", "delivery", "dineIn",
 ].join(",");
 
 const SEARCH_MASK = [
