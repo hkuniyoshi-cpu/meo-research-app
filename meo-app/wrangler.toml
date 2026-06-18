@@ -1,0 +1,16 @@
+name = "meo-app"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+assets = { directory = "./public", binding = "ASSETS" }
+
+kv_namespaces = [
+  { binding = "CACHE", id = "REPLACE_WITH_CACHE_KV_ID" },
+  { binding = "RATELIMIT", id = "REPLACE_WITH_RATELIMIT_KV_ID" }
+]
+
+# secrets (本番は `wrangler secret put` で投入):
+#   GOOGLE_PLACES_API_KEY
+#   TURNSTILE_SECRET
+[vars]
+TURNSTILE_SITEKEY = "REPLACE_WITH_TURNSTILE_SITEKEY"
