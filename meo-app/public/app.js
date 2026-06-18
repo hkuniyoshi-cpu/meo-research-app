@@ -39,13 +39,14 @@ function animateLoading() {
   return () => clearInterval(timer);
 }
 
-function backToInput(msg) { hide("loading-view"); show("input-view"); showErr(msg); }
+function backToInput(msg) { hide("loading-view"); show("input-view"); showErr(msg); resetTurnstile(); }
+function resetTurnstile() { try { window.turnstile && window.turnstile.reset(); } catch (e) {} turnstileToken = ""; }
 function showErr(msg) { const e = $("err"); e.textContent = msg; e.hidden = false; }
 function errMessage(code) {
   return ({
     not_found: "該当する店舗が見つかりませんでした。事業名や住所を見直してください",
     rate_limited: "本日の診断上限に達しました。明日また試せます",
-    bot_check_failed: "ボット判定に失敗しました。ページを再読み込みしてください",
+    bot_check_failed: "ボット判定をやり直しました。もう一度「無料でMEO診断する」を押してください",
     missing_fields: "入力が不足しています",
     upstream_error: "データ取得に失敗しました。時間をおいて再度お試しください",
   })[code] || "診断に失敗しました";
