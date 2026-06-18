@@ -54,4 +54,5 @@ h1 { font-size:24px; margin:8px 0 18px; line-height:1.4; }
 .more-pill { text-align:center; margin-top:8px; font-size:13px; color:#2a5085; }
 .subtle-cta { text-align:center; margin-top:8px; }
 .subtle-cta a { font-size:12px; color:#5b7aa3; }
+.note { font-size:11px; color:#5b7aa3; margin:2px 0 10px; line-height:1.5; }
 .foot { text-align:center; font-size:11px; color:#8aa3c2; margin-top:8px; }

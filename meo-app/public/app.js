@@ -60,12 +60,14 @@ function renderResult(d) {
   const ranking = d.ranking ? `
     <div class="glass">
       <div class="label">検索評価（想定）— 近隣${d.ranking.total}件中 ${d.ranking.rank}位相当</div>
+      <div class="note">※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した「近隣同業内での知名度の相対値」を示します。</div>
       ${d.ranking.competitors.slice(0, 3).map(c =>
-        `<div class="comp">${esc(c.name)} ★${c.rating ?? "-"} / 口コミ${c.reviews}<span>指数 ${c.index}</span></div>`).join("")}
-      <div class="comp you">あなた<span>指数 ${d.prominence}</span></div>
+        `<div class="comp">${esc(c.name)} ★${c.rating ?? "-"} / 口コミ${c.reviews}<span>知名度 ${c.index}</span></div>`).join("")}
+      <div class="comp you">${esc(d.name)}<small style="opacity:.7"> (自店)</small><span>知名度 ${d.prominence}</span></div>
     </div>` : `
     <div class="glass"><div class="label">検索評価（想定）</div>
-      <div class="comp you">あなたの知名度指数<span>${d.prominence}</span></div></div>`;
+      <div class="note">※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した知名度の相対値です。</div>
+      <div class="comp you">${esc(d.name)}<small style="opacity:.7"> (自店)</small><span>知名度指数 ${d.prominence}</span></div></div>`;
 
   const lockedTips = d.tipsLockedCount > 0 ? `
     <ul class="tips locked"><li>さらなる改善ポイント …………</li><li>属性の追加 ………………</li></ul>
