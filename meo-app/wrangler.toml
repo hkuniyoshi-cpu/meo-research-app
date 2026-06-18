@@ -5,12 +5,12 @@ compatibility_date = "2026-01-01"
 assets = { directory = "./public", binding = "ASSETS" }
 
 kv_namespaces = [
-  { binding = "CACHE", id = "REPLACE_WITH_CACHE_KV_ID" },
-  { binding = "RATELIMIT", id = "REPLACE_WITH_RATELIMIT_KV_ID" }
+  { binding = "CACHE", id = "b9a0bb477d4b49799e8be9954f00083d" },
+  { binding = "RATELIMIT", id = "a3cf2d147cea4cda8d94a1e0b603bc3b" }
 ]
 
 # secrets (本番は `wrangler secret put` で投入):
 #   GOOGLE_PLACES_API_KEY
 #   TURNSTILE_SECRET
 [vars]
-TURNSTILE_SITEKEY = "REPLACE_WITH_TURNSTILE_SITEKEY"
+TURNSTILE_SITEKEY = "0x4AAAAAADnWDrv5_bsETVew"
