@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scoreProfile, recentReviewRatio } from "../src/lib/scoring";
+import { scoreProfile, recentReviewRatio, prominenceLight, rankAmong } from "../src/lib/scoring";
 import { DEFAULT_WEIGHTS } from "../src/lib/weights";
 import type { PlaceData } from "../src/lib/types";
 
@@ -84,5 +84,30 @@ describe("recentReviewRatio", () => {
       { rating: 5, publishTime: "2024-01-01T00:00:00Z" },
     ];
     expect(recentReviewRatio(rs, NOW)).toBe(0.5);
+  });
+});
+
+describe("prominenceLight", () => {
+  it("口コミ多く高評価ほど指数が高い", () => {
+    const strong = prominenceLight({ rating: 4.8, userRatingCount: 300, photoCount: 10 });
+    const weak = prominenceLight({ rating: 3.2, userRatingCount: 5, photoCount: 1 });
+    expect(strong).toBeGreaterThan(weak);
+    expect(strong).toBeLessThanOrEqual(100);
+    expect(weak).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("rankAmong", () => {
+  it("対象店の順位と母数を返す", () => {
+    const target = place({ rating: 4.6, userRatingCount: 95, photoCount: 8 });
+    const comps = [
+      place({ displayName: "A店", rating: 4.7, userRatingCount: 210, photoCount: 10 }),
+      place({ displayName: "B店", rating: 4.5, userRatingCount: 180, photoCount: 9 }),
+      place({ displayName: "C店", rating: 3.9, userRatingCount: 20, photoCount: 2 }),
+    ];
+    const r = rankAmong(target, comps);
+    expect(r.total).toBe(4);
+    expect(r.rank).toBe(3); // A,B が上、C が下
+    expect(r.competitors).toHaveLength(3);
   });
 });

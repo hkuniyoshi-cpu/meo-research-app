@@ -1,4 +1,4 @@
-import type { PlaceData, ProfileScore, CategoryScore, ReviewData } from "./types";
+import type { PlaceData, ProfileScore, CategoryScore, ReviewData, RankResult } from "./types";
 import type { IndustryWeights } from "./weights";
 
 const DAY = 86400000;
@@ -54,4 +54,24 @@ export function scoreProfile(p: PlaceData, w: IndustryWeights, now: Date): Profi
   ];
   const total = Math.round(categories.reduce((a, c) => a + c.score, 0));
   return { total, categories };
+}
+
+/** 軽量フィールドのみで算出する知名度指数(0-100)。競合は詳細未取得なので口コミ数/評価/写真数で比較。 */
+export function prominenceLight(p: { rating?: number; userRatingCount: number; photoCount: number }): number {
+  const countComp = normLogCount(p.userRatingCount);
+  const ratingComp = (p.rating ?? 0) / 5;
+  const photoComp = Math.min(p.photoCount, 10) / 10;
+  return Math.round(100 * (0.45 * countComp + 0.40 * ratingComp + 0.15 * photoComp));
+}
+
+/** 対象店を競合群に混ぜて知名度指数で順位付けする。 */
+export function rankAmong(target: PlaceData, competitors: PlaceData[]): RankResult {
+  const targetIndex = prominenceLight(target);
+  const comps = competitors.map(c => ({
+    name: c.displayName, rating: c.rating, reviews: c.userRatingCount, index: prominenceLight(c),
+  }));
+  const all = [targetIndex, ...comps.map(c => c.index)].sort((a, b) => b - a);
+  const rank = all.indexOf(targetIndex) + 1;
+  comps.sort((a, b) => b.index - a.index);
+  return { index: targetIndex, rank, total: all.length, competitors: comps };
 }
