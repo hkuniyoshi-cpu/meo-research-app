@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MEO無料診断 | SearchMania</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body>
+  <main class="wrap">
+    <section id="input-view" class="card">
+      <div class="label">SearchMania MEO診断</div>
+      <h1>事業名＋住所で<br>Googleマップ整備度を無料診断</h1>
+      <input id="f-name" class="field" placeholder="事業名（例：クレープの森）" />
+      <input id="f-area" class="field" placeholder="住所 / エリア（例：那覇市牧志）" />
+      <label class="toggle"><input id="f-compare" type="checkbox" checked /> 競合比較もする（任意）</label>
+      <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-callback="onTurnstile"></div>
+      <button id="go" class="btn">無料でMEO診断する</button>
+      <p id="err" class="err" hidden></p>
+    </section>
+
+    <section id="loading-view" hidden>
+      <div class="loader-card">
+        <div class="spinner"></div>
+        <p id="loading-text" class="loading-text">店舗を特定中…</p>
+      </div>
+    </section>
+
+    <section id="result-view" hidden></section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
