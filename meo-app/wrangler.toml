@@ -1,4 +1,4 @@
-name = "meo-app"
+name = "meo-research-app"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
 
