@@ -5,7 +5,7 @@ type FetchFn = typeof fetch;
 const DETAILS_MASK = [
   "id", "displayName", "formattedAddress", "nationalPhoneNumber", "websiteUri",
   "businessStatus", "primaryType", "types", "rating", "userRatingCount",
-  "reviews", "photos", "regularOpeningHours", "specialDays",
+  "reviews", "photos", "regularOpeningHours", "currentOpeningHours",
   "editorialSummary", "priceLevel", "reservable", "servesLunch", "servesDinner",
   "servesBreakfast", "takeout", "delivery", "dineIn",
 ].join(",");
@@ -79,7 +79,7 @@ export function normalizeDetails(d: any): PlaceData {
     photoCount: (d.photos ?? []).length,
     hasVideo: false, // Places APIは動画を返さないため常にfalse（将来別ソース）
     hasRegularHours: !!d.regularOpeningHours,
-    hasSpecialHours: (d.specialDays ?? d.regularOpeningHours?.specialDays ?? []).length > 0,
+    hasSpecialHours: (d.currentOpeningHours?.specialDays ?? d.regularOpeningHours?.specialDays ?? []).length > 0,
     editorialSummary: d.editorialSummary?.text,
     priceLevel: d.priceLevel,
     attributeCount: countAttributes(d),
