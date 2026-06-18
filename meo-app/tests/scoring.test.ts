@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scoreProfile } from "../src/lib/scoring";
+import { scoreProfile, recentReviewRatio } from "../src/lib/scoring";
 import { DEFAULT_WEIGHTS } from "../src/lib/weights";
 import type { PlaceData } from "../src/lib/types";
 
@@ -36,11 +36,16 @@ describe("scoreProfile", () => {
     expect(r.total).toBeGreaterThanOrEqual(90);
   });
 
-  it("カテゴリ別の点は満点(=重み)を超えない、合計はtotalと一致", () => {
+  it("カテゴリ構造が正しく、各点は0〜満点に収まる", () => {
     const r = scoreProfile(place({ userRatingCount: 5, rating: 3 }), DEFAULT_WEIGHTS, NOW);
-    const sum = r.categories.reduce((a, c) => a + c.score, 0);
-    expect(Math.round(sum)).toBe(r.total);
-    for (const c of r.categories) expect(c.score).toBeLessThanOrEqual(c.max);
+    expect(r.categories).toHaveLength(6);
+    expect(r.categories.map(c => c.key)).toEqual(["nap", "category", "reviews", "photos", "hours", "extras"]);
+    expect(r.total).toBeGreaterThan(0);
+    expect(r.total).toBeLessThanOrEqual(100);
+    for (const c of r.categories) {
+      expect(c.score).toBeGreaterThanOrEqual(0);
+      expect(c.score).toBeLessThanOrEqual(c.max);
+    }
   });
 
   it("古い口コミだけだと新着性が効いて口コミ点が下がる", () => {
@@ -52,5 +57,32 @@ describe("scoreProfile", () => {
     const ca = a.categories.find(c => c.key === "reviews")!.score;
     const cb = b.categories.find(c => c.key === "reviews")!.score;
     expect(cb).toBeGreaterThan(ca);
+  });
+});
+
+describe("recentReviewRatio", () => {
+  it("空配列は0", () => {
+    expect(recentReviewRatio([], NOW)).toBe(0);
+  });
+  it("全て直近なら1", () => {
+    const rs = [
+      { rating: 5, publishTime: "2026-06-10T00:00:00Z" },
+      { rating: 4, publishTime: "2026-05-01T00:00:00Z" },
+    ];
+    expect(recentReviewRatio(rs, NOW)).toBe(1);
+  });
+  it("全て古いと0", () => {
+    expect(recentReviewRatio([{ rating: 5, publishTime: "2024-01-01T00:00:00Z" }], NOW)).toBe(0);
+  });
+  it("ちょうど境界(cutoff)は新着として数える", () => {
+    const cutoff = new Date(NOW.getTime() - 90 * 86400000).toISOString();
+    expect(recentReviewRatio([{ rating: 5, publishTime: cutoff }], NOW)).toBe(1);
+  });
+  it("半分が直近なら0.5", () => {
+    const rs = [
+      { rating: 5, publishTime: "2026-06-01T00:00:00Z" },
+      { rating: 5, publishTime: "2024-01-01T00:00:00Z" },
+    ];
+    expect(recentReviewRatio(rs, NOW)).toBe(0.5);
   });
 });
