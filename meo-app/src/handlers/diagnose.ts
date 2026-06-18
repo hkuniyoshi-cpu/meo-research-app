@@ -26,6 +26,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   if (!(await verifyTurnstile(body.turnstileToken, env.TURNSTILE_SECRET, ip)))
     return json({ error: "bot_check_failed" }, 403);
 
+  // レート制限はキャッシュ判定より前＝キャッシュヒットも1回としてカウント（連打抑止のため意図的）
   const date = new Date().toISOString().slice(0, 10);
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
@@ -34,41 +35,45 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
-  const found = await findPlace(body.name, body.area, env.GOOGLE_PLACES_API_KEY);
-  if (!found) return json({ error: "not_found" }, 404);
+  try {
+    const found = await findPlace(body.name, body.area, env.GOOGLE_PLACES_API_KEY);
+    if (!found) return json({ error: "not_found" }, 404);
 
-  const details = normalizeDetails(await getDetails(found.id, env.GOOGLE_PLACES_API_KEY));
-  const weights = weightsFor(details.primaryType);
-  const profile = scoreProfile(details, weights, new Date());
+    const details = normalizeDetails(await getDetails(found.id, env.GOOGLE_PLACES_API_KEY));
+    const weights = weightsFor(details.primaryType);
+    const profile = scoreProfile(details, weights, new Date());
 
-  const tips = buildTips(details, profile);
+    const tips = buildTips(details, profile);
 
-  let ranking = null;
-  if (body.compare) {
-    const raw = await findCompetitors(details.primaryType, body.area, env.GOOGLE_PLACES_API_KEY);
-    const comps = raw.filter((c: any) => c.id !== details.placeId).map(normalizeLight);
-    ranking = rankAmong(details, comps);
+    let ranking = null;
+    if (body.compare) {
+      const raw = await findCompetitors(details.primaryType, body.area, env.GOOGLE_PLACES_API_KEY);
+      const comps = raw.filter((c: any) => c.id !== details.placeId).map(normalizeLight);
+      ranking = rankAmong(details, comps);
+    }
+
+    const result = {
+      name: details.displayName,
+      area: body.area,
+      profile,
+      prominence: prominenceLight(details),
+      ranking,
+      tipsVisible: tips.slice(0, VISIBLE_TIPS),
+      tipsLockedCount: Math.max(0, tips.length - VISIBLE_TIPS),
+    };
+    await setCached(env.CACHE, cacheKey, result);
+    return json(result);
+  } catch {
+    return json({ error: "upstream_error" }, 502);
   }
-
-  const result = {
-    name: details.displayName,
-    area: body.area,
-    profile,
-    prominence: prominenceLight(details),
-    ranking,
-    tipsVisible: tips.slice(0, VISIBLE_TIPS),
-    tipsLockedCount: Math.max(0, tips.length - VISIBLE_TIPS),
-  };
-  await setCached(env.CACHE, cacheKey, result);
-  return json(result);
 }
 
 /** 整備スコアの弱点カテゴリから改善ポイント文を生成。 */
 function buildTips(p: ReturnType<typeof normalizeDetails>, profile: ReturnType<typeof scoreProfile>): string[] {
   const tips: string[] = [];
   const ratio = (key: string) => {
-    const c = profile.categories.find(x => x.key === key)!;
-    return c.score / c.max;
+    const c = profile.categories.find(x => x.key === key);
+    return c ? c.score / c.max : 0;
   };
   if (ratio("reviews") < 0.7) tips.push("口コミの新着・返信を増やす（最近の口コミが不足しています）");
   if (ratio("extras") < 0.7) tips.push("サービス・メニュー・属性の詳細登録が未設定");

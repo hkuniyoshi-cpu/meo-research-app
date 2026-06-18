@@ -81,4 +81,21 @@ describe("handleDiagnose", () => {
     const data: any = await res.json();
     expect(data.ranking).toBeNull();
   });
+
+  it("2回目は同一入力をキャッシュから返し、Places APIを再度叩かない", async () => {
+    const f = routeFetch();
+    vi.stubGlobal("fetch", f);
+    const body = { name: "テスト店", area: "那覇", compare: false, turnstileToken: "t" };
+    const env = makeEnv(); // 同一KVを2回の呼び出しで共有
+    const first = await handleDiagnose(makeReq(body), env);
+    expect(first.status).toBe(200);
+    const callsAfterFirst = f.mock.calls.length;
+    const second = await handleDiagnose(makeReq(body), env);
+    expect(second.status).toBe(200);
+    // 2回目に増えたfetchのうち、siteverify(Turnstile)以外＝Places系は0であること
+    const placesCallsSecond = f.mock.calls
+      .slice(callsAfterFirst)
+      .filter((c: any) => !String(c[0]).includes("siteverify"));
+    expect(placesCallsSecond.length).toBe(0);
+  });
 });
