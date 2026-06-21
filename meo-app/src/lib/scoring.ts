@@ -38,8 +38,10 @@ export function scoreProfile(p: PlaceData, w: IndustryWeights, now: Date): Profi
 
   const hoursComp = (p.hasRegularHours ? 0.7 : 0) + (p.hasSpecialHours ? 0.3 : 0);
 
+  // 付加情報。editorialSummary(Googleが書く要約=オーナー設定の「ビジネスの説明文」ではない)は
+  // Places APIでオーナー説明文の有無を判定できないため採点に使わない。
   const extraItems = [
-    !!p.editorialSummary, !!p.priceLevel, p.attributeCount >= 3,
+    !!p.priceLevel, p.attributeCount >= 2,
     p.hasReservationLink, p.hasMenuLink,
   ];
   const extras = extraItems.filter(Boolean).length / extraItems.length;

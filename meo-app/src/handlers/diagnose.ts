@@ -31,8 +31,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v2: 改善ポイント生成ロジック刷新に伴い旧キャッシュを無効化（結果ロジック変更時はここを上げる）
-  const cacheKey = `diag:v2:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v3: 採点(extras)・改善ポイントの正確性改善に伴い旧キャッシュを無効化（結果ロジック変更時はここを上げる）
+  const cacheKey = `diag:v3:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -71,7 +71,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
 
 /**
  * 実データで「確実に判定できる」欠落・不足のみから改善ポイントを生成し、弱いカテゴリ順に並べる。
- * Places APIで取得できない「口コミ返信の有無」「投稿頻度」「動画」は断定しない（実態との不整合を避ける）。
+ * Places APIで取得できない項目（口コミ返信の有無・投稿頻度・動画・オーナー設定の説明文・価格帯の設定有無）は
+ * 断定しない（実態との不整合を避ける＝正確性優先）。
  */
 function buildTips(p: ReturnType<typeof normalizeDetails>, profile: ReturnType<typeof scoreProfile>): string[] {
   const ratio = (key: string) => {
@@ -102,9 +103,13 @@ function buildTips(p: ReturnType<typeof normalizeDetails>, profile: ReturnType<t
   if (!p.hasRegularHours) items.push({ r: ratio("hours"), t: "営業時間を登録する" });
 
   // 付加情報
-  if (!p.editorialSummary) items.push({ r: ratio("extras"), t: "ビジネスの説明文（最大750文字）を登録する" });
-  if (p.attributeCount < 3) items.push({ r: ratio("extras"), t: "属性（テイクアウト・予約・支払い等）を追加登録する" });
-  if (!p.priceLevel) items.push({ r: ratio("extras"), t: "価格帯を設定する" });
+  // ※「ビジネスの説明文」はPlaces APIで“オーナー設定の説明文”の有無を取得できない
+  //   （editorialSummaryはGoogleの要約で別物）ため、断定せず出さない。
+  // ※価格帯(priceLevel)も未設定か非該当かを確実に区別できないため断定しない。
+  // 飲食系のみ、確実に取得できる属性ブール値で判定する。
+  const isFood = [p.primaryType, ...p.types].some(t => !!t && /restaurant|food|cafe|bar|bakery|meal_/.test(t));
+  if (isFood && p.attributeCount < 2)
+    items.push({ r: ratio("extras"), t: "属性（テイクアウト・予約・店内飲食など）を登録する" });
 
   // 弱いカテゴリ由来を先頭へ（=最優先として表示される）
   items.sort((a, b) => a.r - b.r);
