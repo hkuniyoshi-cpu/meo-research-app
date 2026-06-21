@@ -5,7 +5,9 @@ const $ = (id) => document.getElementById(id);
 const show = (id) => { $(id).hidden = false; };
 const hide = (id) => { $(id).hidden = true; };
 
-const LOADING_STEPS = ["店舗を特定中…", "NAP整合性を照合中…", "口コミ傾向を解析中…", "競合の知名度を取得中…", "スコアを算出中…"];
+const LOAD_TARGET_MS = 20000; // 待ち時間の目安（約20秒）。1〜2分にしたい場合はここを増やす
+const LOAD_MIN_MS = 7000;     // 最低表示時間（速くてもこの時間は演出を見せる）
+const LOAD_STEPS = ["店舗をGoogleマップで特定中…", "基本情報（NAP）を照合中…", "写真・口コミ・属性を解析中…", "近隣の競合を取得・比較中…", "整備スコア＆知名度を算出中…", "レポートを生成中…"];
 const SHORT = { nap: "基本情報", category: "カテゴリ", reviews: "口コミ", photos: "写真", hours: "営業時間", extras: "付加情報" };
 
 let currentShare = { url: "", text: "", title: "MEO無料診断" };
@@ -18,7 +20,8 @@ $("go").addEventListener("click", async () => {
   if (!name || !area) { showErr("事業名と住所/エリアを入力してください"); return; }
 
   hide("input-view"); show("loading-view");
-  const stopAnim = animateLoading();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  const loader = startLoader();
 
   try {
     const resp = await fetch("/api/diagnose", {
@@ -26,22 +29,51 @@ $("go").addEventListener("click", async () => {
       body: JSON.stringify({ name, area, compare, turnstileToken }),
     });
     const data = await resp.json();
-    stopAnim();
-    if (!resp.ok) { backToInput(errMessage(data.error)); return; }
+    if (!resp.ok) { loader.cancel(); backToInput(errMessage(data.error)); return; }
     data._compare = compare;
+    await loader.finish();
     renderResult(data);
     hide("loading-view"); show("result-view");
     window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (e) {
-    stopAnim(); backToInput("通信に失敗しました。時間をおいて再度お試しください");
+    loader.cancel(); backToInput("通信に失敗しました。時間をおいて再度お試しください");
   }
 });
 
-function animateLoading() {
-  let i = 0;
-  $("loading-text").textContent = LOADING_STEPS[0];
-  const timer = setInterval(() => { i = (i + 1) % LOADING_STEPS.length; $("loading-text").textContent = LOADING_STEPS[i]; }, 900);
-  return () => clearInterval(timer);
+/* ===== リッチローディング（進捗バー＋待ち時間目安＋段階チェック） ===== */
+function startLoader() {
+  const bar = $("load-bar"), pctEl = $("load-pct"), etaEl = $("load-eta"), txt = $("loading-text");
+  const stepEls = Array.from(document.querySelectorAll("#load-steps li"));
+  stepEls.forEach(el => el.classList.remove("done", "active"));
+  const start = performance.now();
+  let done = false, raf;
+  function frame() {
+    const el = performance.now() - start;
+    const p = done ? 100 : Math.min(96, (el / LOAD_TARGET_MS) * 100);
+    bar.style.width = p.toFixed(1) + "%";
+    pctEl.textContent = Math.floor(p) + "%";
+    if (done) etaEl.textContent = "完了！";
+    else if (el >= LOAD_TARGET_MS) etaEl.textContent = "もうすぐ完了…";
+    else etaEl.textContent = "残り 約" + Math.max(1, Math.ceil((LOAD_TARGET_MS - el) / 1000)) + "秒";
+    txt.textContent = LOAD_STEPS[Math.min(LOAD_STEPS.length - 1, Math.floor(p / (100 / LOAD_STEPS.length)))];
+    stepEls.forEach((s, i) => {
+      const top = (i + 1) / stepEls.length * 100, bot = i / stepEls.length * 100;
+      s.classList.toggle("done", p >= top);
+      s.classList.toggle("active", p < top && p >= bot);
+    });
+    if (!(done && p >= 100)) raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
+  return {
+    cancel() { cancelAnimationFrame(raf); },
+    async finish() {
+      const el = performance.now() - start;
+      if (el < LOAD_MIN_MS) await new Promise(r => setTimeout(r, LOAD_MIN_MS - el));
+      done = true;
+      await new Promise(r => setTimeout(r, 650));
+      cancelAnimationFrame(raf);
+    },
+  };
 }
 
 function backToInput(msg) { hide("loading-view"); show("input-view"); showErr(msg); resetTurnstile(); }
@@ -124,9 +156,9 @@ function renderResult(d) {
     <div class="glass">
       <div class="g-head"><span class="g-ico">📊</span>検索評価（想定）— 近隣${d.ranking.total}件中 ${d.ranking.rank}位相当</div>
       <div class="note">※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した「近隣同業内での知名度の相対値」を示します。</div>
+      <div class="comp you">${esc(d.name)}<small> (自店)</small><span>知名度 ${d.prominence}</span></div>
       ${d.ranking.competitors.slice(0, 3).map(c =>
         `<div class="comp">${esc(c.name)} ★${c.rating ?? "-"} / 口コミ${c.reviews}<span>知名度 ${c.index}</span></div>`).join("")}
-      <div class="comp you">${esc(d.name)}<small> (自店)</small><span>知名度 ${d.prominence}</span></div>
     </div>` : `
     <div class="glass"><div class="g-head"><span class="g-ico">📊</span>検索評価（想定）</div>
       <div class="note">※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した知名度の相対値です。</div>
@@ -239,4 +271,46 @@ function backToTop(clear) {
     if (turnstileToken) { clearInterval(iv); $("go").click(); }
     else if (++tries > 30) { clearInterval(iv); }
   }, 300);
+})();
+
+/* ===== 背景：Googleカラーのネットワークアニメ ===== */
+(function bgNetwork() {
+  const cv = document.getElementById("bg-net");
+  if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const COLORS = ["#4285F4", "#EA4335", "#FBBC05", "#34A853"];
+  let w, h, pts;
+  function resize() {
+    w = cv.width = window.innerWidth;
+    h = cv.height = window.innerHeight;
+    const n = Math.max(28, Math.min(72, Math.floor(w * h / 24000)));
+    pts = Array.from({ length: n }, (_, i) => ({
+      x: Math.random() * w, y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5,
+      c: COLORS[i % COLORS.length],
+    }));
+  }
+  function loop() {
+    ctx.clearRect(0, 0, w, h);
+    for (const p of pts) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > w) p.vx *= -1;
+      if (p.y < 0 || p.y > h) p.vy *= -1;
+    }
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const a = pts[i], b = pts[j], dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy);
+        if (d < 140) {
+          ctx.globalAlpha = (1 - d / 140) * 0.4;
+          ctx.strokeStyle = a.c; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha = 0.85;
+    for (const p of pts) { ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 2.2, 0, 6.3); ctx.fill(); }
+    requestAnimationFrame(loop);
+  }
+  window.addEventListener("resize", resize);
+  resize(); loop();
 })();
