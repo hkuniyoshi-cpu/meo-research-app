@@ -68,21 +68,49 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   }
 }
 
-/** 整備スコアの弱点カテゴリから改善ポイント文を生成。 */
+/**
+ * 実データで「確実に判定できる」欠落・不足のみから改善ポイントを生成し、弱いカテゴリ順に並べる。
+ * Places APIで取得できない「口コミ返信の有無」「投稿頻度」「動画」は断定しない（実態との不整合を避ける）。
+ */
 function buildTips(p: ReturnType<typeof normalizeDetails>, profile: ReturnType<typeof scoreProfile>): string[] {
-  const tips: string[] = [];
   const ratio = (key: string) => {
     const c = profile.categories.find(x => x.key === key);
-    return c ? c.score / c.max : 0;
+    return c ? c.score / c.max : 1;
   };
-  if (ratio("reviews") < 0.7) tips.push("口コミの新着・返信を増やす（最近の口コミが不足しています）");
-  if (ratio("extras") < 0.7) tips.push("サービス・メニュー・属性の詳細登録が未設定");
-  if (!p.hasVideo) tips.push("短尺動画を1本追加する");
-  if (ratio("photos") < 0.8) tips.push("写真を10枚以上に増やす");
-  if (ratio("hours") < 0.8) tips.push("特別営業時間（祝日等）を設定する");
-  if (ratio("category") < 1) tips.push("副カテゴリを追加して関連性を高める");
-  if (ratio("nap") < 1) tips.push("基本情報（電話・サイト等）の未入力を埋める");
-  tips.push("週次で最新情報を投稿し鮮度を保つ");
+  const items: { r: number; t: string }[] = [];
+
+  // 基本情報（欠落は確実に判定可能）
+  if (!p.websiteUri) items.push({ r: ratio("nap"), t: "Webサイトのリンクを登録する" });
+  if (!p.nationalPhoneNumber) items.push({ r: ratio("nap"), t: "電話番号を登録する" });
+
+  // カテゴリ
+  if (p.types.filter(t => t !== p.primaryType).length === 0)
+    items.push({ r: ratio("category"), t: "副カテゴリを追加して関連性を高める" });
+
+  // 口コミ（件数・評価のみ＝確実に判定可能。返信有無・新着はAPIで取得不可のため判定しない）
+  if (p.userRatingCount < 30)
+    items.push({ r: ratio("reviews"), t: `口コミ件数を増やす（現在${p.userRatingCount}件）— レビュー依頼を強化` });
+  if (p.rating != null && p.rating < 4.0)
+    items.push({ r: ratio("reviews"), t: `平均評価を改善する（現在★${p.rating.toFixed(1)}）` });
+
+  // 写真
+  if (p.photoCount < 10)
+    items.push({ r: ratio("photos"), t: `写真を充実させる（現在${p.photoCount}枚）` });
+
+  // 営業時間
+  if (!p.hasRegularHours) items.push({ r: ratio("hours"), t: "営業時間を登録する" });
+
+  // 付加情報
+  if (!p.editorialSummary) items.push({ r: ratio("extras"), t: "ビジネスの説明文（最大750文字）を登録する" });
+  if (p.attributeCount < 3) items.push({ r: ratio("extras"), t: "属性（テイクアウト・予約・支払い等）を追加登録する" });
+  if (!p.priceLevel) items.push({ r: ratio("extras"), t: "価格帯を設定する" });
+
+  // 弱いカテゴリ由来を先頭へ（=最優先として表示される）
+  items.sort((a, b) => a.r - b.r);
+  const tips = items.map(i => i.t);
+
+  // 末尾に常時有効な一般推奨（特定の欠落を断定しない言い回し）
+  tips.push("週1回を目安に『最新情報』を投稿すると鮮度が保てます");
   return tips;
 }
 
