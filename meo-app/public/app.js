@@ -174,6 +174,11 @@ function renderResult(d) {
       <div id="sh-toast" class="sh-toast" hidden></div>
     </div>
 
+    <div class="nav-btns">
+      <button class="navbtn re" onclick="reSearch()">🔍 別の店舗を再調査</button>
+      <button class="navbtn top" onclick="goTop()">🏠 TOPへ戻る</button>
+    </div>
+
     <div class="foot">Supervised &amp; Powered by SearchMania ・ もっと詳しく改善したい方はこちら</div>`;
 
   // シェアデータ
@@ -208,6 +213,18 @@ window.copyShare = async () => {
   catch (e) { toast("コピーに失敗しました"); }
 };
 function toast(msg) { const t = $("sh-toast"); if (!t) return; t.textContent = msg; t.hidden = false; setTimeout(() => { t.hidden = true; }, 2000); }
+
+/* ===== ナビゲーション ===== */
+window.reSearch = () => backToTop(false); // 入力値を残して再調査
+window.goTop = () => backToTop(true);      // 入力をクリアしてTOPへ
+function backToTop(clear) {
+  hide("result-view"); show("input-view");
+  if (clear) { $("f-name").value = ""; $("f-area").value = ""; $("f-compare").checked = true; }
+  $("err").hidden = true;
+  resetTurnstile();
+  if (location.search) history.replaceState(null, "", location.pathname); // 共有URLの再自動実行を防ぐ
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
 
 /* ===== 共有URLから自動実行 ===== */
 (function initFromQuery() {

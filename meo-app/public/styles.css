@@ -102,3 +102,11 @@ h1 { font-size:24px; margin:8px 0 18px; line-height:1.4; }
 .sh-x { background:#111; }
 .sh-copy { background:#FBBC05; color:#3a2d00; }
 .sh-toast { margin-top:10px; font-size:13px; font-weight:700; color:#1a73e8; }
+
+/* ナビ */
+.nav-btns { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:4px 0 8px; }
+.navbtn { border:0; cursor:pointer; font-weight:800; font-size:14px; padding:13px 24px; border-radius:16px; transition:transform .12s;
+  box-shadow:4px 4px 12px rgba(80,130,200,.3),-3px -3px 8px rgba(255,255,255,.6); }
+.navbtn:active { transform:scale(.96); }
+.navbtn.re { background:linear-gradient(135deg,#7db8ff,#4f93f0); color:#fff; }
+.navbtn.top { background:rgba(255,255,255,.75); color:#1a73e8; border:1px solid rgba(120,160,210,.4); }
