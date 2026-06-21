@@ -31,7 +31,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  const cacheKey = `diag:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v2: 改善ポイント生成ロジック刷新に伴い旧キャッシュを無効化（結果ロジック変更時はここを上げる）
+  const cacheKey = `diag:v2:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
