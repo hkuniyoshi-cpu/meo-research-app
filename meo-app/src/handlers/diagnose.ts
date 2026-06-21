@@ -31,8 +31,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v3: 採点(extras)・改善ポイントの正確性改善に伴い旧キャッシュを無効化（結果ロジック変更時はここを上げる）
-  const cacheKey = `diag:v3:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v4: データ非依存の一般tip除去（正確性）に伴い旧キャッシュを無効化（結果ロジック変更時はここを上げる）
+  const cacheKey = `diag:v4:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -115,8 +115,9 @@ function buildTips(p: ReturnType<typeof normalizeDetails>, profile: ReturnType<t
   items.sort((a, b) => a.r - b.r);
   const tips = items.map(i => i.t);
 
-  // 末尾に常時有効な一般推奨（特定の欠落を断定しない言い回し）
-  tips.push("週1回を目安に『最新情報』を投稿すると鮮度が保てます");
+  // データで欠落を判定できない項目（投稿頻度・説明文・返信率等）は一般論で断定しない。
+  // → DataForSEO連携(Phase2)で実データ取得後に正式採点へ。それまでは出さない。
+  if (tips.length === 0) tips.push("APIで確認できる基本項目に大きな欠落はありません。レポート下部の各指標もご確認ください");
   return tips;
 }
 
