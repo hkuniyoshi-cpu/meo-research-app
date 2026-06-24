@@ -43,7 +43,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   }
 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
-  const cacheKey = `diag:v25:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  const cacheKey = `diag:v26:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -247,11 +247,8 @@ function buildTips(
   if (!p.hasRegularHours && bp.kind !== "lodging") items.push({ r: ratio("hours"), title: "営業時間を登録", detail: "営業時間が未設定です。曜日ごとの営業時間・定休日・祝日対応・特別営業を登録しましょう。" });
 
   if (e) {
-    const d = daysSinceLatestPost(e.posts, now);
-    if (e.posts.length === 0)
-      items.push({ r: ratio("hours"), title: "最新情報の投稿を始める", detail: "前回調査時点で『最新情報』の投稿が確認できませんでした。週1回を目安に、お知らせ・実績/事例・キャンペーン・季節の情報・臨時休業などを投稿しましょう。投稿の鮮度は検索順位に直結します。" });
-    else if (d > 60)
-      items.push({ r: ratio("hours"), title: "最新情報の投稿を継続", detail: `前回調査時点で最新投稿が約${Math.round(d)}日前でした。週1回を目安に投稿を続けましょう（既に再開済みなら次回調査で反映されます）。鮮度が順位に効きます。` });
+    // 「最新情報の投稿◯日前」はデータ更新の遅延でズレるため“表には出さない”。
+    // 鮮度(postFresh)は scoring.ts で「最新性」スコアに反映済み（裏側の評価として保持）。
 
     if (e.photosCount < REC_PHOTOS)
       items.push({ r: ratio("photos"), title: "写真を増やす", detail: `現在${e.photosCount}枚。${bp.photos}など、推奨${REC_PHOTOS}枚以上を目安に高画質写真を追加・定期更新しましょう。写真量は閲覧数とクリック率に直結します。` });

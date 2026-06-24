@@ -215,7 +215,6 @@ function renderResult(d) {
     const okP = d.photosCount >= rec;
     chips.push(`<span class="chip ${okP ? "ok" : "warn"}">📷 写真 ${d.photosCount}枚${okP ? " ✓" : `（推奨${rec}枚〜）`}</span>`);
   }
-  if (d.latestPostDays != null) chips.push(`<span class="chip">📣 最終投稿 ${d.latestPostDays}日前</span>`);
   if (d.reviewActivity && d.reviewActivity.latestDays != null) {
     const a = d.reviewActivity;
     const okR = a.latestDays <= 60;
@@ -320,7 +319,7 @@ function renderResult(d) {
     <div class="report-sub">${esc(d.name)} ／ ${esc(d.address || d.area)}</div>
     ${d.investigatedAt ? `<div class="report-date">📅 調査日 ${esc(d.investigatedAt)}（最新調査サイクルの結果）</div>` : ""}
     ${chipsHTML}
-    ${d.investigatedAt ? `<div class="freshness-note">※「最終投稿」「直近クチコミ」など最新の動きは、データ更新の都合で数日〜数週間前の状態を表示する場合があります（Googleの各種レポートと同様）。最新の実状況はGoogleマップでご確認ください。</div>` : ""}
+    ${d.investigatedAt ? `<div class="freshness-note">※「直近クチコミ」など最新の動きは、データ更新の都合で数日〜数週間前の状態を表示する場合があります（Googleの各種レポートと同様）。最新の実状況はGoogleマップでご確認ください。</div>` : ""}
 
     <div class="report-grid">
       <div class="glass score-card">
