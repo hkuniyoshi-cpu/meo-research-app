@@ -4,7 +4,7 @@ import { getCached, setCached } from "../lib/cache";
 import { findPlace, getDetails, findCompetitors, normalizeDetails, normalizeLight } from "../lib/places";
 import { scoreProfile, rankAmong, prominenceLight, daysSinceLatestPost, REC_PHOTOS } from "../lib/scoring";
 import { weightsFor } from "../lib/weights";
-import { fetchEnriched, fetchReplyStats } from "../lib/outscraper";
+import { fetchEnriched } from "../lib/outscraper";
 import type { Enriched } from "../lib/outscraper";
 
 export interface Env {
@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v9: Outscraper取得を毎回ユニーク化（返信率の古いデータつかみ修正）。旧キャッシュを無効化
-  const cacheKey = `diag:v9:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v10: 不安定な返信率を採点/表示から除外（要確認へ）。reviews-v3呼び出し停止で費用減。旧キャッシュ無効化
+  const cacheKey = `diag:v10:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -51,11 +51,6 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
     if (env.OUTSCRAPER_API_KEY) {
       try {
         enriched = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
-        if (enriched) {
-          const rs = await fetchReplyStats(body.name, body.area, env.OUTSCRAPER_API_KEY, 10);
-          enriched.replySampled = rs.replySampled;
-          enriched.replyReplied = rs.replyReplied;
-        }
       } catch {
         enriched = null;
       }
@@ -85,13 +80,10 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
       verified: enriched?.verified ?? null,
       photosCount: enriched?.photosCount ?? null,
       recPhotos: REC_PHOTOS,
-      replyRate: enriched && enriched.replySampled > 0
-        ? Math.round((enriched.replyReplied / enriched.replySampled) * 100)
-        : null,
       latestPostDays: enriched
         ? (enriched.posts.length ? Math.round(daysSinceLatestPost(enriched.posts, now)) : null)
         : null,
-      unverified: ["ビジネスの説明文", "動画", "価格帯"],
+      unverified: ["ビジネスの説明文", "動画", "価格帯", "クチコミへの返信状況"],
     };
     await setCached(env.CACHE, cacheKey, result);
     return json(result);
@@ -138,11 +130,6 @@ function buildTips(
       items.push({ r: ratio("hours"), t: "最新情報（投稿）がありません。定期投稿を始めましょう" });
     } else if (d > 30) {
       items.push({ r: ratio("hours"), t: `最新情報の投稿が止まっています（最終投稿 約${Math.round(d)}日前）` });
-    }
-
-    // 口コミ返信率
-    if (e.replySampled > 0 && (e.replyReplied / e.replySampled) < 0.5) {
-      items.push({ r: ratio("reviews"), t: `口コミへの返信を増やす（直近${e.replySampled}件中${e.replyReplied}件のみ返信）` });
     }
 
     // 写真・動画の累計枚数

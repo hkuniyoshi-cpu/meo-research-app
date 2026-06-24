@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { fetchEnriched, fetchReplyStats } from "../src/lib/outscraper";
+import { fetchEnriched } from "../src/lib/outscraper";
 
 const ok = (j: any) => ({ ok: true, json: async () => j });
 
@@ -26,19 +26,5 @@ describe("fetchEnriched", () => {
   it("該当なしでnull", async () => {
     const f = vi.fn().mockResolvedValue(ok({ data: [], status: "Success" }));
     expect(await fetchEnriched("無", "無", "K", f as any)).toBeNull();
-  });
-});
-
-describe("fetchReplyStats", () => {
-  it("owner_answerの有無で返信件数を数える", async () => {
-    const place = { reviews_data: [
-      { owner_answer: "ありがとうございます", review_rating: 5 },
-      { owner_answer: "", review_rating: 4 },
-      { review_rating: 3 },
-    ] };
-    const f = vi.fn().mockResolvedValue(ok({ data: [place], status: "Success" }));
-    const s = await fetchReplyStats("店", "那覇", "K", 10, f as any);
-    expect(s.replySampled).toBe(3);
-    expect(s.replyReplied).toBe(1);
   });
 });

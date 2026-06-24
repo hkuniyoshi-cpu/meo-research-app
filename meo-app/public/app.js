@@ -161,7 +161,6 @@ function renderResult(d) {
     const okP = d.photosCount >= rec;
     chips.push(`<span class="chip ${okP ? "ok" : "warn"}">📷 写真・動画 ${d.photosCount}枚${okP ? " ✓" : `（推奨${rec}枚〜）`}</span>`);
   }
-  if (d.replyRate != null) chips.push(`<span class="chip">💬 口コミ返信率 ${d.replyRate}%</span>`);
   if (d.latestPostDays != null) chips.push(`<span class="chip">📣 最終投稿 ${d.latestPostDays}日前</span>`);
   const chipsHTML = chips.length ? `<div class="chips">${chips.join("")}</div>` : "";
 

@@ -110,8 +110,6 @@ describe("scoreProfile with Enriched", () => {
       hasMenuLink: false,
       hasReservation: false,
       description: null,
-      replySampled: 0,
-      replyReplied: 0,
       ...overrides,
     };
   }
@@ -127,8 +125,6 @@ describe("scoreProfile with Enriched", () => {
       attributeTotal: 25,
       hasMenuLink: true,
       hasReservation: true,
-      replySampled: 10,
-      replyReplied: 9,
     });
     const poorEnriched = makeEnriched({
       posts: [],
@@ -139,8 +135,6 @@ describe("scoreProfile with Enriched", () => {
       attributeTotal: 5,
       hasMenuLink: false,
       hasReservation: false,
-      replySampled: 10,
-      replyReplied: 0,
     });
     const basePlaceData = place({
       nationalPhoneNumber: "098", websiteUri: "https://x", businessStatus: "OPERATIONAL",

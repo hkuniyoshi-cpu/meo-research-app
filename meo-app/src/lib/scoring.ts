@@ -51,15 +51,15 @@ export function scoreProfile(p: PlaceData, w: IndustryWeights, now: Date, e?: En
 
   let reviewsComp: number;
   if (e) {
+    // 返信率(owner_answer)はデータ提供元で取りこぼしが多く不安定なため採点に使わない。
     const countComp = normLogCount(p.userRatingCount);
     const ratingComp = (p.rating ?? 0) / 5;
     const recencyComp = recentReviewRatio(p.reviews, now);
-    const replyComp = e.replySampled > 0 ? e.replyReplied / e.replySampled : 0.5;
     const rpsValues = Object.values(e.reviewsPerScore);
     const rpsTotal = rpsValues.reduce((a, b) => a + b, 0);
     const low = (e.reviewsPerScore["1"] ?? 0) + (e.reviewsPerScore["2"] ?? 0);
     const lowRatingComp = rpsTotal > 0 ? 1 - (low / rpsTotal) : 1;
-    reviewsComp = clamp01(0.3 * countComp + 0.25 * ratingComp + 0.2 * recencyComp + 0.15 * replyComp + 0.1 * lowRatingComp);
+    reviewsComp = clamp01(0.35 * countComp + 0.3 * ratingComp + 0.2 * recencyComp + 0.15 * lowRatingComp);
   } else {
     const countComp = normLogCount(p.userRatingCount);
     const ratingComp = (p.rating ?? 0) / 5;
