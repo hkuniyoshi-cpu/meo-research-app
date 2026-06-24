@@ -170,6 +170,14 @@ describe("scoreProfile with Enriched", () => {
     expect(ex.score / ex.max).toBeGreaterThan(0.8);
   });
 
+  it("宿泊業は属性が取得できない(件数0)でも付加情報を不当に下げない", () => {
+    // データ提供元が宿泊の設備属性を取りこぼしても0点にしない（benefit-of-doubt）
+    const e = makeEnriched({ attributeFilled: 0, attributeTotal: 0 });
+    const lodging = place({ primaryType: "hotel", types: ["hotel", "lodging"] });
+    const ex = scoreProfile(lodging, DEFAULT_WEIGHTS, NOW, e).categories.find(c => c.key === "extras")!;
+    expect(ex.score / ex.max).toBeGreaterThanOrEqual(0.7);
+  });
+
   it("宿泊業は営業時間が取得できなくても過度に減点しない", () => {
     const nowTs = Math.floor(NOW.getTime() / 1000);
     const e = makeEnriched({ posts: [{ timestamp: nowTs - 60 * 60 * 24 * 5 }] }); // 5日前投稿
