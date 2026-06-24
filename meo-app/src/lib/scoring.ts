@@ -4,6 +4,9 @@ import type { Enriched } from "./outscraper";
 
 const DAY = 86400000;
 
+/** 写真・動画の推奨累計枚数（これ以上で満点）。MEOでは枚数が多いほど有利。 */
+export const REC_PHOTOS = 50;
+
 /** 直近days日に投稿された口コミ比率(0-1)。reviewsが空なら0。 */
 export function recentReviewRatio(reviews: ReviewData[], now: Date, days = 90): number {
   if (reviews.length === 0) return 0;
@@ -66,7 +69,7 @@ export function scoreProfile(p: PlaceData, w: IndustryWeights, now: Date, e?: En
 
   let photos: number;
   if (e) {
-    photos = Math.min(1, e.photosCount / 20);
+    photos = Math.min(1, e.photosCount / REC_PHOTOS);
   } else {
     photos = clamp01(0.8 * Math.min(p.photoCount, 10) / 10 + (p.hasVideo ? 0.2 : 0));
   }

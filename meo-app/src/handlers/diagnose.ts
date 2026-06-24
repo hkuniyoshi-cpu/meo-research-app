@@ -2,7 +2,7 @@ import { verifyTurnstile } from "../lib/turnstile";
 import { checkRateLimit } from "../lib/ratelimit";
 import { getCached, setCached } from "../lib/cache";
 import { findPlace, getDetails, findCompetitors, normalizeDetails, normalizeLight } from "../lib/places";
-import { scoreProfile, rankAmong, prominenceLight, daysSinceLatestPost } from "../lib/scoring";
+import { scoreProfile, rankAmong, prominenceLight, daysSinceLatestPost, REC_PHOTOS } from "../lib/scoring";
 import { weightsFor } from "../lib/weights";
 import { fetchEnriched, fetchReplyStats } from "../lib/outscraper";
 import type { Enriched } from "../lib/outscraper";
@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v6: 初回取得で返信率を取りこぼした旧キャッシュを無効化（再取得で正しい値に）
-  const cacheKey = `diag:v6:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v7: 写真推奨枚数(50)を採点・出力に反映。旧キャッシュを無効化
+  const cacheKey = `diag:v7:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -84,6 +84,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
       // Outscraper enriched fields (null when unavailable)
       verified: enriched?.verified ?? null,
       photosCount: enriched?.photosCount ?? null,
+      recPhotos: REC_PHOTOS,
       replyRate: enriched && enriched.replySampled > 0
         ? Math.round((enriched.replyReplied / enriched.replySampled) * 100)
         : null,
@@ -144,9 +145,9 @@ function buildTips(
       items.push({ r: ratio("reviews"), t: `口コミへの返信を増やす（直近${e.replySampled}件中${e.replyReplied}件のみ返信）` });
     }
 
-    // 写真数
-    if (e.photosCount < 20) {
-      items.push({ r: ratio("photos"), t: `写真を増やす（現在${e.photosCount}枚）` });
+    // 写真・動画の累計枚数
+    if (e.photosCount < REC_PHOTOS) {
+      items.push({ r: ratio("photos"), t: `写真・動画を増やす（現在${e.photosCount}枚 → 推奨${REC_PHOTOS}枚以上）` });
     }
 
     // 属性充実度
