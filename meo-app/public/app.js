@@ -8,7 +8,7 @@ const hide = (id) => { $(id).hidden = true; };
 const LOAD_TARGET_MS = 20000; // 待ち時間の目安（約20秒）。1〜2分にしたい場合はここを増やす
 const LOAD_MIN_MS = 7000;     // 最低表示時間（速くてもこの時間は演出を見せる）
 const LOAD_STEPS = ["店舗をGoogleマップで特定中…", "基本情報（NAP）を照合中…", "写真・口コミ・属性を解析中…", "近隣の競合を取得・比較中…", "整備スコア＆知名度を算出中…", "レポートを生成中…"];
-const SHORT = { nap: "基本情報", category: "カテゴリ", reviews: "口コミ", photos: "写真", hours: "営業時間", extras: "付加情報" };
+const SHORT = { nap: "基本情報", category: "カテゴリ", reviews: "口コミ", photos: "写真", hours: "最新性", extras: "付加情報" };
 
 let currentShare = { url: "", text: "", title: "MEO無料診断" };
 
@@ -145,9 +145,10 @@ function radarSVG(cats) {
 function renderResult(d) {
   const r = rankOf(d.profile.total);
 
-  const plan = d.tipsVisible.map((t, i) => {
-    const p = i < 2 ? { t: "最優先", cls: "pri-high" } : { t: "推奨", cls: "pri-mid" };
-    return `<li><span class="pri ${p.cls}">${p.t}</span>${esc(t)}</li>`;
+  const BADGE = { high: { t: "最優先", cls: "pri-high" }, mid: { t: "推奨", cls: "pri-mid" }, info: { t: "ヒント", cls: "pri-info" } };
+  const plan = d.tipsVisible.map((t) => {
+    const b = BADGE[t.level] || BADGE.mid;
+    return `<li><div class="tip-head"><span class="pri ${b.cls}">${b.t}</span><b>${esc(t.title)}</b></div><div class="tip-detail">${esc(t.detail)}</div></li>`;
   }).join("");
   const lockedPlan = d.tipsLockedCount > 0
     ? `<li class="more">＋ほか${d.tipsLockedCount}項目の改善で、さらに上位が狙えます</li>` : "";

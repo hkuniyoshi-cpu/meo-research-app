@@ -138,6 +138,11 @@ h1 { font-size:24px; margin:8px 0 18px; line-height:1.4; }
 .pri { display:inline-block; font-size:10px; font-weight:900; color:#fff; padding:2px 8px; border-radius:8px; margin-right:6px; vertical-align:middle; }
 .pri-high { background:#EA4335; }
 .pri-mid { background:#4285F4; }
+.pri-info { background:#7b94b3; }
+.planlist li { margin:0 0 14px; }
+.tip-head { display:flex; align-items:center; gap:6px; margin-bottom:3px; }
+.tip-head b { font-size:13px; color:#1a3a63; }
+.tip-detail { font-size:12px; line-height:1.7; color:#3a5a85; padding-left:2px; }
 .planlist li.more { color:#5b7aa3; font-weight:700; }
 
 /* シェア */
