@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v7: 写真推奨枚数(50)を採点・出力に反映。旧キャッシュを無効化
-  const cacheKey = `diag:v7:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v8: Outscraper取得をno-store化（返信率の取りこぼし修正）。旧キャッシュを無効化
+  const cacheKey = `diag:v8:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 

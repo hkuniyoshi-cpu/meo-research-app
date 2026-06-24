@@ -24,7 +24,7 @@ function pickPlace(data: any): any | null {
 /** search-v3 で店舗のリッチ情報を取得。失敗時は例外を投げる。 */
 export async function fetchEnriched(name: string, area: string, apiKey: string, fetchFn: FetchFn = fetch): Promise<Enriched | null> {
   const url = `${BASE}/maps/search-v3?query=${encodeURIComponent(`${name} ${area}`)}&limit=1&language=ja&region=JP&async=false`;
-  const r = await fetchFn(url, { headers: { "X-API-KEY": apiKey } });
+  const r = await fetchFn(url, { headers: { "X-API-KEY": apiKey }, cf: { cacheTtl: 0, cacheEverything: false } });
   if (!r.ok) throw new Error(`outscraper search failed: ${r.status}`);
   const j: any = await r.json();
   const p = pickPlace(j.data);
@@ -54,7 +54,7 @@ export async function fetchEnriched(name: string, area: string, apiKey: string, 
 /** reviews-v3 で直近レビューを取得し、owner返信率の母数/件数を返す。失敗時は {0,0}。 */
 export async function fetchReplyStats(name: string, area: string, apiKey: string, limit = 10, fetchFn: FetchFn = fetch): Promise<{ replySampled: number; replyReplied: number }> {
   const url = `${BASE}/maps/reviews-v3?query=${encodeURIComponent(`${name} ${area}`)}&reviewsLimit=${limit}&language=ja&region=JP&async=false&sort=newest`;
-  const r = await fetchFn(url, { headers: { "X-API-KEY": apiKey } });
+  const r = await fetchFn(url, { headers: { "X-API-KEY": apiKey }, cf: { cacheTtl: 0, cacheEverything: false } });
   if (!r.ok) throw new Error(`outscraper reviews failed: ${r.status}`);
   const j: any = await r.json();
   const p = pickPlace(j.data);
