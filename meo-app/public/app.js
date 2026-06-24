@@ -178,20 +178,27 @@ function renderResult(d) {
   }
   const chipsHTML = chips.length ? `<div class="chips">${chips.join("")}</div>` : "";
 
-  // 今後の見通し（予測）
+  // 今後の見通し（予測）— 店ごとに弱点・数値が変わる具体予測
   const pr = d.prediction;
+  const gapNames = (pr?.topGaps || []).map(g => `「${SHORT[g.key] || g.label}」（+${g.gain}点）`);
   const predHTML = pr ? `
     <div class="glass">
       <div class="g-head"><span class="g-ico">🔮</span>今後の見通し（予測）</div>
-      <div class="note">現状データからの目安です（実際の結果を保証するものではありません）。</div>
+      <div class="note">あなたの店の現状データから算出した目安です（実際の結果を保証するものではありません）。</div>
       <ul class="predlist">
-        ${pr.scoreGain > 0
-          ? `<li><b>整備スコアの伸びしろ</b>：改善ポイントを実施すると、整備スコアを <b>${pr.potentialScore}点</b>（現在${d.profile.total}点 ／ +${pr.scoreGain}）まで引き上げられる見込みです。</li>`
-          : `<li><b>整備度は良好</b>：現在の水準を維持することで、上位表示の可能性が高まります。</li>`}
-        ${pr.reviewIn6m != null
-          ? `<li><b>クチコミの将来予測</b>：現在${pr.reviewNow}件。月${pr.monthlyPace}件ペースが続けば、<b>半年後に約${pr.reviewIn6m}件</b>が見込めます。</li>`
+        ${pr.scoreGain > 0 && gapNames.length
+          ? `<li><b>整備スコアの伸びしろ：+${pr.scoreGain}点</b>（${d.profile.total}点 → <b>${pr.potentialScore}点</b>）<br>特に伸びるのは ${gapNames.join("・")}。ここを埋めるのが最短ルートです。</li>`
+          : pr.scoreGain > 0
+            ? `<li><b>整備スコアの伸びしろ：+${pr.scoreGain}点</b>（${d.profile.total}点 → <b>${pr.potentialScore}点</b>）まで引き上げられる見込みです。</li>`
+            : `<li><b>整備度は上位水準</b>：現在${d.profile.total}点を維持すれば、上位表示を保ちやすい状態です。</li>`}
+        ${pr.nextRank
+          ? `<li><b>順位アップの射程：あと知名度${pr.nextRank.gap}ポイント</b><br>現在 近隣同業${pr.nextRank.total}店中${pr.nextRank.rank}位。1つ上の店との知名度差は${pr.nextRank.gap}pt${pr.monthlyPace ? `。月${pr.monthlyPace}件のクチコミ獲得を続ければ射程圏内です。` : "。クチコミと最新情報の強化で詰められます。"}</li>`
           : ""}
-        <li><b>集客への波及</b>：整備度・クチコミ・最新情報の継続改善は、近隣検索での表示機会を増やし、来店・問い合わせの増加につながります。</li>
+        ${pr.reviewIn6m != null
+          ? `<li><b>クチコミの将来予測</b>：現在${pr.reviewNow}件・月${pr.monthlyPace}件ペース → <b>半年後 約${pr.reviewIn6m}件</b>${pr.nextMilestone && pr.monthsToMilestone != null ? `。この調子なら<b>約${pr.monthsToMilestone}ヶ月で${pr.nextMilestone}件の大台</b>に到達します。` : "。"}</li>`
+          : pr.nextMilestone != null
+            ? `<li><b>クチコミの目標設定</b>：現在${pr.reviewNow}件。次の節目は<b>${pr.nextMilestone}件</b>。月◯件の獲得計画を立てると到達時期が見えてきます。</li>`
+            : ""}
       </ul>
     </div>` : "";
 

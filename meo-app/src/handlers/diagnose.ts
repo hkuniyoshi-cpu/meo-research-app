@@ -35,7 +35,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
-  const cacheKey = `diag:v18:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  const cacheKey = `diag:v19:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -82,19 +82,43 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
       ranking = rankAmong(details, comps);
     }
 
-    // 今後の見通し（予測）：現状データからの目安
+    // 今後の見通し（予測）：現状データからの目安。店ごとに弱点・数値が変わる具体予測にする
     let gain = 0;
+    const gapList: { key: string; label: string; gain: number }[] = [];
     for (const c of profile.categories) {
       const r = c.score / c.max;
+      const g = r < 0.85 ? Math.round((Math.min(0.85, r + 0.3) - r) * c.max) : 0;
       if (r < 0.7) gain += (Math.min(0.85, r + 0.3) - r) * c.max;
+      if (g > 0) gapList.push({ key: c.key, label: c.label, gain: g });
     }
+    const topGaps = gapList.sort((a, b) => b.gain - a.gain).slice(0, 2);
     const potentialScore = Math.min(100, Math.round(profile.total + gain));
+
+    // 1つ上位の競合との「知名度差」→ 射程圏内までの目安
+    let nextRank: { gap: number; rank: number; total: number } | null = null;
+    if (ranking && ranking.rank > 1) {
+      const above = ranking.competitors
+        .filter((c) => c.index > ranking.index)
+        .sort((a, b) => a.index - b.index)[0];
+      if (above) nextRank = { gap: Math.max(1, Math.round(above.index - ranking.index)), rank: ranking.rank, total: ranking.total };
+    }
+
+    // 次の節目クチコミ件数（50/100/300/500/1000…）までの月数
+    const milestones = [50, 100, 200, 300, 500, 1000, 2000];
+    const nextMilestone = milestones.find((m) => m > details.userRatingCount) ?? null;
+    const monthsToMilestone = nextMilestone != null && activity?.monthlyPace
+      ? Math.ceil((nextMilestone - details.userRatingCount) / activity.monthlyPace) : null;
+
     const prediction = {
       potentialScore,
       scoreGain: potentialScore - profile.total,
+      topGaps,
       reviewNow: details.userRatingCount,
       monthlyPace: activity?.monthlyPace ?? null,
       reviewIn6m: activity?.monthlyPace != null ? details.userRatingCount + activity.monthlyPace * 6 : null,
+      nextMilestone,
+      monthsToMilestone,
+      nextRank,
     };
 
     const result = {
