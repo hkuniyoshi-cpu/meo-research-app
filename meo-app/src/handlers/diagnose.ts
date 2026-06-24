@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v11: クチコミの新着性・獲得ペース（安定取得の日付ベース）を追加。旧キャッシュ無効化
-  const cacheKey = `diag:v11:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v12: 要確認から「動画」を除外。旧キャッシュ無効化
+  const cacheKey = `diag:v12:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -86,7 +86,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
       latestPostDays: enriched
         ? (enriched.posts.length ? Math.round(daysSinceLatestPost(enriched.posts, now)) : null)
         : null,
-      unverified: ["ビジネスの説明文", "動画", "価格帯", "クチコミへの返信状況"],
+      unverified: ["ビジネスの説明文", "価格帯", "クチコミへの返信状況"],
     };
     await setCached(env.CACHE, cacheKey, result);
     return json(result);
