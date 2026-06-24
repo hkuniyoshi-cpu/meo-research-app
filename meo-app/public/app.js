@@ -106,6 +106,32 @@ function healthOf(t) {
   if (t >= 60) return { icon: "🟡", sky: "⛅", label: "あと一歩", c: "#FBBC05" };
   return { icon: "🔴", sky: "🌧", label: "要対策", c: "#EA4335" };
 }
+
+/* ⚠️ 放置リスクの推移グラフ（改善した場合=緑 / 放置=赤 を時系列で対比） */
+function riskChart(base, gain, decline) {
+  const W = 340, H = 190, pl = 16, pr = 16, pt = 18, pb = 30;
+  const pw = W - pl - pr, ph = H - pt - pb;
+  const up = [base, base + gain * 0.5, base + gain * 0.85, base + gain].map(v => Math.min(100, Math.round(v)));
+  const dn = [base, base - decline * 0.4, base - decline * 0.7, base - decline].map(v => Math.max(0, Math.round(v)));
+  const all = [...up, ...dn];
+  let lo = Math.max(0, Math.min(...all) - 6), hi = Math.min(100, Math.max(...all) + 6);
+  if (hi - lo < 18) { hi = Math.min(100, lo + 18); lo = Math.max(0, hi - 18); }
+  const X = i => pl + pw * (i / 3);
+  const Y = v => pt + ph * (1 - (v - lo) / (hi - lo));
+  const line = arr => arr.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+  const dots = (arr, cls) => arr.map((v, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.6" class="${cls}"/>`).join("");
+  const labels = ["現在", "3ヶ月後", "6ヶ月後", "12ヶ月後"];
+  const xlab = labels.map((l, i) => `<text x="${X(i).toFixed(1)}" y="${H - 9}" class="rc-x">${l}</text>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" class="risk-graph">
+    <path d="${line(dn)}L${X(3).toFixed(1)},${Y(lo).toFixed(1)}L${X(0).toFixed(1)},${Y(lo).toFixed(1)}Z" class="rc-dn-fill"/>
+    <path d="${line(up)}" class="rc-up"/>
+    <path d="${line(dn)}" class="rc-dn"/>
+    ${dots(up, "rc-d-up")}${dots(dn, "rc-d-dn")}
+    <text x="${X(3).toFixed(1)}" y="${(Y(up[3]) - 9).toFixed(1)}" class="rc-v rc-v-up">${up[3]}点</text>
+    <text x="${X(3).toFixed(1)}" y="${(Y(dn[3]) + 17).toFixed(1)}" class="rc-v rc-v-dn">${dn[3]}点</text>
+    ${xlab}
+  </svg>`;
+}
 function verdictText(d) {
   const t = d.profile.total, w = SHORT[weakestCat(d).key] || weakestCat(d).label;
   let head;
@@ -202,6 +228,30 @@ function renderResult(d) {
       </ul>
     </div>` : "";
 
+  // ⚠️ 放置した場合のリスク（マイナス予測シミュレーション）
+  const hoursCat = d.profile.categories.find(c => c.key === "hours");
+  const revCat = d.profile.categories.find(c => c.key === "reviews");
+  const hoursDecay = hoursCat ? Math.min(hoursCat.score, hoursCat.max * 0.5) : 0; // 投稿停止で鮮度部分が消える
+  const revDecay = revCat ? revCat.score * 0.3 : 0; // 新規クチコミが止まると鮮度評価が目減り
+  const decline = Math.round(hoursDecay + revDecay);
+  const base = d.profile.total;
+  const gain = pr ? pr.scoreGain : 0;
+  const riskItems = [];
+  if (hoursDecay >= 1) riskItems.push({ t: "最新情報の投稿をやめる", d: `「最新性」が約${Math.round(hoursDecay)}点低下。情報が古いと判断され、表示機会が減っていきます。` });
+  if (revDecay >= 1) riskItems.push({ t: "クチコミ獲得を止める", d: `鮮度の低下で口コミ評価が約${Math.round(revDecay)}点目減り。新しいクチコミを集める競合に追い抜かれやすくなります。` });
+  riskItems.push({ t: "写真・営業時間・付加情報を放置する", d: "情報の信頼性が下がり、来店判断の材料が減って機会損失につながります。" });
+  const riskHTML = (pr && decline >= 1) ? `
+    <div class="glass risk-card">
+      <div class="g-head"><span class="g-ico">⚠️</span>放置した場合のリスク（シミュレーション）</div>
+      <div class="note">更新を怠ると、整備スコアと集客力は時間とともに下がっていきます（現状データからの目安）。</div>
+      ${riskChart(base, gain, decline)}
+      <div class="rc-legend"><span class="lg lg-up">改善を続けた場合</span><span class="lg lg-dn">放置した場合</span></div>
+      <ul class="risklist">
+        ${riskItems.map(x => `<li><b>${esc(x.t)}と…</b>${esc(x.d)}</li>`).join("")}
+      </ul>
+      <div class="risk-warn">このまま放置すると <b>12ヶ月で最大 −${decline}点</b>。改善した場合との差は <b>${(base + gain) - (base - decline)}点</b> にも広がります。<b>早く動くほど有利</b>です。</div>
+    </div>` : "";
+
   // ✨ あなたの店の強み（高スコアのカテゴリ＋良好な実データ）
   const strong = [];
   [...d.profile.categories].sort((a, b) => (b.score / b.max) - (a.score / a.max))
@@ -285,6 +335,8 @@ function renderResult(d) {
     ${ranking}
 
     ${predHTML}
+
+    ${riskHTML}
 
     ${simHTML}
 
