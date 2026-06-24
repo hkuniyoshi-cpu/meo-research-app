@@ -1,3 +1,6 @@
 node_modules/
 .wrangler/
 .dev.vars
+
+# 元ロゴ（配信用は public/logo.png）
+/logo.png
