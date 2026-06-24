@@ -162,6 +162,11 @@ function renderResult(d) {
     chips.push(`<span class="chip ${okP ? "ok" : "warn"}">📷 写真・動画 ${d.photosCount}枚${okP ? " ✓" : `（推奨${rec}枚〜）`}</span>`);
   }
   if (d.latestPostDays != null) chips.push(`<span class="chip">📣 最終投稿 ${d.latestPostDays}日前</span>`);
+  if (d.reviewActivity && d.reviewActivity.latestDays != null) {
+    const a = d.reviewActivity;
+    const okR = a.latestDays <= 60;
+    chips.push(`<span class="chip ${okR ? "ok" : "warn"}">🗣 最新クチコミ ${a.latestDays}日前${a.monthlyPace != null ? ` / 月${a.monthlyPace}件ペース` : ""}</span>`);
+  }
   const chipsHTML = chips.length ? `<div class="chips">${chips.join("")}</div>` : "";
 
   // 要確認（APIで自動判定できない重要項目）

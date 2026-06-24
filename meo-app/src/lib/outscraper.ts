@@ -49,3 +49,35 @@ export async function fetchEnriched(name: string, area: string, apiKey: string, 
     description: p.description ?? null,
   };
 }
+
+export interface ReviewActivity {
+  latestDays: number | null;   // 最新クチコミからの日数
+  monthlyPace: number | null;  // 直近サンプルから推定した月間獲得ペース
+  sample: number;              // 取得したクチコミ件数
+}
+
+/**
+ * reviews-v3（新着順）から「クチコミの日付」だけを使い、新着性・獲得ペースを算出。
+ * ※owner返信は不安定なため使わない。日付(review_timestamp)は安定して取得できる。
+ */
+export async function fetchReviewActivity(name: string, area: string, apiKey: string, limit = 10, fetchFn: FetchFn = fetch): Promise<ReviewActivity> {
+  const url = `${BASE}/maps/reviews-v3?query=${encodeURIComponent(`${name} ${area}`)}&reviewsLimit=${limit}&language=ja&region=JP&async=false&sort=newest`;
+  const r = await fetchFn(url, { headers: { "X-API-KEY": apiKey } });
+  if (!r.ok) throw new Error(`outscraper reviews failed: ${r.status}`);
+  const j: any = await r.json();
+  const p = pickPlace(j.data);
+  const reviews: any[] = p?.reviews_data ?? [];
+  const ts = reviews
+    .map(x => (typeof x?.review_timestamp === "number" ? x.review_timestamp : Date.parse(x?.review_datetime_utc ?? "") / 1000))
+    .filter(t => Number.isFinite(t) && t > 0)
+    .sort((a, b) => b - a);
+  if (ts.length === 0) return { latestDays: null, monthlyPace: null, sample: 0 };
+  const nowSec = Date.now() / 1000;
+  const latestDays = Math.max(0, Math.round((nowSec - ts[0]) / 86400));
+  let monthlyPace: number | null = null;
+  if (ts.length >= 2) {
+    const spanDays = (ts[0] - ts[ts.length - 1]) / 86400;
+    monthlyPace = spanDays > 0 ? Math.round((ts.length - 1) / (spanDays / 30)) : ts.length;
+  }
+  return { latestDays, monthlyPace, sample: ts.length };
+}

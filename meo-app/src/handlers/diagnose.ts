@@ -4,8 +4,8 @@ import { getCached, setCached } from "../lib/cache";
 import { findPlace, getDetails, findCompetitors, normalizeDetails, normalizeLight } from "../lib/places";
 import { scoreProfile, rankAmong, prominenceLight, daysSinceLatestPost, REC_PHOTOS } from "../lib/scoring";
 import { weightsFor } from "../lib/weights";
-import { fetchEnriched } from "../lib/outscraper";
-import type { Enriched } from "../lib/outscraper";
+import { fetchEnriched, fetchReviewActivity } from "../lib/outscraper";
+import type { Enriched, ReviewActivity } from "../lib/outscraper";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v10: 不安定な返信率を採点/表示から除外（要確認へ）。reviews-v3呼び出し停止で費用減。旧キャッシュ無効化
-  const cacheKey = `diag:v10:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v11: クチコミの新着性・獲得ペース（安定取得の日付ベース）を追加。旧キャッシュ無効化
+  const cacheKey = `diag:v11:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -48,18 +48,20 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
 
     // Outscraper enrichment（失敗時はnullにデグレード）
     let enriched: Enriched | null = null;
+    let activity: ReviewActivity | null = null;
     if (env.OUTSCRAPER_API_KEY) {
       try {
         enriched = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
+        activity = await fetchReviewActivity(body.name, body.area, env.OUTSCRAPER_API_KEY, 10);
       } catch {
-        enriched = null;
+        // enrichmentは取れた分だけ使う（activity失敗時もenrichedは活かす）
       }
     }
 
     const profile = scoreProfile(details, weights, new Date(), enriched ?? undefined);
     const now = new Date();
 
-    const tips = buildTips(details, profile, enriched ?? undefined, now);
+    const tips = buildTips(details, profile, enriched ?? undefined, now, activity);
 
     let ranking = null;
     if (body.compare) {
@@ -80,6 +82,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
       verified: enriched?.verified ?? null,
       photosCount: enriched?.photosCount ?? null,
       recPhotos: REC_PHOTOS,
+      reviewActivity: activity,
       latestPostDays: enriched
         ? (enriched.posts.length ? Math.round(daysSinceLatestPost(enriched.posts, now)) : null)
         : null,
@@ -101,6 +104,7 @@ function buildTips(
   profile: ReturnType<typeof scoreProfile>,
   e?: Enriched,
   now: Date = new Date(),
+  activity?: ReviewActivity | null,
 ): string[] {
   const ratio = (key: string) => {
     const c = profile.categories.find(x => x.key === key);
@@ -158,6 +162,11 @@ function buildTips(
     const isFood = [p.primaryType, ...p.types].some(t => !!t && /restaurant|food|cafe|bar|bakery|meal_/.test(t));
     if (isFood && p.attributeCount < 2)
       items.push({ r: ratio("extras"), t: "属性（テイクアウト・予約・店内飲食など）を登録する" });
+  }
+
+  // クチコミの新着性（日付は安定取得できる）
+  if (activity && activity.latestDays != null && activity.latestDays > 60) {
+    items.push({ r: ratio("reviews"), t: `新しいクチコミが減っています（最新${activity.latestDays}日前）。レビュー依頼を強化しましょう` });
   }
 
   // 弱いカテゴリ由来を先頭へ（=最優先として表示される）
