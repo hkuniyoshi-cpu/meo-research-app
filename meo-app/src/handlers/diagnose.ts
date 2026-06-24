@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v15: 属性判定を割合ベース（業種非依存）に修正。旧キャッシュ無効化
-  const cacheKey = `diag:v15:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v16: 調査日付き表示＋投稿判定の鮮度ラグ対応。旧キャッシュ無効化
+  const cacheKey = `diag:v16:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -73,6 +73,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
     const result = {
       name: details.displayName,
       area: body.area,
+      investigatedAt: now.toISOString().slice(0, 10),
       profile,
       prominence: prominenceLight(details),
       ranking,
@@ -131,9 +132,9 @@ function buildTips(
   if (e) {
     const d = daysSinceLatestPost(e.posts, now);
     if (e.posts.length === 0)
-      items.push({ r: ratio("hours"), title: "最新情報の投稿を始める", detail: "『最新情報』の投稿がありません。週1回を目安に、季節メニュー・イベント・キャンペーン・臨時休業などを投稿しましょう。投稿の鮮度は検索順位に直結します。" });
-    else if (d > 30)
-      items.push({ r: ratio("hours"), title: "最新情報の投稿を再開", detail: `最終投稿が約${Math.round(d)}日前です。週1回を目安に投稿を再開しましょう。季節メニュー・イベント・お知らせなどネタは何でもOK。鮮度が順位に効きます。` });
+      items.push({ r: ratio("hours"), title: "最新情報の投稿を始める", detail: "前回調査時点で『最新情報』の投稿が確認できませんでした。週1回を目安に、季節メニュー・イベント・キャンペーン・臨時休業などを投稿しましょう。投稿の鮮度は検索順位に直結します。" });
+    else if (d > 60)
+      items.push({ r: ratio("hours"), title: "最新情報の投稿を継続", detail: `前回調査時点で最新投稿が約${Math.round(d)}日前でした。週1回を目安に投稿を続けましょう（既に再開済みなら次回調査で反映されます）。鮮度が順位に効きます。` });
 
     if (e.photosCount < REC_PHOTOS)
       items.push({ r: ratio("photos"), title: "写真を増やす", detail: `現在${e.photosCount}枚。料理・店内・外観・スタッフ・メニュー表など、推奨${REC_PHOTOS}枚以上を目安に高画質写真を追加・定期更新しましょう。写真量は閲覧数とクリック率に直結します。` });

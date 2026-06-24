@@ -107,7 +107,9 @@ h1 { font-size:24px; margin:8px 0 18px; line-height:1.4; }
 
 /* ===== レポート ===== */
 .report-title { text-align:center; font-size:22px; font-weight:900; color:#1a73e8; margin:4px 0 2px; }
-.report-sub { text-align:center; font-size:13px; color:#3a5a85; margin-bottom:14px; }
+.report-sub { text-align:center; font-size:13px; color:#3a5a85; margin-bottom:6px; }
+.report-date { text-align:center; font-size:12px; font-weight:700; color:#1a73e8; margin-bottom:10px; }
+.freshness-note { text-align:center; font-size:11px; color:#7b94b3; line-height:1.6; max-width:680px; margin:0 auto 14px; }
 .g-head { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:#22406b; padding-bottom:8px; margin-bottom:10px; border-bottom:2px solid rgba(120,160,210,.25); }
 .g-ico { font-size:15px; }
 .report-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }

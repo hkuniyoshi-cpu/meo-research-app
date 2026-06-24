@@ -193,7 +193,9 @@ function renderResult(d) {
   $("result-view").innerHTML = `
     <div class="report-title"><span class="g-ico">📋</span>診断結果レポート</div>
     <div class="report-sub">${esc(d.name)} ／ ${esc(d.area)}</div>
+    ${d.investigatedAt ? `<div class="report-date">📅 調査日 ${esc(d.investigatedAt)}（最新調査サイクルの結果）</div>` : ""}
     ${chipsHTML}
+    ${d.investigatedAt ? `<div class="freshness-note">※「最終投稿」「直近クチコミ」など最新の動きは、データ更新の都合で数日〜数週間前の状態を表示する場合があります（Googleの各種レポートと同様）。最新の実状況はGoogleマップでご確認ください。</div>` : ""}
 
     <div class="report-grid">
       <div class="glass score-card">
