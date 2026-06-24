@@ -35,7 +35,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
-  const cacheKey = `diag:v19:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  const cacheKey = `diag:v20:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -124,6 +124,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
     const result = {
       name: details.displayName,
       area: body.area,
+      address: trimAddress(details.formattedAddress) || body.area,
       investigatedAt: now.toISOString().slice(0, 10),
       profile,
       prominence: prominenceLight(details),
@@ -146,6 +147,23 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   } catch {
     return json({ error: "upstream_error" }, 502);
   }
+}
+
+/**
+ * Google登録の住所を「番地より前」までに丸める。
+ * 例: 「日本、〒900-0014 沖縄県那覇市松尾2丁目8-19」→「沖縄県那覇市松尾2丁目」
+ * 丁目があればそこまで／無ければ末尾の番地数字を除去。郵便番号・国名は除去。
+ */
+export function trimAddress(a: string): string {
+  if (!a) return "";
+  let s = a.replace(/^日本[、,\s]*/, "").replace(/^Japan[,\s]*/i, "");
+  s = s.replace(/〒?\s*\d{3}[-－]?\d{4}\s*/, ""); // 郵便番号
+  s = s.trim();
+  const chome = s.match(/^(.*?[0-9０-９]+\s*丁目)/); // 丁目まで残す
+  if (chome) return chome[1].replace(/\s+/g, "");
+  // 丁目表記が無い場合は最初の番地数字以降（建物名・号室も含む）をすべて落とす
+  s = s.replace(/\s*[0-9０-９].*$/, "");
+  return s.trim();
 }
 
 /**

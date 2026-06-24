@@ -1,5 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { handleDiagnose, type Env } from "../src/handlers/diagnose";
+import { handleDiagnose, trimAddress, type Env } from "../src/handlers/diagnose";
+
+describe("trimAddress", () => {
+  it("郵便番号・国名を除去し丁目まで残す", () => {
+    expect(trimAddress("日本、〒900-0014 沖縄県那覇市松尾2丁目8-19")).toBe("沖縄県那覇市松尾2丁目");
+  });
+  it("丁目があれば番地・建物を落とす", () => {
+    expect(trimAddress("〒900-0013 沖縄県那覇市牧志3丁目2-10 ビル1F")).toBe("沖縄県那覇市牧志3丁目");
+  });
+  it("丁目が無ければ最初の番地数字以降を落とす", () => {
+    expect(trimAddress("沖縄県浦添市大平1-2-3 ABCビル")).toBe("沖縄県浦添市大平");
+    expect(trimAddress("沖縄県国頭郡恩納村前兼久123")).toBe("沖縄県国頭郡恩納村前兼久");
+  });
+  it("番地が無い住所はそのまま", () => {
+    expect(trimAddress("沖縄県中頭郡北谷町美浜")).toBe("沖縄県中頭郡北谷町美浜");
+  });
+  it("空文字は空文字", () => {
+    expect(trimAddress("")).toBe("");
+  });
+});
 
 function mockKV() {
   const m = new Map<string, string>();

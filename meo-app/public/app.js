@@ -248,7 +248,7 @@ function renderResult(d) {
 
   $("result-view").innerHTML = `
     <div class="report-title"><span class="g-ico">📋</span>診断結果レポート</div>
-    <div class="report-sub">${esc(d.name)} ／ ${esc(d.area)}</div>
+    <div class="report-sub">${esc(d.name)} ／ ${esc(d.address || d.area)}</div>
     ${d.investigatedAt ? `<div class="report-date">📅 調査日 ${esc(d.investigatedAt)}（最新調査サイクルの結果）</div>` : ""}
     ${chipsHTML}
     ${d.investigatedAt ? `<div class="freshness-note">※「最終投稿」「直近クチコミ」など最新の動きは、データ更新の都合で数日〜数週間前の状態を表示する場合があります（Googleの各種レポートと同様）。最新の実状況はGoogleマップでご確認ください。</div>` : ""}
@@ -345,7 +345,7 @@ window.saveImage = () => {
   x.textAlign = "center";
   x.fillStyle = "#1a73e8"; x.font = "bold 42px sans-serif"; x.fillText("MEO診断結果レポート", 540, 120);
   x.fillStyle = "#13294b"; x.font = "bold 50px sans-serif"; x.fillText(d.name.slice(0, 18), 540, 200);
-  x.fillStyle = "#3a5a85"; x.font = "28px sans-serif"; x.fillText(d.area, 540, 248);
+  x.fillStyle = "#3a5a85"; x.font = "28px sans-serif"; x.fillText(d.address || d.area, 540, 248);
   const r = rankOf(d.profile.total);
   x.beginPath(); x.arc(540, 470, 150, 0, Math.PI * 2); x.lineWidth = 30; x.strokeStyle = "rgba(120,160,210,.25)"; x.stroke();
   x.beginPath(); x.lineCap = "round"; x.arc(540, 470, 150, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (d.profile.total / 100)); x.lineWidth = 30; x.strokeStyle = r.c; x.stroke();
