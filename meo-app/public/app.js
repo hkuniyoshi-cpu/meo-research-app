@@ -187,25 +187,37 @@ function renderResult(d) {
       </ul>
     </div>` : "";
 
-  // 要確認（自動判定できない重要項目）
-  const unverifiedHTML = (d.unverified && d.unverified.length) ? `
-    <div class="glass">
-      <div class="g-head"><span class="g-ico">📌</span>要確認（現時点では自動収集できない項目）</div>
-      <div class="note">以下は自動では取得できないため、Googleビジネスプロフィールの管理画面でご自身の設定をご確認ください（いずれもMEOで重要です）。</div>
-      <ul class="checklist">${d.unverified.map(u => `<li>${esc(u)}</li>`).join("")}</ul>
+  // ✨ あなたの店の強み（高スコアのカテゴリ＋良好な実データ）
+  const strong = [];
+  [...d.profile.categories].sort((a, b) => (b.score / b.max) - (a.score / a.max))
+    .forEach(c => { if (c.score / c.max >= 0.8) strong.push(SHORT[c.key] || c.label); });
+  if (d.verified === true) strong.push("オーナー認証済み");
+  if (d.photosCount != null && d.photosCount >= (d.recPhotos || 200)) strong.push("写真が充実");
+  if (d.reviewActivity && d.reviewActivity.latestDays != null && d.reviewActivity.latestDays <= 30) strong.push("クチコミが新しい");
+  const strongHTML = strong.length ? `
+    <div class="glass strengths-card">
+      <div class="g-head"><span class="g-ico">✨</span>あなたの店の強み</div>
+      <div class="str-tags">${strong.slice(0, 6).map(s => `<span class="str-tag">${esc(s)}</span>`).join("")}</div>
+      <div class="note">これらは維持しつつ、クチコミ・投稿で積極的にアピールすると効果的です。</div>
     </div>` : "";
 
+
+  const compRow = (name, rating, reviews, index, isYou) => `
+    <div class="comp ${isYou ? "you" : ""}">
+      <div class="comp-top"><span class="comp-name">${esc(name)}${isYou ? ' <small>(調査対象)</small>' : ""}</span><span class="comp-idx">知名度 ${index}</span></div>
+      ${(rating != null || reviews != null) ? `<div class="comp-meta">${rating != null ? `★${rating}` : ""}${reviews != null ? ` ・ クチコミ${reviews}件` : ""}</div>` : ""}
+      <div class="comp-bar"><i data-w="${Math.max(4, Math.min(100, index))}"></i></div>
+    </div>`;
   const ranking = d.ranking ? `
     <div class="glass">
       <div class="g-head"><span class="g-ico">📊</span>検索評価（想定）— 近隣${d.ranking.total}件中 ${d.ranking.rank}位相当</div>
       <div class="note">※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した「近隣同業内での知名度の相対値」を示します。</div>
-      <div class="comp you">${esc(d.name)}<small> (調査対象)</small><span>知名度 ${d.prominence}</span></div>
-      ${d.ranking.competitors.slice(0, 7).map(c =>
-        `<div class="comp">${esc(c.name)} ★${c.rating ?? "-"} / 口コミ${c.reviews}<span>知名度 ${c.index}</span></div>`).join("")}
+      ${compRow(d.name, null, null, d.prominence, true)}
+      ${d.ranking.competitors.slice(0, 7).map(c => compRow(c.name, c.rating, c.reviews, c.index, false)).join("")}
     </div>` : `
     <div class="glass"><div class="g-head"><span class="g-ico">📊</span>検索評価（想定）</div>
       <div class="note">※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した知名度の相対値です。</div>
-      <div class="comp you">${esc(d.name)}<small> (調査対象)</small><span>知名度指数 ${d.prominence}</span></div></div>`;
+      ${compRow(d.name, null, null, d.prominence, true)}</div>`;
 
   $("result-view").innerHTML = `
     <div class="report-title"><span class="g-ico">📋</span>診断結果レポート</div>
@@ -239,11 +251,11 @@ function renderResult(d) {
       </div>
     </div>
 
+    ${strongHTML}
+
     ${ranking}
 
     ${predHTML}
-
-    ${unverifiedHTML}
 
     <div class="glass share">
       <div class="g-head"><span class="g-ico">📤</span>結果をシェア</div>
@@ -261,7 +273,7 @@ function renderResult(d) {
       <button class="navbtn top" onclick="goTop()">🏠 TOPへ戻る</button>
     </div>
 
-    <div class="foot">Supervised &amp; Powered by SearchMania ・ もっと詳しく改善したい方はこちら</div>`;
+    <div class="foot">Supervised &amp; Powered by <a href="https://search-mania.net/" target="_blank" rel="noopener">SearchMania</a> ・ <a href="https://search-mania.net/" target="_blank" rel="noopener">もっと詳しく改善したい方はこちら</a></div>`;
 
   // シェアデータ
   const url = location.origin + "/?" + new URLSearchParams({ name: d.name, area: d.area, compare: d._compare ? "1" : "0" }).toString();
@@ -273,6 +285,7 @@ function renderResult(d) {
     const ring = document.querySelector(".donut-val");
     if (ring) { const C = parseFloat(ring.getAttribute("stroke-dasharray")); ring.style.strokeDashoffset = (C * (1 - d.profile.total / 100)).toFixed(1); }
     const rv = document.querySelector(".radar-val"); if (rv) rv.classList.add("in");
+    document.querySelectorAll(".comp-bar i").forEach(el => { el.style.width = el.dataset.w + "%"; });
   });
 }
 
