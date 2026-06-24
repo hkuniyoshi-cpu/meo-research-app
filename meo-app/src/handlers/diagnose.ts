@@ -35,7 +35,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
-  const cacheKey = `diag:v20:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  const cacheKey = `diag:v21:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -167,6 +167,37 @@ export function trimAddress(a: string): string {
 }
 
 /**
+ * 業種・業態を分類し、アクションプランで使う「業種に合った例文」を返す。
+ * Places の primaryType / types からカテゴリを推定（飲食・美容・医療・宿泊・士業/専門サービス等）。
+ * limitedAttrs=true の業種（ITコンサル等の専門サービス）は、そもそもGBPで設定できる属性が少ないため、
+ * キャッシュレス/Wi-Fi 等の飲食・小売向け属性を勧めない文言にする。
+ */
+export interface BizProfile { kind: string; photos: string; attrs: string; subcat: string; limitedAttrs: boolean; }
+export function bizProfile(primaryType: string | undefined, types: string[]): BizProfile {
+  const ts = [primaryType, ...(types || [])].filter(Boolean).map(t => String(t).toLowerCase());
+  const has = (re: RegExp) => ts.some(t => re.test(t));
+  if (has(/restaurant|food|cafe|bar\b|bakery|meal_|izakaya|ramen|sushi|diner|pub|brewery/))
+    return { kind: "food", photos: "料理・店内・外観・スタッフ・メニュー表", attrs: "テイクアウト・予約可・各種キャッシュレス決済・Wi-Fiなど", subcat: "例：居酒屋＋宴会場、カフェ＋ケーキ店", limitedAttrs: false };
+  if (has(/hair|beauty|salon|spa\b|nail|barber|massage|esthetic|eyelash/))
+    return { kind: "beauty", photos: "施術例（ビフォー/アフター）・店内・スタッフ・メニュー表・外観", attrs: "予約可・各種キャッシュレス決済・個室・駐車場など", subcat: "例：美容室＋ヘッドスパ、ネイルサロン＋まつげエクステ", limitedAttrs: false };
+  if (has(/dentist|doctor|hospital|clinic|health|physio|chiropract|pharmacy|medical|veterinar/))
+    return { kind: "medical", photos: "院内・外観・スタッフ・設備・受付の様子", attrs: "予約可・バリアフリー・駐車場・各種保険対応など", subcat: "例：整骨院＋鍼灸院、歯科＋小児歯科", limitedAttrs: false };
+  if (has(/lodging|hotel|motel|resort|guest_house|hostel|ryokan|inn\b/))
+    return { kind: "lodging", photos: "客室・外観・館内設備・周辺・食事", attrs: "駐車場・Wi-Fi・チェックイン/アウト時間・対応言語など", subcat: "例：ホテル＋宴会場、旅館＋日帰り温泉", limitedAttrs: false };
+  if (has(/gym|fitness|yoga|sports_|stadium|dance|martial/))
+    return { kind: "fitness", photos: "設備・館内・トレーニング/レッスン風景・スタッフ", attrs: "駐車場・更衣室/シャワー・見学体験可・キャッシュレス決済など", subcat: "例：ジム＋パーソナル、ヨガ＋ピラティス", limitedAttrs: false };
+  if (has(/car_|auto|repair|gas_station|car_dealer|moving|laundr/))
+    return { kind: "service-shop", photos: "外観・店内/作業場・作業風景・スタッフ・実績例", attrs: "駐車場・キャッシュレス決済・見積無料・即日対応など", subcat: "例：整備＋車検、クリーニング＋宅配", limitedAttrs: false };
+  if (has(/store|shop|market|retail|clothing|grocery|convenience|book|furniture|florist|jewelry|electronics/))
+    return { kind: "retail", photos: "商品・売場/店内・外観・陳列・スタッフ", attrs: "駐車場・各種キャッシュレス決済・通販/宅配対応など", subcat: "例：物販＋修理対応、小売＋カフェ併設", limitedAttrs: false };
+  if (has(/consult|lawyer|account|finance|insurance|real_estate|estate_agent|corporate_office|software|marketing|design|web_|advertis|legal|tax|notary|architect|engineer|agency|company|office|it_|technology|telecom/))
+    return { kind: "professional", photos: "オフィス外観・スタッフ・サービス内容や実績の資料・セミナー/打合せの様子", attrs: "オンライン相談対応・対応エリア・駐車場など、該当する項目", subcat: "例：ITコンサル＋システム開発、税理士＋経営コンサル", limitedAttrs: true };
+  if (has(/school|education|tutor|university|training|lesson/))
+    return { kind: "education", photos: "教室/校舎・授業風景・講師・教材・外観", attrs: "オンライン対応・駐車場・体験/見学可など、該当する項目", subcat: "例：学習塾＋オンライン講座、英会話＋資格対策", limitedAttrs: true };
+  return { kind: "default", photos: "外観・内観・スタッフ・提供サービスの様子", attrs: "駐車場・オンライン対応など、業種に該当する項目", subcat: "提供サービスに合う副カテゴリ", limitedAttrs: true };
+}
+
+/**
  * 実データで「確実に判定できる」欠落・不足のみから改善ポイントを生成し、弱いカテゴリ順に並べる。
  * enrichedが渡された場合はリアルデータ（投稿頻度・返信率・写真数・属性充実度等）も活用する。
  */
@@ -184,13 +215,14 @@ function buildTips(
     return c ? c.score / c.max : 1;
   };
   const items: { r: number; title: string; detail: string }[] = [];
+  const bp = bizProfile(p.primaryType, p.types);
 
   // ---- 基本情報 ----
   if (!p.websiteUri) items.push({ r: ratio("nap"), title: "Webサイト/予約リンクを登録", detail: "公式サイト・SNS・ネット予約のリンクが未登録です。登録すると情報の信頼性が上がり、来店前のユーザーを取りこぼしません。" });
   if (!p.nationalPhoneNumber) items.push({ r: ratio("nap"), title: "電話番号を登録", detail: "電話番号が未登録です。問い合わせ・予約の導線として必ず登録しましょう。" });
 
   if (p.types.filter(t => t !== p.primaryType).length === 0)
-    items.push({ r: ratio("category"), title: "副カテゴリを追加", detail: "主カテゴリだけになっています。提供サービスに合う副カテゴリ（例：居酒屋＋宴会場、カフェ＋ケーキ店）を追加すると、関連キーワードでの露出が広がります。" });
+    items.push({ r: ratio("category"), title: "副カテゴリを追加", detail: `主カテゴリだけになっています。提供サービスに合う副カテゴリ（${bp.subcat}）を追加すると、関連キーワードでの露出が広がります。` });
 
   if (p.userRatingCount < 30)
     items.push({ r: ratio("reviews"), title: "クチコミ件数を増やす", detail: `現在${p.userRatingCount}件。来店時の一声やレジ横のQR・カードでレビュー依頼を仕組み化しましょう。件数は上位表示の主要因です。` });
@@ -202,15 +234,17 @@ function buildTips(
   if (e) {
     const d = daysSinceLatestPost(e.posts, now);
     if (e.posts.length === 0)
-      items.push({ r: ratio("hours"), title: "最新情報の投稿を始める", detail: "前回調査時点で『最新情報』の投稿が確認できませんでした。週1回を目安に、季節メニュー・イベント・キャンペーン・臨時休業などを投稿しましょう。投稿の鮮度は検索順位に直結します。" });
+      items.push({ r: ratio("hours"), title: "最新情報の投稿を始める", detail: "前回調査時点で『最新情報』の投稿が確認できませんでした。週1回を目安に、お知らせ・実績/事例・キャンペーン・季節の情報・臨時休業などを投稿しましょう。投稿の鮮度は検索順位に直結します。" });
     else if (d > 60)
       items.push({ r: ratio("hours"), title: "最新情報の投稿を継続", detail: `前回調査時点で最新投稿が約${Math.round(d)}日前でした。週1回を目安に投稿を続けましょう（既に再開済みなら次回調査で反映されます）。鮮度が順位に効きます。` });
 
     if (e.photosCount < REC_PHOTOS)
-      items.push({ r: ratio("photos"), title: "写真を増やす", detail: `現在${e.photosCount}枚。料理・店内・外観・スタッフ・メニュー表など、推奨${REC_PHOTOS}枚以上を目安に高画質写真を追加・定期更新しましょう。写真量は閲覧数とクリック率に直結します。` });
+      items.push({ r: ratio("photos"), title: "写真を増やす", detail: `現在${e.photosCount}枚。${bp.photos}など、推奨${REC_PHOTOS}枚以上を目安に高画質写真を追加・定期更新しましょう。写真量は閲覧数とクリック率に直結します。` });
 
     if (e.attributeTotal > 0 && e.attributeFilled / e.attributeTotal < 0.5)
-      items.push({ r: ratio("extras"), title: "属性を充実させる", detail: "決済方法（各種キャッシュレス）・バリアフリー・予約可・Wi-Fiなど、未設定の属性を追加しましょう。『条件で絞り込む』検索にヒットしやすくなります。" });
+      items.push({ r: ratio("extras"), title: "属性を充実させる", detail: bp.limitedAttrs
+        ? `${bp.attrs}など、業種に該当する属性があれば登録しましょう。${bp.kind === "professional" || bp.kind === "education" ? "サービス業はそもそも設定できる属性が少なめですが、" : ""}埋めるほど『条件で絞り込む』検索にヒットしやすくなります。`
+        : `${bp.attrs}など、未設定の属性を追加しましょう。『条件で絞り込む』検索にヒットしやすくなります。` });
 
     const rpsValues = Object.values(e.reviewsPerScore);
     const rpsTotal = rpsValues.reduce((a, b) => a + b, 0);
@@ -219,10 +253,9 @@ function buildTips(
       items.push({ r: ratio("reviews"), title: "低評価への対応", detail: `★1〜2の割合がやや高めです（${Math.round((low / rpsTotal) * 100)}%）。共通する不満点を特定し、運用改善＋誠実な返信で印象を回復しましょう。` });
   } else {
     if (p.photoCount < 10)
-      items.push({ r: ratio("photos"), title: "写真を増やす", detail: `現在${p.photoCount}枚。料理・店内・外観などの写真を追加しましょう。` });
-    const isFood = [p.primaryType, ...p.types].some(t => !!t && /restaurant|food|cafe|bar|bakery|meal_/.test(t));
-    if (isFood && p.attributeCount < 2)
-      items.push({ r: ratio("extras"), title: "属性を登録", detail: "テイクアウト・予約可・店内飲食などの属性を登録しましょう。" });
+      items.push({ r: ratio("photos"), title: "写真を増やす", detail: `現在${p.photoCount}枚。${bp.photos}などの写真を追加しましょう。` });
+    if (!bp.limitedAttrs && p.attributeCount < 2)
+      items.push({ r: ratio("extras"), title: "属性を登録", detail: `${bp.attrs}など、業種に該当する属性を登録しましょう。` });
   }
 
   if (activity && activity.latestDays != null && activity.latestDays > 60)

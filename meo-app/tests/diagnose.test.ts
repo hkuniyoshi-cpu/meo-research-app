@@ -1,5 +1,32 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { handleDiagnose, trimAddress, type Env } from "../src/handlers/diagnose";
+import { handleDiagnose, trimAddress, bizProfile, type Env } from "../src/handlers/diagnose";
+
+describe("bizProfile", () => {
+  it("飲食は料理・キャッシュレス系の例文", () => {
+    const b = bizProfile("restaurant", ["restaurant", "cafe"]);
+    expect(b.kind).toBe("food");
+    expect(b.photos).toContain("料理");
+    expect(b.limitedAttrs).toBe(false);
+  });
+  it("ITコンサル等の専門サービスは飲食属性を勧めず limitedAttrs=true", () => {
+    const b = bizProfile("consultant", ["consultant", "corporate_office"]);
+    expect(b.kind).toBe("professional");
+    expect(b.limitedAttrs).toBe(true);
+    expect(b.attrs).not.toContain("キャッシュレス");
+    expect(b.attrs).not.toContain("Wi-Fi");
+    expect(b.photos).toContain("オフィス");
+  });
+  it("医療は院内・保険対応の例文", () => {
+    const b = bizProfile("dentist", ["dentist"]);
+    expect(b.kind).toBe("medical");
+    expect(b.attrs).toContain("保険");
+  });
+  it("未知の業種は default（限定属性）", () => {
+    const b = bizProfile("point_of_interest", ["point_of_interest"]);
+    expect(b.kind).toBe("default");
+    expect(b.limitedAttrs).toBe(true);
+  });
+});
 
 describe("trimAddress", () => {
   it("郵便番号・国名を除去し丁目まで残す", () => {
