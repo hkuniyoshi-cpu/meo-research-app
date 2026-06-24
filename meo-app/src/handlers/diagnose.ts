@@ -35,7 +35,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
-  const cacheKey = `diag:v21:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  const cacheKey = `diag:v22:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -173,28 +173,32 @@ export function trimAddress(a: string): string {
  * キャッシュレス/Wi-Fi 等の飲食・小売向け属性を勧めない文言にする。
  */
 export interface BizProfile { kind: string; photos: string; attrs: string; subcat: string; limitedAttrs: boolean; }
+
+// 業種判定ルール（上から順に評価。具体的な業種を先に置く）。Places の type は英語スネークケース。
+const BIZ_RULES: { re: RegExp; p: BizProfile }[] = [
+  { re: /laundr|dry_clean|coin_/, p: { kind: "laundromat", photos: "店内・設備（洗濯機/乾燥機）・外観・駐車場・利用案内", attrs: "24時間営業・駐車場・各種キャッシュレス決済・Wi-Fiなど", subcat: "例：コインランドリー＋宅配クリーニング", limitedAttrs: false } },
+  { re: /car_|\bauto|vehicle|gas_station|motorcycle|\btire|car_wash|car_repair|car_dealer/, p: { kind: "auto", photos: "車両・店舗/工場外観・作業場・作業風景・スタッフ", attrs: "駐車場・各種キャッシュレス決済・見積無料・代車あり・即日対応など", subcat: "例：自動車整備＋車検、販売＋買取", limitedAttrs: false } },
+  { re: /real_estate|estate_agent/, p: { kind: "real_estate", photos: "取扱物件・店舗外観/内観・スタッフ・周辺環境", attrs: "駐車場・オンライン相談対応・対応エリア・営業時間など", subcat: "例：不動産売買＋賃貸仲介、賃貸管理＋リフォーム", limitedAttrs: false } },
+  { re: /contractor|plumber|electrician|painter|roofing|locksmith|moving_company|cleaning|pest_control|handyman|renovation|construction|exterminat/, p: { kind: "home-service", photos: "施工/対応事例（ビフォー/アフター）・スタッフ・作業風景・自社/店舗外観", attrs: "見積無料・対応エリア・オンライン相談対応・駐車場など", subcat: "例：外壁塗装＋リフォーム、ハウスクリーニング＋エアコン洗浄", limitedAttrs: false } },
+  { re: /lodging|hotel|motel|resort|guest_house|hostel|ryokan|\binn\b|bed_and_breakfast|campground|cottage|capsule/, p: { kind: "lodging", photos: "客室・外観・館内設備・周辺・食事", attrs: "駐車場・Wi-Fi・チェックイン/アウト時間・対応言語など", subcat: "例：ホテル＋宴会場、旅館＋日帰り温泉", limitedAttrs: false } },
+  { re: /dentist|doctor|hospital|clinic|health|physio|chiropract|pharmacy|drugstore|medical|veterinar|dental|nursing|therapist|acupunctur/, p: { kind: "medical", photos: "院内・外観・スタッフ・設備・受付の様子", attrs: "予約可・バリアフリー・駐車場・各種保険対応など", subcat: "例：整骨院＋鍼灸院、歯科＋小児歯科", limitedAttrs: false } },
+  { re: /hair|beauty|salon|\bspa\b|nail|barber|massage|esthetic|eyelash|tanning|sauna|skin_care/, p: { kind: "beauty", photos: "施術例（ビフォー/アフター）・店内・スタッフ・メニュー表・外観", attrs: "予約可・各種キャッシュレス決済・個室・駐車場など", subcat: "例：美容室＋ヘッドスパ、ネイルサロン＋まつげエクステ", limitedAttrs: false } },
+  { re: /gym|fitness|yoga|sports_|stadium|dance|martial|swimming|pilates|crossfit|golf/, p: { kind: "fitness", photos: "設備・館内・トレーニング/レッスン風景・スタッフ", attrs: "駐車場・更衣室/シャワー・見学体験可・キャッシュレス決済など", subcat: "例：ジム＋パーソナル、ヨガ＋ピラティス", limitedAttrs: false } },
+  { re: /restaurant|\bfood|cafe|\bbar\b|bakery|meal_|izakaya|ramen|sushi|diner|\bpub\b|brewery|coffee|ice_cream|confectioner|\bdeli\b/, p: { kind: "food", photos: "料理・店内・外観・スタッフ・メニュー表", attrs: "テイクアウト・予約可・各種キャッシュレス決済・Wi-Fiなど", subcat: "例：居酒屋＋宴会場、カフェ＋ケーキ店", limitedAttrs: false } },
+  { re: /school|education|tutor|university|preschool|kindergarten|training|lesson|library|cram|juku/, p: { kind: "education", photos: "教室/校舎・授業/レッスン風景・講師・教材・外観", attrs: "オンライン対応・駐車場・体験/見学可など、該当する項目", subcat: "例：学習塾＋オンライン講座、英会話＋資格対策", limitedAttrs: true } },
+  { re: /night_club|nightclub|karaoke|cinema|movie_theater|amusement|bowling|casino|arcade|internet_cafe|game_center|\btheater\b/, p: { kind: "entertainment", photos: "店内・設備・イベント/プレイ風景・外観・メニュー", attrs: "予約可・駐車場・各種キャッシュレス決済・個室/貸切可など", subcat: "例：カラオケ＋飲食、バー＋イベントスペース", limitedAttrs: false } },
+  { re: /store|\bshop|market|retail|clothing|grocery|supermarket|convenience|book|furniture|electronics|jewelry|florist|hardware|pet_store|liquor|department|\bmall\b|boutique|bicycle|optician/, p: { kind: "retail", photos: "商品・売場/店内・外観・陳列・スタッフ", attrs: "駐車場・各種キャッシュレス決済・通販/宅配対応など", subcat: "例：物販＋修理対応、小売＋カフェ併設", limitedAttrs: false } },
+  { re: /consult|lawyer|account|finance|insurance|corporate_office|software|marketing|design|web_|advertis|legal|\btax\b|notary|architect|engineer|agency|\bcompany\b|\boffice\b|it_|technology|telecom|\bbank\b|attorney|recruit|employment/, p: { kind: "professional", photos: "オフィス外観・スタッフ・サービス内容や実績の資料・セミナー/打合せの様子", attrs: "オンライン相談対応・対応エリア・駐車場など、該当する項目", subcat: "例：ITコンサル＋システム開発、税理士＋経営コンサル", limitedAttrs: true } },
+];
+const BIZ_DEFAULT: BizProfile = { kind: "default", photos: "外観・内観・スタッフ・提供サービスの様子", attrs: "駐車場・オンライン対応など、業種に該当する項目", subcat: "提供サービスに合う副カテゴリ", limitedAttrs: true };
+
 export function bizProfile(primaryType: string | undefined, types: string[]): BizProfile {
   const ts = [primaryType, ...(types || [])].filter(Boolean).map(t => String(t).toLowerCase());
-  const has = (re: RegExp) => ts.some(t => re.test(t));
-  if (has(/restaurant|food|cafe|bar\b|bakery|meal_|izakaya|ramen|sushi|diner|pub|brewery/))
-    return { kind: "food", photos: "料理・店内・外観・スタッフ・メニュー表", attrs: "テイクアウト・予約可・各種キャッシュレス決済・Wi-Fiなど", subcat: "例：居酒屋＋宴会場、カフェ＋ケーキ店", limitedAttrs: false };
-  if (has(/hair|beauty|salon|spa\b|nail|barber|massage|esthetic|eyelash/))
-    return { kind: "beauty", photos: "施術例（ビフォー/アフター）・店内・スタッフ・メニュー表・外観", attrs: "予約可・各種キャッシュレス決済・個室・駐車場など", subcat: "例：美容室＋ヘッドスパ、ネイルサロン＋まつげエクステ", limitedAttrs: false };
-  if (has(/dentist|doctor|hospital|clinic|health|physio|chiropract|pharmacy|medical|veterinar/))
-    return { kind: "medical", photos: "院内・外観・スタッフ・設備・受付の様子", attrs: "予約可・バリアフリー・駐車場・各種保険対応など", subcat: "例：整骨院＋鍼灸院、歯科＋小児歯科", limitedAttrs: false };
-  if (has(/lodging|hotel|motel|resort|guest_house|hostel|ryokan|inn\b/))
-    return { kind: "lodging", photos: "客室・外観・館内設備・周辺・食事", attrs: "駐車場・Wi-Fi・チェックイン/アウト時間・対応言語など", subcat: "例：ホテル＋宴会場、旅館＋日帰り温泉", limitedAttrs: false };
-  if (has(/gym|fitness|yoga|sports_|stadium|dance|martial/))
-    return { kind: "fitness", photos: "設備・館内・トレーニング/レッスン風景・スタッフ", attrs: "駐車場・更衣室/シャワー・見学体験可・キャッシュレス決済など", subcat: "例：ジム＋パーソナル、ヨガ＋ピラティス", limitedAttrs: false };
-  if (has(/car_|auto|repair|gas_station|car_dealer|moving|laundr/))
-    return { kind: "service-shop", photos: "外観・店内/作業場・作業風景・スタッフ・実績例", attrs: "駐車場・キャッシュレス決済・見積無料・即日対応など", subcat: "例：整備＋車検、クリーニング＋宅配", limitedAttrs: false };
-  if (has(/store|shop|market|retail|clothing|grocery|convenience|book|furniture|florist|jewelry|electronics/))
-    return { kind: "retail", photos: "商品・売場/店内・外観・陳列・スタッフ", attrs: "駐車場・各種キャッシュレス決済・通販/宅配対応など", subcat: "例：物販＋修理対応、小売＋カフェ併設", limitedAttrs: false };
-  if (has(/consult|lawyer|account|finance|insurance|real_estate|estate_agent|corporate_office|software|marketing|design|web_|advertis|legal|tax|notary|architect|engineer|agency|company|office|it_|technology|telecom/))
-    return { kind: "professional", photos: "オフィス外観・スタッフ・サービス内容や実績の資料・セミナー/打合せの様子", attrs: "オンライン相談対応・対応エリア・駐車場など、該当する項目", subcat: "例：ITコンサル＋システム開発、税理士＋経営コンサル", limitedAttrs: true };
-  if (has(/school|education|tutor|university|training|lesson/))
-    return { kind: "education", photos: "教室/校舎・授業風景・講師・教材・外観", attrs: "オンライン対応・駐車場・体験/見学可など、該当する項目", subcat: "例：学習塾＋オンライン講座、英会話＋資格対策", limitedAttrs: true };
-  return { kind: "default", photos: "外観・内観・スタッフ・提供サービスの様子", attrs: "駐車場・オンライン対応など、業種に該当する項目", subcat: "提供サービスに合う副カテゴリ", limitedAttrs: true };
+  // primaryType を優先的に評価し、無ければ types 全体で判定
+  for (const source of [primaryType ? [String(primaryType).toLowerCase()] : [], ts]) {
+    for (const { re, p } of BIZ_RULES) if (source.some(t => re.test(t))) return p;
+  }
+  return BIZ_DEFAULT;
 }
 
 /**

@@ -26,6 +26,30 @@ describe("bizProfile", () => {
     expect(b.kind).toBe("default");
     expect(b.limitedAttrs).toBe(true);
   });
+  it("宿泊業は lodging", () => {
+    expect(bizProfile("hotel", ["hotel", "lodging"]).kind).toBe("lodging");
+    expect(bizProfile("ryokan", ["lodging"]).kind).toBe("lodging");
+  });
+  it("不動産は real_estate（物件写真の例）", () => {
+    const b = bizProfile("real_estate_agency", ["real_estate_agency"]);
+    expect(b.kind).toBe("real_estate");
+    expect(b.photos).toContain("物件");
+  });
+  it("コインランドリーは laundromat（洗濯機の例・店舗誤判定しない）", () => {
+    const b = bizProfile("laundry", ["laundry", "point_of_interest"]);
+    expect(b.kind).toBe("laundromat");
+    expect(b.attrs).toContain("24時間");
+  });
+  it("自動車整備は auto", () => {
+    expect(bizProfile("car_repair", ["car_repair"]).kind).toBe("auto");
+  });
+  it("外壁塗装/リフォームは home-service", () => {
+    expect(bizProfile("painter", ["general_contractor"]).kind).toBe("home-service");
+  });
+  it("primaryTypeを優先（飲食店だがtypesに店舗系が混在）", () => {
+    // primaryType=restaurant を優先し food に。types先頭のstoreに引っ張られない
+    expect(bizProfile("restaurant", ["store", "restaurant"]).kind).toBe("food");
+  });
 });
 
 describe("trimAddress", () => {
