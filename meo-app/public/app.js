@@ -152,6 +152,23 @@ function renderResult(d) {
   const lockedPlan = d.tipsLockedCount > 0
     ? `<li class="more">＋ほか${d.tipsLockedCount}項目の改善で、さらに上位が狙えます</li>` : "";
 
+  // 実データ補足チップ（Outscraper enrichmentがある時のみ）
+  const chips = [];
+  if (d.verified === true) chips.push(`<span class="chip ok">✓ オーナー認証済み</span>`);
+  else if (d.verified === false) chips.push(`<span class="chip warn">未認証の可能性</span>`);
+  if (d.photosCount != null) chips.push(`<span class="chip">📷 写真 ${d.photosCount}枚</span>`);
+  if (d.replyRate != null) chips.push(`<span class="chip">💬 口コミ返信率 ${d.replyRate}%</span>`);
+  if (d.latestPostDays != null) chips.push(`<span class="chip">📣 最終投稿 ${d.latestPostDays}日前</span>`);
+  const chipsHTML = chips.length ? `<div class="chips">${chips.join("")}</div>` : "";
+
+  // 要確認（APIで自動判定できない重要項目）
+  const unverifiedHTML = (d.unverified && d.unverified.length) ? `
+    <div class="glass">
+      <div class="g-head"><span class="g-ico">📌</span>要確認（自動判定できない重要項目）</div>
+      <div class="note">以下はAPIで自動取得できないため、Googleビジネスプロフィールの管理画面でご自身の設定をご確認ください（いずれもMEOで重要です）。</div>
+      <ul class="checklist">${d.unverified.map(u => `<li>${esc(u)}</li>`).join("")}</ul>
+    </div>` : "";
+
   const ranking = d.ranking ? `
     <div class="glass">
       <div class="g-head"><span class="g-ico">📊</span>検索評価（想定）— 近隣${d.ranking.total}件中 ${d.ranking.rank}位相当</div>
@@ -167,6 +184,7 @@ function renderResult(d) {
   $("result-view").innerHTML = `
     <div class="report-title"><span class="g-ico">📋</span>診断結果レポート</div>
     <div class="report-sub">${esc(d.name)} ／ ${esc(d.area)}</div>
+    ${chipsHTML}
 
     <div class="report-grid">
       <div class="glass score-card">
@@ -194,6 +212,8 @@ function renderResult(d) {
     </div>
 
     ${ranking}
+
+    ${unverifiedHTML}
 
     <div class="glass share">
       <div class="g-head"><span class="g-ico">📤</span>結果をシェア</div>

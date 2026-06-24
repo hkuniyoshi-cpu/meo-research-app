@@ -156,3 +156,15 @@ h1 { font-size:24px; margin:8px 0 18px; line-height:1.4; }
 .navbtn:active { transform:scale(.96); }
 .navbtn.re { background:linear-gradient(135deg,#7db8ff,#4f93f0); color:#fff; }
 .navbtn.top { background:rgba(255,255,255,.75); color:#1a73e8; border:1px solid rgba(120,160,210,.4); }
+
+/* 実データ補足チップ */
+.chips { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:0 0 14px; }
+.chip { font-size:12px; font-weight:700; color:#2a5085; background:rgba(255,255,255,.6); border:1px solid rgba(120,160,210,.4); border-radius:999px; padding:6px 12px; }
+.chip.ok { color:#1e7e34; background:rgba(52,168,83,.14); border-color:rgba(52,168,83,.4); }
+.chip.warn { color:#9a6b00; background:rgba(251,188,5,.18); border-color:rgba(251,188,5,.5); }
+
+/* 要確認チェックリスト */
+.checklist { margin:6px 0 0; padding:0; list-style:none; }
+.checklist li { font-size:13px; color:#1c3a63; padding:8px 0 8px 26px; position:relative; border-bottom:1px dashed rgba(120,160,210,.25); }
+.checklist li:last-child { border-bottom:0; }
+.checklist li::before { content:"□"; position:absolute; left:4px; color:#5b7aa3; font-weight:900; }
