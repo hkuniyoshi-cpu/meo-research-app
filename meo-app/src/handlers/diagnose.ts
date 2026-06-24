@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v17: 出力前の再チェック（不完全なら再取得）＋今後の見通し予測を追加。旧キャッシュ無効化
-  const cacheKey = `diag:v17:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
+  const cacheKey = `diag:v18:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -62,6 +62,12 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
       } catch {
         // 取れた分だけ使う
       }
+    }
+
+    // 実店舗ページのクチコミ件数/評価を正として採用（Placesの曖昧マッチで件数がズレるのを防ぐ）
+    if (enriched && enriched.reviewCount != null) {
+      details.userRatingCount = enriched.reviewCount;
+      if (enriched.rating != null) details.rating = enriched.rating;
     }
 
     const profile = scoreProfile(details, weights, new Date(), enriched ?? undefined);

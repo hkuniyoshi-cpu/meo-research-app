@@ -55,7 +55,7 @@ export async function findCompetitors(
       "X-Goog-Api-Key": apiKey,
       "X-Goog-FieldMask": SEARCH_MASK,
     },
-    body: JSON.stringify({ textQuery: q, languageCode: "ja", maxResultCount: 12 }),
+    body: JSON.stringify({ textQuery: q, languageCode: "ja", maxResultCount: 20 }),
   });
   if (!resp.ok) throw new Error(`competitors search failed: ${resp.status}`);
   const data: any = await resp.json();

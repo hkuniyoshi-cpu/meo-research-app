@@ -104,6 +104,8 @@ describe("scoreProfile with Enriched", () => {
       posts: [],
       photosCount: 0,
       verified: false,
+      reviewCount: null,
+      rating: null,
       reviewsPerScore: {},
       attributeFilled: 0,
       attributeTotal: 0,

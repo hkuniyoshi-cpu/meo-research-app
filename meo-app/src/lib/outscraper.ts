@@ -5,6 +5,8 @@ export interface Enriched {
   posts: { timestamp: number }[];        // Unix seconds
   photosCount: number;
   verified: boolean;
+  reviewCount: number | null;            // 実店舗ページのクチコミ総数（Placesの曖昧マッチより信頼）
+  rating: number | null;                 // 実店舗ページの平均評価
   reviewsPerScore: Record<string, number>;
   attributeFilled: number;               // about内で true の属性数
   attributeTotal: number;                // about内の全属性数
@@ -41,6 +43,8 @@ export async function fetchEnriched(name: string, area: string, apiKey: string, 
     posts: (p.posts ?? []).filter((x: any) => x && typeof x.timestamp === "number").map((x: any) => ({ timestamp: x.timestamp })),
     photosCount: typeof p.photos_count === "number" ? p.photos_count : 0,
     verified: !!p.verified,
+    reviewCount: typeof p.reviews === "number" ? p.reviews : null,
+    rating: typeof p.rating === "number" ? p.rating : null,
     reviewsPerScore: p.reviews_per_score ?? {},
     attributeFilled: filled,
     attributeTotal: total,

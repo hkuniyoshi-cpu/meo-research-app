@@ -200,7 +200,7 @@ function renderResult(d) {
       <div class="g-head"><span class="g-ico">📊</span>検索評価（想定）— 近隣${d.ranking.total}件中 ${d.ranking.rank}位相当</div>
       <div class="note">※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した「近隣同業内での知名度の相対値」を示します。</div>
       <div class="comp you">${esc(d.name)}<small> (調査対象)</small><span>知名度 ${d.prominence}</span></div>
-      ${d.ranking.competitors.slice(0, 3).map(c =>
+      ${d.ranking.competitors.slice(0, 7).map(c =>
         `<div class="comp">${esc(c.name)} ★${c.rating ?? "-"} / 口コミ${c.reviews}<span>知名度 ${c.index}</span></div>`).join("")}
     </div>` : `
     <div class="glass"><div class="g-head"><span class="g-ico">📊</span>検索評価（想定）</div>
