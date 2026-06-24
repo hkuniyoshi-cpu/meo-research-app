@@ -210,16 +210,40 @@ a.brand { text-decoration:none; display:inline-block; }
 .planlist li.more { color:#5b7aa3; font-weight:700; }
 
 /* シェア */
-.share-btns { display:flex; flex-wrap:wrap; gap:8px; }
-.sh { border:0; cursor:pointer; font-weight:800; font-size:13px; color:#fff; padding:10px 16px; border-radius:14px;
-  box-shadow:3px 3px 9px rgba(80,130,200,.3),-2px -2px 6px rgba(255,255,255,.6); transition:transform .12s; }
-.sh:active { transform:scale(.95); }
-.sh-native { background:linear-gradient(135deg,#4285F4,#1a73e8); }
-.sh-line { background:#06C755; }
-.sh-x { background:#111; }
-.sh-copy { background:#FBBC05; color:#3a2d00; }
-.sh-img { background:linear-gradient(135deg,#34A853,#0f9d58); }
-.sh-toast { margin-top:10px; font-size:13px; font-weight:700; color:#1a73e8; }
+.share-btns { display:flex; flex-direction:column; gap:10px; }
+.sh-row { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.sh { position:relative; border:0; cursor:pointer; font-weight:800; font-size:13.5px; letter-spacing:.01em;
+  display:inline-flex; align-items:center; justify-content:center; gap:9px; padding:13px 16px; border-radius:16px;
+  transition:transform .16s cubic-bezier(.2,1,.3,1), box-shadow .16s, filter .16s; -webkit-tap-highlight-color:transparent; }
+.sh svg { width:18px; height:18px; flex:none; }
+.sh::after { content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45); }
+.sh:hover { transform:translateY(-2px); }
+.sh:active { transform:translateY(0) scale(.97); filter:saturate(1.05); }
+
+/* 主役：SNS共有（淡い青グラデ＋グロー） */
+.sh-primary { width:100%; padding:16px; font-size:15px; color:#fff;
+  background:linear-gradient(135deg,#5aa0ff 0%,#3b82f6 55%,#1a73e8 100%);
+  box-shadow:0 10px 22px -8px rgba(26,115,232,.7), 0 2px 6px rgba(26,115,232,.35); }
+.sh-primary:hover { box-shadow:0 16px 30px -8px rgba(26,115,232,.75), 0 3px 8px rgba(26,115,232,.4); }
+.sh-primary svg { width:20px; height:20px; }
+
+/* サブ：白グラスのピル（アイコンに差し色） */
+.sh-img, .sh-copy { color:#1c3a63; background:rgba(255,255,255,.78); backdrop-filter:blur(6px);
+  box-shadow:0 6px 16px -8px rgba(80,130,200,.55), inset 0 0 0 1px rgba(120,160,210,.35); }
+.sh-img:hover, .sh-copy:hover { background:rgba(255,255,255,.95); box-shadow:0 12px 22px -8px rgba(80,130,200,.6), inset 0 0 0 1px rgba(120,160,210,.5); }
+.sh-img svg { color:#0f9d58; }
+.sh-copy svg { color:#1a73e8; }
+
+/* ブランド色（LINE / X） */
+.sh-line { color:#fff; background:linear-gradient(135deg,#08d96a,#06C755);
+  box-shadow:0 10px 20px -8px rgba(6,199,85,.65), 0 2px 6px rgba(6,199,85,.3); }
+.sh-line:hover { box-shadow:0 15px 26px -8px rgba(6,199,85,.7), 0 3px 8px rgba(6,199,85,.35); }
+.sh-x { color:#fff; background:linear-gradient(135deg,#2b2b2b,#0a0a0a);
+  box-shadow:0 10px 20px -8px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.3); }
+.sh-x:hover { box-shadow:0 15px 26px -8px rgba(0,0,0,.6), 0 3px 8px rgba(0,0,0,.35); }
+
+.sh-toast { margin-top:12px; font-size:13px; font-weight:800; color:#1a73e8; text-align:center; }
 
 /* ナビ */
 .nav-btns { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:4px 0 8px; }

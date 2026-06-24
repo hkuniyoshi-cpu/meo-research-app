@@ -362,11 +362,28 @@ function renderResult(d) {
     <div class="glass share">
       <div class="g-head"><span class="g-ico">📤</span>結果をシェア</div>
       <div class="share-btns">
-        <button class="sh sh-native" onclick="shareNative()">スマホ / SNSで共有</button>
-        <button class="sh sh-img" onclick="saveImage()">🖼 画像で保存</button>
-        <button class="sh sh-line" onclick="shareLine()">LINE</button>
-        <button class="sh sh-x" onclick="shareX()">X</button>
-        <button class="sh sh-copy" onclick="copyShare()">リンクをコピー</button>
+        <button class="sh sh-primary" onclick="shareNative()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M5 12v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6"/></svg>
+          <span>スマホ / SNSで共有</span>
+        </button>
+        <div class="sh-row">
+          <button class="sh sh-img" onclick="saveImage()" aria-label="画像で保存">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-4.5-4.5L5 21"/></svg>
+            <span>画像で保存</span>
+          </button>
+          <button class="sh sh-line" onclick="shareLine()" aria-label="LINEで送る">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.5 3 2 6.7 2 11.2c0 4 3.6 7.4 8.4 8 .33.07.78.22.9.5.1.26.07.66.03.92l-.14.86c-.04.26-.2.99.88.54 1.08-.46 5.8-3.42 7.9-5.86C21.5 14.5 22 12.9 22 11.2 22 6.7 17.5 3 12 3zM8 13.6H6.2c-.26 0-.47-.21-.47-.47V9.5c0-.26.21-.47.47-.47s.47.21.47.47v3.16H8c.26 0 .47.21.47.47s-.21.47-.47.47zm1.8-.47c0 .26-.21.47-.47.47s-.47-.21-.47-.47V9.5c0-.26.21-.47.47-.47s.47.21.47.47v3.63zm4.5 0c0 .2-.13.38-.32.44a.5.5 0 0 1-.15.02c-.15 0-.29-.07-.38-.19l-1.86-2.53v2.26c0 .26-.21.47-.47.47s-.47-.21-.47-.47V9.5c0-.2.13-.38.32-.44.05-.02.1-.02.15-.02.15 0 .29.07.38.19l1.86 2.53V9.5c0-.26.21-.47.47-.47s.47.21.47.47v3.63zm3-2.29c.26 0 .47.21.47.47s-.21.47-.47.47h-1.32v.88h1.32c.26 0 .47.21.47.47s-.21.47-.47.47h-1.8c-.25 0-.46-.21-.46-.47V9.5c0-.26.21-.47.47-.47h1.8c.25 0 .46.21.46.47s-.21.47-.47.47h-1.32v.88h1.32z"/></svg>
+            <span>LINE</span>
+          </button>
+          <button class="sh sh-x" onclick="shareX()" aria-label="Xでポスト">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.3 8.3L23 22h-6.8l-5.3-6.9L4.8 22H1.7l7.8-8.9L1 2h6.9l4.8 6.4L18.9 2zm-1.2 18h1.9L7.1 4H5.1l12.6 16z"/></svg>
+            <span>ポスト</span>
+          </button>
+          <button class="sh sh-copy" onclick="copyShare()" aria-label="リンクをコピー">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>
+            <span>リンクをコピー</span>
+          </button>
+        </div>
       </div>
       <div id="sh-toast" class="sh-toast" hidden></div>
     </div>
