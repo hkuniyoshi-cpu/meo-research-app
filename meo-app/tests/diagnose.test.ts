@@ -21,6 +21,13 @@ describe("bizProfile", () => {
     expect(b.kind).toBe("medical");
     expect(b.attrs).toContain("保険");
   });
+  it("サロン系（美容/ネイル/まつげ/エステ/リラク/脱毛/足つぼ）は beauty", () => {
+    for (const t of ["beauty_salon", "hair_salon", "nail_salon", "eyelash_service",
+      "massage", "spa", "wellness_center", "tanning_studio", "makeup_artist", "foot_care", "hair_removal_service"]) {
+      expect(bizProfile(t, [t]).kind).toBe("beauty");
+    }
+    expect(bizProfile("beauty_salon", ["beauty_salon"]).photos).toContain("施術例");
+  });
   it("未知の業種は default（限定属性）", () => {
     const b = bizProfile("point_of_interest", ["point_of_interest"]);
     expect(b.kind).toBe("default");
