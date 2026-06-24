@@ -74,21 +74,32 @@ export function scoreProfile(p: PlaceData, w: IndustryWeights, now: Date, e?: En
     photos = clamp01(0.8 * Math.min(p.photoCount, 10) / 10 + (p.hasVideo ? 0.2 : 0));
   }
 
+  // 宿泊業は「営業時間」概念が薄く、Placesでも取得しづらい（チェックイン制）。営業時間欠如で過度に減点しない。
+  const isLodging = /lodging|hotel|motel|resort|ryokan|guest_house|hostel|\binn\b|bed_and_breakfast|capsule|cottage/
+    .test([p.primaryType, ...p.types].filter(Boolean).join(" ").toLowerCase());
+
   let hoursComp: number;
   if (e) {
-    const h = p.hasRegularHours ? 1 : 0;
     const d = daysSinceLatestPost(e.posts, now);
     const postFresh = d <= 30 ? 1 : d <= 90 ? 0.6 : d <= 180 ? 0.3 : 0;
-    hoursComp = 0.5 * h + 0.5 * postFresh;
+    if (isLodging) {
+      const h = p.hasRegularHours ? 1 : 0.6; // 取得できなくても0にしない（不可測を断定しない）
+      hoursComp = 0.4 * h + 0.6 * postFresh;
+    } else {
+      const h = p.hasRegularHours ? 1 : 0;
+      hoursComp = 0.5 * h + 0.5 * postFresh;
+    }
   } else {
     hoursComp = (p.hasRegularHours ? 0.7 : 0) + (p.hasSpecialHours ? 0.3 : 0);
   }
 
   let extras: number;
   if (e) {
-    // 属性は業種で総数が違うため「埋まっている割合」で評価（飲食=多い/ランドリー=少ない に非依存）
-    const attrComp = e.attributeTotal > 0 ? Math.min(1, e.attributeFilled / e.attributeTotal) : 0;
-    extras = clamp01(0.6 * attrComp + 0.2 * (e.hasReservation ? 1 : 0) + 0.2 * (e.hasMenuLink ? 1 : 0));
+    // 属性は「埋まっている件数」で評価（割合だと総数の多い業種=宿泊等が不当に低くなるため）。
+    // 予約/メニュー等のリンクは“あれば加点・無くても減点しない”（飲食以外に不利にならないように）。
+    const attrComp = Math.min(1, e.attributeFilled / 5);
+    const linkBonus = (e.hasReservation || e.hasMenuLink) ? 0.15 : 0;
+    extras = clamp01(0.85 * attrComp + linkBonus);
   } else {
     // 付加情報。editorialSummary(Googleが書く要約=オーナー設定の「ビジネスの説明文」ではない)は
     // Places APIでオーナー説明文の有無を判定できないため採点に使わない。

@@ -161,6 +161,25 @@ describe("scoreProfile with Enriched", () => {
     const h = r.categories.find(c => c.key === "hours");
     expect(h?.label).toBe("営業時間・最新情報");
   });
+
+  it("付加情報は属性『件数』で評価（総数が多くても割合で不当に下がらない）", () => {
+    // 6件埋まっていれば総数50でも満点級。割合(6/50=0.12)ではない。
+    const e = makeEnriched({ attributeFilled: 6, attributeTotal: 50 });
+    const r = scoreProfile(place(), DEFAULT_WEIGHTS, NOW, e);
+    const ex = r.categories.find(c => c.key === "extras")!;
+    expect(ex.score / ex.max).toBeGreaterThan(0.8);
+  });
+
+  it("宿泊業は営業時間が取得できなくても過度に減点しない", () => {
+    const nowTs = Math.floor(NOW.getTime() / 1000);
+    const e = makeEnriched({ posts: [{ timestamp: nowTs - 60 * 60 * 24 * 5 }] }); // 5日前投稿
+    const lodging = place({ primaryType: "hotel", types: ["hotel", "lodging"], hasRegularHours: false });
+    const other = place({ primaryType: "restaurant", types: ["restaurant"], hasRegularHours: false });
+    const hl = scoreProfile(lodging, DEFAULT_WEIGHTS, NOW, e).categories.find(c => c.key === "hours")!;
+    const ho = scoreProfile(other, DEFAULT_WEIGHTS, NOW, e).categories.find(c => c.key === "hours")!;
+    // 同条件なら宿泊業の方が営業時間欠如のペナルティが軽い
+    expect(hl.score / hl.max).toBeGreaterThan(ho.score / ho.max);
+  });
 });
 
 describe("daysSinceLatestPost", () => {
