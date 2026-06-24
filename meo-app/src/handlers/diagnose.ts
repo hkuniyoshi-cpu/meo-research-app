@@ -13,12 +13,13 @@ export interface Env {
   GOOGLE_PLACES_API_KEY: string;
   TURNSTILE_SECRET: string;
   OUTSCRAPER_API_KEY: string;
+  ADMIN_KEY?: string; // 設定時、一致するとレート制限・Bot判定をスキップ（管理者用）
 }
 
 const RATE_LIMIT_PER_DAY = 20;
 const VISIBLE_TIPS = 3; // 無料版で見せる改善ポイント数（もったいぶり）
 
-interface Body { name: string; area: string; compare: boolean; turnstileToken: string; }
+interface Body { name: string; area: string; compare: boolean; turnstileToken: string; admin?: string; }
 
 export async function handleDiagnose(req: Request, env: Env): Promise<Response> {
   const ip = req.headers.get("CF-Connecting-IP") ?? "0.0.0.0";
@@ -26,13 +27,20 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   try { body = await req.json(); } catch { return json({ error: "bad_request" }, 400); }
   if (!body.name || !body.area) return json({ error: "missing_fields" }, 400);
 
-  if (!(await verifyTurnstile(body.turnstileToken, env.TURNSTILE_SECRET, ip)))
-    return json({ error: "bot_check_failed" }, 403);
+  // 管理者バイパス：body.admin / ?admin= / X-Admin-Key のいずれかが ADMIN_KEY と一致すると
+  // レート制限・Bot判定をスキップ（ADMIN_KEY未設定時は常に無効）
+  const adminKey = body.admin || new URL(req.url).searchParams.get("admin") || req.headers.get("X-Admin-Key") || "";
+  const isAdmin = !!env.ADMIN_KEY && adminKey === env.ADMIN_KEY;
 
-  // レート制限はキャッシュ判定より前＝キャッシュヒットも1回としてカウント（連打抑止のため意図的）
-  const date = new Date().toISOString().slice(0, 10);
-  const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
-  if (!rate.allowed) return json({ error: "rate_limited" }, 429);
+  if (!isAdmin) {
+    if (!(await verifyTurnstile(body.turnstileToken, env.TURNSTILE_SECRET, ip)))
+      return json({ error: "bot_check_failed" }, 403);
+
+    // レート制限はキャッシュ判定より前＝キャッシュヒットも1回としてカウント（連打抑止のため意図的）
+    const date = new Date().toISOString().slice(0, 10);
+    const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
+    if (!rate.allowed) return json({ error: "rate_limited" }, 429);
+  }
 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
   const cacheKey = `diag:v22:${body.name}|${body.area}|${body.compare ? 1 : 0}`;

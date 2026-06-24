@@ -1,6 +1,25 @@
 let turnstileToken = "";
 window.onTurnstile = (t) => { turnstileToken = t; };
 
+/* 管理者バイパス：URLに ?admin=キー を付けて開くと保存し、以後の診断で1日上限をスキップ。
+   解除は ?admin= を空で開くか、コンソールで localStorage.removeItem("meo_admin")。 */
+const ADMIN_KEY = (() => {
+  const u = new URLSearchParams(location.search);
+  if (u.has("admin")) {
+    const v = u.get("admin") || "";
+    try { v ? localStorage.setItem("meo_admin", v) : localStorage.removeItem("meo_admin"); } catch (e) {}
+    return v;
+  }
+  try { return localStorage.getItem("meo_admin") || ""; } catch (e) { return ""; }
+})();
+if (ADMIN_KEY) {
+  const b = document.createElement("div");
+  b.textContent = "🔑 管理者モード（上限スキップ）";
+  b.style.cssText = "position:fixed;bottom:10px;right:10px;z-index:9999;background:#1a73e8;color:#fff;font-size:11px;font-weight:800;padding:6px 12px;border-radius:12px;box-shadow:0 4px 12px rgba(80,130,200,.4);opacity:.92;cursor:default";
+  const add = () => document.body && document.body.appendChild(b);
+  document.body ? add() : document.addEventListener("DOMContentLoaded", add);
+}
+
 const $ = (id) => document.getElementById(id);
 const show = (id) => { $(id).hidden = false; };
 const hide = (id) => { $(id).hidden = true; };
@@ -27,7 +46,7 @@ $("go").addEventListener("click", async () => {
   try {
     const resp = await fetch("/api/diagnose", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, area, compare, turnstileToken }),
+      body: JSON.stringify({ name, area, compare, turnstileToken, admin: ADMIN_KEY || undefined }),
     });
     const data = await resp.json();
     if (!resp.ok) { loader.cancel(); backToInput(errMessage(data.error)); return; }

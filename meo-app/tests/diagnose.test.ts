@@ -160,6 +160,29 @@ describe("handleDiagnose", () => {
     expect(data.ranking).toBeNull();
   });
 
+  it("管理者キー一致でBot判定・レート制限をスキップして200", async () => {
+    const f = routeFetch();
+    // siteverifyを常に失敗させても、adminなら検証スキップで200になる
+    vi.stubGlobal("fetch", vi.fn(async (url: any, init?: any) =>
+      String(url).includes("siteverify") ? ok({ success: false }) : f(url, init)));
+    const env = { ...makeEnv(), ADMIN_KEY: "SECRET" };
+    const res = await handleDiagnose(makeReq({ name: "テスト店", area: "那覇", compare: false, turnstileToken: "t", admin: "SECRET" }), env);
+    expect(res.status).toBe(200);
+  });
+
+  it("管理者キー不一致は通常通りBot判定（403）", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (u: any) => String(u).includes("siteverify") ? ok({ success: false }) : ok({})));
+    const env = { ...makeEnv(), ADMIN_KEY: "SECRET" };
+    const res = await handleDiagnose(makeReq({ name: "店", area: "那覇", compare: false, turnstileToken: "t", admin: "WRONG" }), env);
+    expect(res.status).toBe(403);
+  });
+
+  it("ADMIN_KEY未設定なら admin 値があってもバイパスしない（403）", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (u: any) => String(u).includes("siteverify") ? ok({ success: false }) : ok({})));
+    const res = await handleDiagnose(makeReq({ name: "店", area: "那覇", compare: false, turnstileToken: "t", admin: "anything" }), makeEnv());
+    expect(res.status).toBe(403);
+  });
+
   it("2回目は同一入力をキャッシュから返し、Places APIを再度叩かない", async () => {
     const f = routeFetch();
     vi.stubGlobal("fetch", f);
