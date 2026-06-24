@@ -169,7 +169,7 @@ function renderResult(d) {
   const unverifiedHTML = (d.unverified && d.unverified.length) ? `
     <div class="glass">
       <div class="g-head"><span class="g-ico">📌</span>要確認（自動判定できない重要項目）</div>
-      <div class="note">以下はAPIで自動取得できないため、Googleビジネスプロフィールの管理画面でご自身の設定をご確認ください（いずれもMEOで重要です）。</div>
+      <div class="note">以下は自動では取得できないため、Googleビジネスプロフィールの管理画面でご自身の設定をご確認ください（いずれもMEOで重要です）。</div>
       <ul class="checklist">${d.unverified.map(u => `<li>${esc(u)}</li>`).join("")}</ul>
     </div>` : "";
 

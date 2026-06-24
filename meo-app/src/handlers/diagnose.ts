@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v8: Outscraper取得をno-store化（返信率の取りこぼし修正）。旧キャッシュを無効化
-  const cacheKey = `diag:v8:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v9: Outscraper取得を毎回ユニーク化（返信率の古いデータつかみ修正）。旧キャッシュを無効化
+  const cacheKey = `diag:v9:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -177,7 +177,7 @@ function buildTips(
   items.sort((a, b) => a.r - b.r);
   const tips = items.map(i => i.t);
 
-  if (tips.length === 0) tips.push("APIで確認できる基本項目に大きな欠落はありません。レポート下部の各指標もご確認ください");
+  if (tips.length === 0) tips.push("確認できる基本項目に大きな欠落はありません。レポート下部の各指標もご確認ください");
   return tips;
 }
 
