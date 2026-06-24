@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { scoreProfile, recentReviewRatio, prominenceLight, rankAmong } from "../src/lib/scoring";
+import { scoreProfile, recentReviewRatio, prominenceLight, rankAmong, daysSinceLatestPost } from "../src/lib/scoring";
 import { DEFAULT_WEIGHTS } from "../src/lib/weights";
 import type { PlaceData } from "../src/lib/types";
+import type { Enriched } from "../src/lib/outscraper";
 
 const NOW = new Date("2026-06-19T00:00:00Z");
 
@@ -94,6 +95,91 @@ describe("prominenceLight", () => {
     expect(strong).toBeGreaterThan(weak);
     expect(strong).toBeLessThanOrEqual(100);
     expect(weak).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("scoreProfile with Enriched", () => {
+  function makeEnriched(overrides: Partial<Enriched> = {}): Enriched {
+    return {
+      posts: [],
+      photosCount: 0,
+      verified: false,
+      reviewsPerScore: {},
+      attributeFilled: 0,
+      attributeTotal: 0,
+      hasMenuLink: false,
+      hasReservation: false,
+      description: null,
+      replySampled: 0,
+      replyReplied: 0,
+      ...overrides,
+    };
+  }
+
+  it("リッチな店舗はenriched無しより高スコア", () => {
+    const nowTs = Math.floor(NOW.getTime() / 1000);
+    const richEnriched = makeEnriched({
+      posts: [{ timestamp: nowTs - 60 * 60 * 24 * 5 }], // 5日前
+      photosCount: 50,
+      verified: true,
+      reviewsPerScore: { "5": 100, "4": 50, "1": 2 },
+      attributeFilled: 20,
+      attributeTotal: 25,
+      hasMenuLink: true,
+      hasReservation: true,
+      replySampled: 10,
+      replyReplied: 9,
+    });
+    const poorEnriched = makeEnriched({
+      posts: [],
+      photosCount: 1,
+      verified: false,
+      reviewsPerScore: { "1": 10, "2": 5 },
+      attributeFilled: 0,
+      attributeTotal: 5,
+      hasMenuLink: false,
+      hasReservation: false,
+      replySampled: 10,
+      replyReplied: 0,
+    });
+    const basePlaceData = place({
+      nationalPhoneNumber: "098", websiteUri: "https://x", businessStatus: "OPERATIONAL",
+      primaryType: "restaurant", types: ["restaurant", "cafe"],
+      rating: 4.5, userRatingCount: 80,
+      reviews: [{ rating: 5, publishTime: "2026-06-01T00:00:00Z" }],
+      hasRegularHours: true,
+    });
+    const rich = scoreProfile(basePlaceData, DEFAULT_WEIGHTS, NOW, richEnriched);
+    const poor = scoreProfile(basePlaceData, DEFAULT_WEIGHTS, NOW, poorEnriched);
+    expect(rich.total).toBeGreaterThan(poor.total);
+  });
+
+  it("enrichedありでhours labelが「営業時間・最新情報」", () => {
+    const r = scoreProfile(place({ hasRegularHours: true }), DEFAULT_WEIGHTS, NOW, makeEnriched());
+    const h = r.categories.find(c => c.key === "hours");
+    expect(h?.label).toBe("営業時間・最新情報");
+  });
+
+  it("enrichedなしでもhours labelが「営業時間・最新情報」", () => {
+    const r = scoreProfile(place(), DEFAULT_WEIGHTS, NOW);
+    const h = r.categories.find(c => c.key === "hours");
+    expect(h?.label).toBe("営業時間・最新情報");
+  });
+});
+
+describe("daysSinceLatestPost", () => {
+  it("空ならInfinity", () => {
+    expect(daysSinceLatestPost([], NOW)).toBe(Infinity);
+  });
+  it("直近の投稿は日数が少ない", () => {
+    const recent = Math.floor(NOW.getTime() / 1000) - 5 * 86400; // 5日前
+    expect(daysSinceLatestPost([{ timestamp: recent }], NOW)).toBeCloseTo(5, 0);
+  });
+  it("最も新しいタイムスタンプを使う", () => {
+    const ts1 = Math.floor(NOW.getTime() / 1000) - 10 * 86400; // 10日前
+    const ts2 = Math.floor(NOW.getTime() / 1000) - 3 * 86400;  // 3日前
+    const d = daysSinceLatestPost([{ timestamp: ts1 }, { timestamp: ts2 }], NOW);
+    expect(d).toBeCloseTo(3, 0);
   });
 });
 

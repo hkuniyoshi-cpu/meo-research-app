@@ -6,7 +6,7 @@ function mockKV() {
   return { get: async (k: string) => m.get(k) ?? null, put: async (k: string, v: string) => { m.set(k, v); } } as any;
 }
 function makeEnv(): Env {
-  return { CACHE: mockKV(), RATELIMIT: mockKV(), GOOGLE_PLACES_API_KEY: "K", TURNSTILE_SECRET: "S" };
+  return { CACHE: mockKV(), RATELIMIT: mockKV(), GOOGLE_PLACES_API_KEY: "K", TURNSTILE_SECRET: "S", OUTSCRAPER_API_KEY: "K" };
 }
 function makeReq(body: any): Request {
   return new Request("https://x/api/diagnose", {
@@ -39,6 +39,14 @@ function routeFetch() {
         : ok({ places: [{ id: "PID2", displayName: { text: "A店" }, rating: 4.8, userRatingCount: 300, photos: new Array(10).fill({}) }] });
     }
     if (u.includes("/places/")) return ok(DETAILS);
+    if (u.includes("search-v3")) return ok({ data: [[{
+      name: "テスト店", photos_count: 30, verified: true,
+      reviews_per_score: { "5": 50 },
+      posts: [{ body: "x", timestamp: Math.floor(Date.now() / 1000) }],
+      about: { "a": { "x": true } },
+      menu_link: "m", reservation_links: ["r"],
+    }]], status: "Success" });
+    if (u.includes("reviews-v3")) return ok({ data: [{ reviews_data: [{ owner_answer: "thanks", review_rating: 5 }] }], status: "Success" });
     throw new Error("unexpected url " + u);
   });
 }
