@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v16: 調査日付き表示＋投稿判定の鮮度ラグ対応。旧キャッシュ無効化
-  const cacheKey = `diag:v16:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v17: 出力前の再チェック（不完全なら再取得）＋今後の見通し予測を追加。旧キャッシュ無効化
+  const cacheKey = `diag:v17:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -51,10 +51,16 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
     let activity: ReviewActivity | null = null;
     if (env.OUTSCRAPER_API_KEY) {
       try {
+        // 出力前の再チェック：取得が不完全（実在店なのに写真もクチコミ分布も空）なら一度だけ取り直す
+        const incomplete = (x: Enriched | null) => !x || (x.photosCount === 0 && Object.keys(x.reviewsPerScore).length === 0);
         enriched = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
+        if (incomplete(enriched)) {
+          const retry = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
+          if (!incomplete(retry)) enriched = retry;
+        }
         activity = await fetchReviewActivity(body.name, body.area, env.OUTSCRAPER_API_KEY, 10);
       } catch {
-        // enrichmentは取れた分だけ使う（activity失敗時もenrichedは活かす）
+        // 取れた分だけ使う
       }
     }
 
@@ -69,6 +75,21 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
       const comps = raw.filter((c: any) => c.id !== details.placeId).map(normalizeLight);
       ranking = rankAmong(details, comps);
     }
+
+    // 今後の見通し（予測）：現状データからの目安
+    let gain = 0;
+    for (const c of profile.categories) {
+      const r = c.score / c.max;
+      if (r < 0.7) gain += (Math.min(0.85, r + 0.3) - r) * c.max;
+    }
+    const potentialScore = Math.min(100, Math.round(profile.total + gain));
+    const prediction = {
+      potentialScore,
+      scoreGain: potentialScore - profile.total,
+      reviewNow: details.userRatingCount,
+      monthlyPace: activity?.monthlyPace ?? null,
+      reviewIn6m: activity?.monthlyPace != null ? details.userRatingCount + activity.monthlyPace * 6 : null,
+    };
 
     const result = {
       name: details.displayName,
@@ -88,6 +109,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
         ? (enriched.posts.length ? Math.round(daysSinceLatestPost(enriched.posts, now)) : null)
         : null,
       unverified: ["ビジネスの説明文", "価格帯", "クチコミへの返信状況"],
+      prediction,
     };
     await setCached(env.CACHE, cacheKey, result);
     return json(result);

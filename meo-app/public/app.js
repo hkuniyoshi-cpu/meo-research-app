@@ -170,7 +170,24 @@ function renderResult(d) {
   }
   const chipsHTML = chips.length ? `<div class="chips">${chips.join("")}</div>` : "";
 
-  // 要確認（APIで自動判定できない重要項目）
+  // 今後の見通し（予測）
+  const pr = d.prediction;
+  const predHTML = pr ? `
+    <div class="glass">
+      <div class="g-head"><span class="g-ico">🔮</span>今後の見通し（予測）</div>
+      <div class="note">現状データからの目安です（実際の結果を保証するものではありません）。</div>
+      <ul class="predlist">
+        ${pr.scoreGain > 0
+          ? `<li><b>整備スコアの伸びしろ</b>：改善ポイントを実施すると、整備スコアを <b>${pr.potentialScore}点</b>（現在${d.profile.total}点 ／ +${pr.scoreGain}）まで引き上げられる見込みです。</li>`
+          : `<li><b>整備度は良好</b>：現在の水準を維持することで、上位表示の可能性が高まります。</li>`}
+        ${pr.reviewIn6m != null
+          ? `<li><b>クチコミの将来予測</b>：現在${pr.reviewNow}件。月${pr.monthlyPace}件ペースが続けば、<b>半年後に約${pr.reviewIn6m}件</b>が見込めます。</li>`
+          : ""}
+        <li><b>集客への波及</b>：整備度・クチコミ・最新情報の継続改善は、近隣検索での表示機会を増やし、来店・問い合わせの増加につながります。</li>
+      </ul>
+    </div>` : "";
+
+  // 要確認（自動判定できない重要項目）
   const unverifiedHTML = (d.unverified && d.unverified.length) ? `
     <div class="glass">
       <div class="g-head"><span class="g-ico">📌</span>要確認（現時点では自動収集できない項目）</div>
@@ -223,6 +240,8 @@ function renderResult(d) {
     </div>
 
     ${ranking}
+
+    ${predHTML}
 
     ${unverifiedHTML}
 
