@@ -11,6 +11,7 @@ const LOAD_STEPS = ["店舗をGoogleマップで特定中…", "基本情報（N
 const SHORT = { nap: "基本情報", category: "カテゴリ", reviews: "口コミ", photos: "写真", hours: "最新性", extras: "付加情報" };
 
 let currentShare = { url: "", text: "", title: "MEO無料診断" };
+let currentResult = null;
 
 $("go").addEventListener("click", async () => {
   const name = $("f-name").value.trim();
@@ -100,6 +101,11 @@ function rankOf(t) {
 function weakestCat(d) {
   return [...d.profile.categories].sort((a, b) => a.score / a.max - b.score / b.max)[0];
 }
+function healthOf(t) {
+  if (t >= 80) return { icon: "🟢", sky: "☀️", label: "絶好調", c: "#34A853" };
+  if (t >= 60) return { icon: "🟡", sky: "⛅", label: "あと一歩", c: "#FBBC05" };
+  return { icon: "🔴", sky: "🌧", label: "要対策", c: "#EA4335" };
+}
 function verdictText(d) {
   const t = d.profile.total, w = SHORT[weakestCat(d).key] || weakestCat(d).label;
   let head;
@@ -144,6 +150,8 @@ function radarSVG(cats) {
 /* ===== メイン描画 ===== */
 function renderResult(d) {
   const r = rankOf(d.profile.total);
+  const health = healthOf(d.profile.total);
+  const benchPct = d.ranking ? Math.max(1, Math.round(d.ranking.rank / d.ranking.total * 100)) : null;
 
   const BADGE = { high: { t: "最優先", cls: "pri-high" }, mid: { t: "推奨", cls: "pri-mid" }, info: { t: "ヒント", cls: "pri-info" } };
   const plan = d.tipsVisible.map((t) => {
@@ -201,6 +209,18 @@ function renderResult(d) {
       <div class="note">これらは維持しつつ、クチコミ・投稿で積極的にアピールすると効果的です。</div>
     </div>` : "";
 
+  // 🎚 効果シミュレーター（改善項目をトグルで想定スコアが動く）
+  const simCats = d.profile.categories.filter(c => c.score / c.max < 0.85);
+  const simHTML = simCats.length ? `
+    <div class="glass">
+      <div class="g-head"><span class="g-ico">🎚</span>効果シミュレーター</div>
+      <div class="note">改善したい項目をチェックすると、想定スコアがその場で変わります。</div>
+      <div class="sim-score">想定スコア <b id="sim-val">${d.profile.total}</b><small> / 100</small></div>
+      <div class="sim-opts">
+        ${simCats.map(c => `<label class="sim-opt"><input type="checkbox" class="sim-cb" data-gain="${((0.85 - c.score / c.max) * c.max).toFixed(2)}"><span>${esc(SHORT[c.key] || c.label)}を改善</span></label>`).join("")}
+      </div>
+    </div>` : "";
+
 
   const compRow = (name, rating, reviews, index, isYou) => `
     <div class="comp ${isYou ? "you" : ""}">
@@ -231,6 +251,8 @@ function renderResult(d) {
         <div class="g-head"><span class="g-ico">🎯</span>総合スコア（整備度）</div>
         ${donutSVG(r.c)}
         <div class="rankbadge" style="background:${r.c}">${r.l}ランク<small>${r.label}</small></div>
+        <div class="health" style="border-color:${health.c}55"><span class="health-ico">${health.icon}${health.sky}</span>MEO健康度：<b style="color:${health.c}">${health.label}</b></div>
+        ${benchPct != null ? `<div class="benchmark">🏆 近隣同業 ${d.ranking.total}店中 <b>上位${benchPct}%</b>（${d.ranking.rank}位相当）</div>` : ""}
       </div>
       <div class="glass">
         <div class="g-head"><span class="g-ico">💬</span>診断総評</div>
@@ -257,10 +279,13 @@ function renderResult(d) {
 
     ${predHTML}
 
+    ${simHTML}
+
     <div class="glass share">
       <div class="g-head"><span class="g-ico">📤</span>結果をシェア</div>
       <div class="share-btns">
         <button class="sh sh-native" onclick="shareNative()">スマホ / SNSで共有</button>
+        <button class="sh sh-img" onclick="saveImage()">🖼 画像で保存</button>
         <button class="sh sh-line" onclick="shareLine()">LINE</button>
         <button class="sh sh-x" onclick="shareX()">X</button>
         <button class="sh sh-copy" onclick="copyShare()">リンクをコピー</button>
@@ -287,7 +312,61 @@ function renderResult(d) {
     const rv = document.querySelector(".radar-val"); if (rv) rv.classList.add("in");
     document.querySelectorAll(".comp-bar i").forEach(el => { el.style.width = el.dataset.w + "%"; });
   });
+
+  // 🎚 効果シミュレーターのライブ更新
+  const simBase = d.profile.total;
+  document.querySelectorAll(".sim-cb").forEach(cb => cb.addEventListener("change", () => {
+    let s = simBase;
+    document.querySelectorAll(".sim-cb:checked").forEach(c => s += parseFloat(c.dataset.gain));
+    const el = document.getElementById("sim-val"); if (el) el.textContent = Math.min(100, Math.round(s));
+  }));
+  currentResult = d;
 }
+
+/* 🖼 結果カード画像を生成して保存/共有 */
+function roundRect(x, a, b, w, h, r) {
+  x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r);
+  x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath();
+}
+window.saveImage = () => {
+  const d = currentResult; if (!d) return;
+  const cv = document.createElement("canvas"); cv.width = 1080; cv.height = 1080;
+  const x = cv.getContext("2d");
+  const g = x.createLinearGradient(0, 0, 1080, 1080);
+  g.addColorStop(0, "#e9f3ff"); g.addColorStop(1, "#c2dcff");
+  x.fillStyle = g; x.fillRect(0, 0, 1080, 1080);
+  x.textAlign = "center";
+  x.fillStyle = "#1a73e8"; x.font = "bold 42px sans-serif"; x.fillText("MEO診断結果レポート", 540, 120);
+  x.fillStyle = "#13294b"; x.font = "bold 50px sans-serif"; x.fillText(d.name.slice(0, 18), 540, 200);
+  x.fillStyle = "#3a5a85"; x.font = "28px sans-serif"; x.fillText(d.area, 540, 248);
+  const r = rankOf(d.profile.total);
+  x.beginPath(); x.arc(540, 470, 150, 0, Math.PI * 2); x.lineWidth = 30; x.strokeStyle = "rgba(120,160,210,.25)"; x.stroke();
+  x.beginPath(); x.lineCap = "round"; x.arc(540, 470, 150, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (d.profile.total / 100)); x.lineWidth = 30; x.strokeStyle = r.c; x.stroke();
+  x.fillStyle = r.c; x.font = "bold 120px sans-serif"; x.fillText(String(d.profile.total), 540, 505);
+  x.fillStyle = "#8aa3c2"; x.font = "30px sans-serif"; x.fillText("/ 100", 540, 560);
+  x.fillStyle = r.c; roundRect(x, 400, 615, 280, 74, 20); x.fill();
+  x.fillStyle = "#fff"; x.font = "bold 40px sans-serif"; x.fillText(`${r.l}ランク ${r.label}`, 540, 666);
+  x.textAlign = "left"; x.fillStyle = "#1c3a63"; x.font = "32px sans-serif";
+  const stats = [];
+  const bench = d.ranking ? `近隣同業 上位${Math.max(1, Math.round(d.ranking.rank / d.ranking.total * 100))}%` : null;
+  if (bench) stats.push("🏆 " + bench);
+  if (d.verified) stats.push("✓ オーナー認証済み");
+  if (d.photosCount != null) stats.push(`📷 写真 ${d.photosCount}枚`);
+  if (d.reviewActivity && d.reviewActivity.latestDays != null) stats.push(`🔎 直近クチコミ ${d.reviewActivity.latestDays}日前`);
+  stats.slice(0, 4).forEach((s, i) => x.fillText(s, 200, 770 + i * 56));
+  x.textAlign = "center"; x.fillStyle = "#1a73e8"; x.font = "bold 32px sans-serif";
+  x.fillText("SearchMania ・ search-mania.net", 540, 1020);
+  cv.toBlob((blob) => {
+    if (!blob) return;
+    const file = new File([blob], "MEO診断.png", { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: "MEO診断結果" }).catch(() => {});
+    } else {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "MEO診断_" + d.name + ".png"; a.click();
+      toast("画像を保存しました");
+    }
+  });
+};
 
 function countUp(el, target) {
   if (!el) return;

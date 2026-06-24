@@ -142,6 +142,25 @@ a.brand { text-decoration:none; display:inline-block; }
   box-shadow:4px 4px 12px rgba(80,130,200,.35),-3px -3px 8px rgba(255,255,255,.5); }
 .rankbadge small { font-size:11px; opacity:.95; font-weight:700; }
 
+/* 🚦 MEO健康度メーター */
+.health { display:inline-flex; align-items:center; gap:7px; margin-top:12px; font-size:13px; font-weight:800; color:#1c3a63;
+  background:rgba(255,255,255,.6); border:1.5px solid; padding:7px 16px; border-radius:14px;
+  box-shadow:inset 1px 1px 4px rgba(255,255,255,.7); }
+.health-ico { font-size:17px; letter-spacing:-2px; }
+.benchmark { margin-top:10px; font-size:13px; font-weight:800; color:#1c3a63; }
+.benchmark b { color:#1a73e8; font-size:16px; }
+
+/* 🎚 効果シミュレーター */
+.sim-score { font-size:15px; font-weight:800; color:#1c3a63; margin:6px 0 14px; }
+.sim-score b { font-size:38px; font-weight:900; color:#1a73e8; vertical-align:-4px;
+  transition:color .2s; }
+.sim-score small { font-size:14px; color:#8aa3c2; font-weight:700; }
+.sim-opts { display:flex; flex-direction:column; gap:9px; }
+.sim-opt { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:700; color:#22406b; cursor:pointer;
+  background:rgba(255,255,255,.55); border-radius:12px; padding:11px 14px; transition:background .15s; }
+.sim-opt:hover { background:rgba(220,235,255,.8); }
+.sim-opt input { width:18px; height:18px; accent-color:#1a73e8; cursor:pointer; }
+
 /* 総評 */
 .verdict { font-size:14px; line-height:1.8; color:#1c3a63; margin:0; }
 
@@ -173,6 +192,7 @@ a.brand { text-decoration:none; display:inline-block; }
 .sh-line { background:#06C755; }
 .sh-x { background:#111; }
 .sh-copy { background:#FBBC05; color:#3a2d00; }
+.sh-img { background:linear-gradient(135deg,#34A853,#0f9d58); }
 .sh-toast { margin-top:10px; font-size:13px; font-weight:700; color:#1a73e8; }
 
 /* ナビ */
