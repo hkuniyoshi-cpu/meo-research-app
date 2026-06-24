@@ -43,7 +43,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   }
 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
-  const cacheKey = `diag:v22:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  const cacheKey = `diag:v23:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -136,6 +136,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
       investigatedAt: now.toISOString().slice(0, 10),
       profile,
       prominence: prominenceLight(details),
+      rating: details.rating ?? null,
+      reviewCount: details.userRatingCount,
       ranking,
       tipsVisible: tips.slice(0, VISIBLE_TIPS),
       tipsLockedCount: Math.max(0, tips.length - VISIBLE_TIPS),
