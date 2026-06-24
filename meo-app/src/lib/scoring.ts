@@ -93,28 +93,14 @@ export function scoreProfile(p: PlaceData, w: IndustryWeights, now: Date, e?: En
     hoursComp = (p.hasRegularHours ? 0.7 : 0) + (p.hasSpecialHours ? 0.3 : 0);
   }
 
-  let extras: number;
-  if (e) {
-    if (isLodging) {
-      // 宿泊業はデータ提供元が設備属性(駐車場/Wi-Fi/対応言語等)を取りこぼしやすく、件数を信頼できない。
-      // 不可測を断定しない方針で属性は中立評価（benefit-of-doubt）とし、確認できる予約導線のみ加点。
-      extras = clamp01(0.7 + 0.3 * ((e.hasReservation || e.hasMenuLink) ? 1 : 0));
-    } else {
-      // 属性は「埋まっている件数」で評価（割合だと総数の多い業種が不当に低くなるため）。
-      // 予約/メニュー等のリンクは“あれば加点・無くても減点しない”（飲食以外に不利にならないように）。
-      const attrComp = Math.min(1, e.attributeFilled / 5);
-      const linkBonus = (e.hasReservation || e.hasMenuLink) ? 0.15 : 0;
-      extras = clamp01(0.85 * attrComp + linkBonus);
-    }
-  } else {
-    // 付加情報。editorialSummary(Googleが書く要約=オーナー設定の「ビジネスの説明文」ではない)は
-    // Places APIでオーナー説明文の有無を判定できないため採点に使わない。
-    const extraItems = [
-      !!p.priceLevel, p.attributeCount >= 2,
-      p.hasReservationLink, p.hasMenuLink,
-    ];
-    extras = extraItems.filter(Boolean).length / extraItems.length;
-  }
+  // 付加情報：公式Placesの実属性(信頼可)とOutscraper(補助)の「多い方」を採用＝取りこぼしに強い。
+  // 件数で評価（割合だと総数の多い業種が不当に下がる）。リンクは“あれば加点・無くても減点しない”。
+  const reliableAttr = Math.max(p.attributeCount, e ? e.attributeFilled : 0);
+  const attrComp = Math.min(1, reliableAttr / 5);
+  const hasLink = e ? (e.hasReservation || e.hasMenuLink) : (p.hasReservationLink || p.hasMenuLink || !!p.priceLevel);
+  let extras = clamp01(0.85 * attrComp + (hasLink ? 0.15 : 0));
+  // 宿泊業はWi-Fi/対応言語等が公式APIにも無く不可測なので下限を設ける（公式属性が多ければそれ以上）。
+  if (isLodging) extras = Math.max(extras, 0.7);
 
   const categories: CategoryScore[] = [
     { key: "nap",      label: "基本情報(NAP)",     score: nap * w.nap,              max: w.nap },

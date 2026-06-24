@@ -43,7 +43,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   }
 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
-  const cacheKey = `diag:v27:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  const cacheKey = `diag:v28:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -230,6 +230,8 @@ function buildTips(
   };
   const items: { r: number; title: string; detail: string }[] = [];
   const bp = bizProfile(p.primaryType, p.types);
+  // 公式Places属性(信頼可)とOutscraper(補助)の多い方＝取りこぼしに強い属性件数
+  const reliableAttr = Math.max(p.attributeCount, e ? e.attributeFilled : 0);
 
   // ---- 基本情報 ----
   if (!p.websiteUri) items.push({ r: ratio("nap"), title: "Webサイト/予約リンクを登録", detail: "公式サイト・SNS・ネット予約のリンクが未登録です。登録すると情報の信頼性が上がり、来店前のユーザーを取りこぼしません。" });
@@ -253,9 +255,8 @@ function buildTips(
     if (e.photosCount < REC_PHOTOS)
       items.push({ r: ratio("photos"), title: "写真を増やす", detail: `現在${e.photosCount}枚。${bp.photos}など、推奨${REC_PHOTOS}枚以上を目安に高画質写真を追加・定期更新しましょう。写真量は閲覧数とクリック率に直結します。` });
 
-    // 属性は「埋まっている件数」で判定（割合は総数の多い業種で誤検知）。3件未満のときだけ提案。
-    // 宿泊業はデータ提供元が設備属性を取りこぼしやすく誤検知になるため出さない。
-    if (e.attributeFilled < 3 && bp.kind !== "lodging")
+    // 公式属性＋補助の信頼件数で判定（3件未満のみ提案）。宿泊業は不可測項目が多いため出さない。
+    if (reliableAttr < 3 && bp.kind !== "lodging")
       items.push({ r: ratio("extras"), title: "属性を充実させる", detail: bp.limitedAttrs
         ? `${bp.attrs}など、業種に該当する属性があれば登録しましょう。${bp.kind === "professional" || bp.kind === "education" ? "サービス業はそもそも設定できる属性が少なめですが、" : ""}埋めるほど『条件で絞り込む』検索にヒットしやすくなります。`
         : `${bp.attrs}など、未設定の属性を追加しましょう。『条件で絞り込む』検索にヒットしやすくなります。` });
@@ -268,7 +269,7 @@ function buildTips(
   } else {
     if (p.photoCount < 10)
       items.push({ r: ratio("photos"), title: "写真を増やす", detail: `現在${p.photoCount}枚。${bp.photos}などの写真を追加しましょう。` });
-    if (!bp.limitedAttrs && p.attributeCount < 2)
+    if (!bp.limitedAttrs && bp.kind !== "lodging" && reliableAttr < 3)
       items.push({ r: ratio("extras"), title: "属性を登録", detail: `${bp.attrs}など、業種に該当する属性を登録しましょう。` });
   }
 

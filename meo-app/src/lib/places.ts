@@ -8,6 +8,10 @@ const DETAILS_MASK = [
   "reviews", "photos", "regularOpeningHours", "currentOpeningHours",
   "editorialSummary", "priceLevel", "reservable", "servesLunch", "servesDinner",
   "servesBreakfast", "takeout", "delivery", "dineIn",
+  // 公式の実属性（同じEnterprise+Atmosphere SKU内＝追加料金階層なし）。業種横断で信頼できる属性判定に使う。
+  "parkingOptions", "paymentOptions", "accessibilityOptions",
+  "allowsDogs", "outdoorSeating", "restroom", "goodForChildren", "goodForGroups",
+  "curbsidePickup", "liveMusic", "menuForChildren",
 ].join(",");
 
 const SEARCH_MASK = [
@@ -88,10 +92,19 @@ export function normalizeDetails(d: any): PlaceData {
   };
 }
 
-/** boolean属性(serves*, reservable等)で trueの数を数える簡易指標。 */
+/** 公式Placesの実属性で「設定済み(true)」の数を数える。業種横断で信頼できる属性件数。 */
 function countAttributes(d: any): number {
-  const keys = ["reservable", "servesLunch", "servesDinner", "servesBreakfast", "takeout", "delivery", "dineIn"];
-  return keys.filter(k => d[k] === true).length;
+  const flatKeys = [
+    "reservable", "servesLunch", "servesDinner", "servesBreakfast", "takeout", "delivery", "dineIn",
+    "allowsDogs", "outdoorSeating", "restroom", "goodForChildren", "goodForGroups",
+    "curbsidePickup", "liveMusic", "menuForChildren",
+  ];
+  let n = flatKeys.filter(k => d[k] === true).length;
+  // 駐車場・決済・バリアフリーは入れ子オブジェクト（boolean子要素の true 数を加算）
+  for (const obj of [d.parkingOptions, d.paymentOptions, d.accessibilityOptions]) {
+    if (obj && typeof obj === "object") n += Object.values(obj).filter(v => v === true).length;
+  }
+  return n;
 }
 
 /** 軽量検索応答 → PlaceData(部分)。競合ランキング用。 */
