@@ -4,8 +4,8 @@ import type { Enriched } from "./outscraper";
 
 const DAY = 86400000;
 
-/** 写真・動画の推奨累計枚数（これ以上で満点）。MEOでは枚数が多いほど有利。 */
-export const REC_PHOTOS = 50;
+/** 写真の推奨累計枚数（これ以上で満点）。MEOでは枚数が多いほど有利。 */
+export const REC_PHOTOS = 200;
 
 /** 直近days日に投稿された口コミ比率(0-1)。reviewsが空なら0。 */
 export function recentReviewRatio(reviews: ReviewData[], now: Date, days = 90): number {
@@ -102,7 +102,7 @@ export function scoreProfile(p: PlaceData, w: IndustryWeights, now: Date, e?: En
     { key: "nap",      label: "基本情報(NAP)",     score: nap * w.nap,              max: w.nap },
     { key: "category", label: "カテゴリ設定",       score: category * w.category,    max: w.category },
     { key: "reviews",  label: "口コミ",             score: reviewsComp * w.reviews,  max: w.reviews },
-    { key: "photos",   label: "写真・動画",          score: photos * w.photos,        max: w.photos },
+    { key: "photos",   label: "写真",               score: photos * w.photos,        max: w.photos },
     { key: "hours",    label: "営業時間・最新情報",   score: hoursComp * w.hours,      max: w.hours },
     { key: "extras",   label: "付加情報",            score: extras * w.extras,        max: w.extras },
   ];

@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v12: 要確認から「動画」を除外。旧キャッシュ無効化
-  const cacheKey = `diag:v12:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v13: 写真推奨200・ラベル/見出し変更。旧キャッシュ無効化
+  const cacheKey = `diag:v13:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -138,7 +138,7 @@ function buildTips(
 
     // 写真・動画の累計枚数
     if (e.photosCount < REC_PHOTOS) {
-      items.push({ r: ratio("photos"), t: `写真・動画を増やす（現在${e.photosCount}枚 → 推奨${REC_PHOTOS}枚以上）` });
+      items.push({ r: ratio("photos"), t: `写真を増やす（現在${e.photosCount}枚 → 推奨${REC_PHOTOS}枚以上）` });
     }
 
     // 属性充実度

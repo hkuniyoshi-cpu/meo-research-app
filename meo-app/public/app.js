@@ -159,20 +159,20 @@ function renderResult(d) {
   if (d.photosCount != null) {
     const rec = d.recPhotos || 50;
     const okP = d.photosCount >= rec;
-    chips.push(`<span class="chip ${okP ? "ok" : "warn"}">📷 写真・動画 ${d.photosCount}枚${okP ? " ✓" : `（推奨${rec}枚〜）`}</span>`);
+    chips.push(`<span class="chip ${okP ? "ok" : "warn"}">📷 写真 ${d.photosCount}枚${okP ? " ✓" : `（推奨${rec}枚〜）`}</span>`);
   }
   if (d.latestPostDays != null) chips.push(`<span class="chip">📣 最終投稿 ${d.latestPostDays}日前</span>`);
   if (d.reviewActivity && d.reviewActivity.latestDays != null) {
     const a = d.reviewActivity;
     const okR = a.latestDays <= 60;
-    chips.push(`<span class="chip ${okR ? "ok" : "warn"}">🗣 最新クチコミ ${a.latestDays}日前${a.monthlyPace != null ? ` / 月${a.monthlyPace}件ペース` : ""}</span>`);
+    chips.push(`<span class="chip ${okR ? "ok" : "warn"}">🔎 直近クチコミ 最新${a.latestDays}日前${a.monthlyPace != null ? ` / 月${a.monthlyPace}件ペース` : ""}</span>`);
   }
   const chipsHTML = chips.length ? `<div class="chips">${chips.join("")}</div>` : "";
 
   // 要確認（APIで自動判定できない重要項目）
   const unverifiedHTML = (d.unverified && d.unverified.length) ? `
     <div class="glass">
-      <div class="g-head"><span class="g-ico">📌</span>要確認（自動判定できない重要項目）</div>
+      <div class="g-head"><span class="g-ico">📌</span>要確認（現時点では自動収集できない項目）</div>
       <div class="note">以下は自動では取得できないため、Googleビジネスプロフィールの管理画面でご自身の設定をご確認ください（いずれもMEOで重要です）。</div>
       <ul class="checklist">${d.unverified.map(u => `<li>${esc(u)}</li>`).join("")}</ul>
     </div>` : "";
@@ -181,13 +181,13 @@ function renderResult(d) {
     <div class="glass">
       <div class="g-head"><span class="g-ico">📊</span>検索評価（想定）— 近隣${d.ranking.total}件中 ${d.ranking.rank}位相当</div>
       <div class="note">※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した「近隣同業内での知名度の相対値」を示します。</div>
-      <div class="comp you">${esc(d.name)}<small> (自店)</small><span>知名度 ${d.prominence}</span></div>
+      <div class="comp you">${esc(d.name)}<small> (調査対象)</small><span>知名度 ${d.prominence}</span></div>
       ${d.ranking.competitors.slice(0, 3).map(c =>
         `<div class="comp">${esc(c.name)} ★${c.rating ?? "-"} / 口コミ${c.reviews}<span>知名度 ${c.index}</span></div>`).join("")}
     </div>` : `
     <div class="glass"><div class="g-head"><span class="g-ico">📊</span>検索評価（想定）</div>
       <div class="note">※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した知名度の相対値です。</div>
-      <div class="comp you">${esc(d.name)}<small> (自店)</small><span>知名度指数 ${d.prominence}</span></div></div>`;
+      <div class="comp you">${esc(d.name)}<small> (調査対象)</small><span>知名度指数 ${d.prominence}</span></div></div>`;
 
   $("result-view").innerHTML = `
     <div class="report-title"><span class="g-ico">📋</span>診断結果レポート</div>
