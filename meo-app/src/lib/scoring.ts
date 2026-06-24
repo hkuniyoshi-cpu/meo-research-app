@@ -86,7 +86,8 @@ export function scoreProfile(p: PlaceData, w: IndustryWeights, now: Date, e?: En
 
   let extras: number;
   if (e) {
-    const attrComp = Math.min(1, e.attributeFilled / 15);
+    // 属性は業種で総数が違うため「埋まっている割合」で評価（飲食=多い/ランドリー=少ない に非依存）
+    const attrComp = e.attributeTotal > 0 ? Math.min(1, e.attributeFilled / e.attributeTotal) : 0;
     extras = clamp01(0.6 * attrComp + 0.2 * (e.hasReservation ? 1 : 0) + 0.2 * (e.hasMenuLink ? 1 : 0));
   } else {
     // 付加情報。editorialSummary(Googleが書く要約=オーナー設定の「ビジネスの説明文」ではない)は

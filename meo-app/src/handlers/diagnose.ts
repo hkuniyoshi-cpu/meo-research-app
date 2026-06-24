@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v14: アクションプランを見出し＋詳細＋優先度の構造化に刷新。旧キャッシュ無効化
-  const cacheKey = `diag:v14:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v15: 属性判定を割合ベース（業種非依存）に修正。旧キャッシュ無効化
+  const cacheKey = `diag:v15:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -138,8 +138,8 @@ function buildTips(
     if (e.photosCount < REC_PHOTOS)
       items.push({ r: ratio("photos"), title: "写真を増やす", detail: `現在${e.photosCount}枚。料理・店内・外観・スタッフ・メニュー表など、推奨${REC_PHOTOS}枚以上を目安に高画質写真を追加・定期更新しましょう。写真量は閲覧数とクリック率に直結します。` });
 
-    if (e.attributeFilled < 8)
-      items.push({ r: ratio("extras"), title: "属性を充実させる", detail: "決済方法（各種キャッシュレス）・駐車場・バリアフリー・予約可・Wi-Fi・個室などの属性を登録しましょう。『条件で絞り込む』検索にヒットしやすくなります。" });
+    if (e.attributeTotal > 0 && e.attributeFilled / e.attributeTotal < 0.5)
+      items.push({ r: ratio("extras"), title: "属性を充実させる", detail: "決済方法（各種キャッシュレス）・バリアフリー・予約可・Wi-Fiなど、未設定の属性を追加しましょう。『条件で絞り込む』検索にヒットしやすくなります。" });
 
     const rpsValues = Object.values(e.reviewsPerScore);
     const rpsTotal = rpsValues.reduce((a, b) => a + b, 0);
