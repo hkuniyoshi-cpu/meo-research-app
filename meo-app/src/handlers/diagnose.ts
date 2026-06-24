@@ -34,8 +34,8 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   const rate = await checkRateLimit(env.RATELIMIT, ip, date, RATE_LIMIT_PER_DAY);
   if (!rate.allowed) return json({ error: "rate_limited" }, 429);
 
-  // v5: Outscraper enrichment統合（posts freshness・reply rate・real photo count・attribute coverage・verified）
-  const cacheKey = `diag:v5:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v6: 初回取得で返信率を取りこぼした旧キャッシュを無効化（再取得で正しい値に）
+  const cacheKey = `diag:v6:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
