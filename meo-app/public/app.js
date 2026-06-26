@@ -76,7 +76,7 @@ const T = {
     report_date: (v) => `📅 調査日 ${v.date}（最新調査サイクルの結果）`,
     freshness_note: "※「直近クチコミ」など最新の動きは、データ更新の都合で数日〜数週間前の状態を表示する場合があります（Googleの各種レポートと同様）。最新の実状況はGoogleマップでご確認ください。",
     part1_t: "整備度", part1_s: "あなたのGoogleプロフィールの「完成度」を採点します",
-    part2_t: "知名度", part2_s: "近隣同業の中での「評価・順位」と競合比較",
+    part2_t: "エリア内ランキング", part2_s: "近隣の同業の中での、あなたの順位（口コミ・評価などから算出）",
     score_head: "総合スコア（整備度）",
     per100: "/ 100",
     rank_suffix: (v) => `${v.l}ランク`,
@@ -257,7 +257,7 @@ const T = {
     report_date: (v) => `📅 Surveyed on ${v.date} (results from the latest survey cycle)`,
     freshness_note: "* The latest activity, such as \"recent reviews,\" may reflect a state from a few days to a few weeks ago due to data update timing (as with Google's own reports). Please check Google Maps for the most current status.",
     part1_t: "Profile completeness", part1_s: "We score how \"complete\" your Google profile is",
-    part2_t: "Prominence", part2_s: "Your rating/ranking among nearby peers and competitor comparison",
+    part2_t: "Local ranking", part2_s: "Your position among nearby peers (based on reviews & ratings)",
     score_head: "Overall score (completeness)",
     per100: "/ 100",
     rank_suffix: (v) => `Rank ${v.l}`,
@@ -438,7 +438,7 @@ const T = {
     report_date: (v) => `📅 조사일 ${v.date}(최신 조사 사이클의 결과)`,
     freshness_note: "※「최근 리뷰」 등 최신 동향은 데이터 갱신 사정으로 며칠~몇 주 전 상태를 표시할 수 있습니다(구글의 각종 리포트와 동일). 최신 실제 상황은 구글 지도에서 확인해 주세요.",
     part1_t: "완성도", part1_s: "귀하의 구글 프로필 「완성도」를 채점합니다",
-    part2_t: "인지도", part2_s: "주변 동종 업종 내에서의 「평가・순위」와 경쟁사 비교",
+    part2_t: "지역 내 랭킹", part2_s: "주변 동종 업종 중 당신의 순위(리뷰・평점 등으로 산출)",
     score_head: "종합 점수(완성도)",
     per100: "/ 100",
     rank_suffix: (v) => `${v.l} 등급`,
@@ -619,7 +619,7 @@ const T = {
     report_date: (v) => `📅 調查日 ${v.date}（最新調查週期的結果）`,
     freshness_note: "※「最近評論」等最新動態，因資料更新時間關係，可能顯示數天至數週前的狀態（與 Google 各項報告相同）。最新實際狀況請於 Google 地圖確認。",
     part1_t: "完善度", part1_s: "為您的 Google 檔案「完善程度」評分",
-    part2_t: "知名度", part2_s: "在周邊同業中的「評價・排名」與競爭對手比較",
+    part2_t: "區域內排名", part2_s: "在周邊同業中您的排名（依評論・評分等推算）",
     score_head: "綜合評分（完善度）",
     per100: "/ 100",
     rank_suffix: (v) => `${v.l} 級`,
@@ -1206,7 +1206,20 @@ function renderResult(d) {
 
     <div class="section-head sec-seibi">
       <span class="sec-num">1</span>
-      <div class="sec-txt"><span class="sec-eyebrow">PART 1</span><b>${t("part1_t")}</b><small>${t("part1_s")}</small></div>
+      <div class="sec-txt"><span class="sec-eyebrow">PART 1</span><b>${t("part2_t")}</b><small>${t("part2_s")}</small></div>
+    </div>
+
+    ${ranking}
+
+    <div id="compare-host"></div>
+
+    <div id="comp-reports"></div>
+
+    ${ctaGap(d)}
+
+    <div class="section-head sec-chimei">
+      <span class="sec-num">2</span>
+      <div class="sec-txt"><span class="sec-eyebrow">PART 2</span><b>${t("part1_t")}</b><small>${t("part1_s")}</small></div>
     </div>
 
     <div class="report-grid">
@@ -1215,7 +1228,6 @@ function renderResult(d) {
         ${donutSVG(r.c)}
         <div class="rankbadge" style="background:${r.c}">${t("rank_suffix", { l: r.l })}<small>${r.label}</small></div>
         <div class="health" style="border-color:${health.c}55"><span class="health-ico">${health.icon}${health.sky}</span>${t("health_head")}${LANG === "ja" ? "：" : ": "}<b style="color:${health.c}">${health.label}</b></div>
-        ${benchHTML}
       </div>
       <div class="glass">
         <div class="g-head"><span class="g-ico">💬</span>${t("verdict_head")}</div>
@@ -1243,19 +1255,6 @@ function renderResult(d) {
     ${riskHTML}
 
     ${simHTML}
-
-    <div class="section-head sec-chimei">
-      <span class="sec-num">2</span>
-      <div class="sec-txt"><span class="sec-eyebrow">PART 2</span><b>${t("part2_t")}</b><small>${t("part2_s")}</small></div>
-    </div>
-
-    ${ranking}
-
-    ${ctaGap(d)}
-
-    <div id="compare-host"></div>
-
-    <div id="comp-reports"></div>
 
     ${ctaVs()}
 
