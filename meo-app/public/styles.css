@@ -25,6 +25,15 @@ body {
 .lang-toggle:hover { background:rgba(220,235,255,.95); box-shadow:0 3px 9px -5px rgba(26,115,232,.6); }
 .lang-toggle:active { transform:scale(.96); }
 
+/* ヘッダーの「TOPへ戻る」（結果表示中のみ .show で表示） */
+.hdr-top { display:none; align-items:center; gap:5px; border:0; cursor:pointer; white-space:nowrap;
+  font-weight:800; font-size:12px; letter-spacing:.02em; color:#1a73e8; padding:7px 15px; border-radius:999px;
+  background:linear-gradient(135deg,#eef5ff,#dcecff); border:1px solid rgba(66,133,244,.4);
+  box-shadow:0 3px 10px -5px rgba(26,115,232,.5); transition:transform .1s, box-shadow .15s, background .15s; }
+.hdr-top.show { display:inline-flex; }
+.hdr-top:hover { background:linear-gradient(135deg,#dcecff,#cbe1ff); box-shadow:0 5px 13px -5px rgba(26,115,232,.65); transform:translateY(-1px); }
+.hdr-top:active { transform:scale(.96); }
+
 /* 言語セレクター（淡い青のピル型 select） */
 .lang-select { border:1px solid rgba(66,133,244,.45); background:rgba(255,255,255,.7); color:#1a73e8;
   font-weight:800; font-size:12px; letter-spacing:.02em; padding:6px 28px 6px 13px; border-radius:999px; cursor:pointer;
@@ -471,4 +480,5 @@ a.brand { text-decoration:none; display:inline-block; }
   .comp-diag { margin-left:0; margin-top:6px; }
   .comp-name { flex-basis:100%; }
   .lang-select { font-size:11px; padding:5px 24px 5px 11px; }
+  .hdr-top { font-size:11px; padding:6px 11px; }
 }

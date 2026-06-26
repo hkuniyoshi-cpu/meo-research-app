@@ -184,6 +184,7 @@ const T = {
     /* ナビ・フッター */
     nav_re: "🔍 別の店舗を再調査",
     nav_top: "🏠 TOPへ戻る",
+    hdr_top: "🏠 TOPへ戻る",
     foot_html: 'Supervised &amp; Powered by <a href="https://search-mania.net/" target="_blank" rel="noopener">SearchMania</a> ・ <a href="https://search-mania.net/" target="_blank" rel="noopener">もっと詳しく改善したい方はこちら</a>',
 
     /* シェア文・画像 */
@@ -364,6 +365,7 @@ const T = {
     /* nav / footer */
     nav_re: "🔍 Check another business",
     nav_top: "🏠 Back to top",
+    hdr_top: "🏠 Back to top",
     foot_html: 'Supervised &amp; Powered by <a href="https://search-mania.net/" target="_blank" rel="noopener">SearchMania</a> ・ <a href="https://search-mania.net/" target="_blank" rel="noopener">Want help improving further? Click here</a>',
 
     /* share text / image */
@@ -544,6 +546,7 @@ const T = {
     /* nav / footer */
     nav_re: "🔍 다른 매장 재조사",
     nav_top: "🏠 TOP으로 돌아가기",
+    hdr_top: "🏠 처음으로",
     foot_html: 'Supervised &amp; Powered by <a href="https://search-mania.net/" target="_blank" rel="noopener">SearchMania</a> ・ <a href="https://search-mania.net/" target="_blank" rel="noopener">더 자세히 개선하고 싶으신 분은 여기로</a>',
 
     /* share text / image */
@@ -724,6 +727,7 @@ const T = {
     /* nav / footer */
     nav_re: "🔍 重新調查其他商家",
     nav_top: "🏠 返回首頁",
+    hdr_top: "🏠 返回首頁",
     foot_html: 'Supervised &amp; Powered by <a href="https://search-mania.net/" target="_blank" rel="noopener">SearchMania</a> ・ <a href="https://search-mania.net/" target="_blank" rel="noopener">想進一步改善的人請點這裡</a>',
 
     /* share text / image */
@@ -828,7 +832,7 @@ $("go")?.addEventListener("click", async () => {
     data._compare = compare;
     await loader.finish();
     renderResult(data);
-    hide("loading-view"); show("result-view");
+    hide("loading-view"); show("result-view"); setHeaderTop(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (e) {
     loader.cancel(); backToInput(t("err_comm"));
@@ -872,7 +876,8 @@ function startLoader() {
   };
 }
 
-function backToInput(msg) { hide("loading-view"); show("input-view"); showErr(msg); resetTurnstile(); }
+function backToInput(msg) { hide("loading-view"); show("input-view"); setHeaderTop(false); showErr(msg); resetTurnstile(); }
+function setHeaderTop(on) { const b = document.getElementById("hdr-top"); if (b) b.classList.toggle("show", on); }
 function resetTurnstile() { try { window.turnstile && window.turnstile.reset(); } catch (e) {} turnstileToken = ""; }
 function showErr(msg) { const e = $("err"); e.textContent = msg; e.hidden = false; }
 function errMessage(code) {
@@ -1454,7 +1459,7 @@ function toast(msg) { const t = $("sh-toast"); if (!t) return; t.textContent = m
 window.reSearch = () => backToTop(false); // 入力値を残して再調査
 window.goTop = () => backToTop(true);      // 入力をクリアしてTOPへ
 function backToTop(clear) {
-  hide("result-view"); show("input-view");
+  hide("result-view"); hide("loading-view"); show("input-view"); setHeaderTop(false);
   if (clear) { $("f-name").value = ""; $("f-area").value = ""; $("f-compare").checked = true; }
   $("err").hidden = true;
   resetTurnstile();
