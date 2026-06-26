@@ -22,6 +22,7 @@ const T = {
     /* 静的（data-i18n） */
     hdr_tag: "Googleマップ 無料診断",
     lp_label: "SEARCHMANIA ・ MEO診断",
+    hero_catch_html: '<span class="hc-q">まだ「検索順位」を気にしていませんか？</span><span class="hc-a">今のGoogleは、<b>見る人ごとに結果が変わる</b>。</span>',
     hero_h1_html: '事業名＋住所で、<br><span class="grad">Googleマップ整備度</span>を<br>その場で無料診断。',
     hero_sub: "入力は2つだけ。整備スコア・競合比較・改善プランを、その場でレポート化します。",
     ph_name: "事業名（例：サンプル商店）",
@@ -201,6 +202,7 @@ const T = {
     /* static */
     hdr_tag: "Free Google Maps Check",
     lp_label: "SEARCHMANIA ・ MEO CHECK",
+    hero_catch_html: '<span class="hc-q">Still chasing "search rankings"?</span><span class="hc-a">Today, Google shows <b>different results to every person</b>.</span>',
     hero_h1_html: 'Enter your business name and address to<br>check your <span class="grad">Google Maps profile completeness</span><br>for free, right now.',
     hero_sub: "Just two inputs. Get a profile-completeness score, competitor comparison, and an improvement plan as an instant report.",
     ph_name: "Business name (e.g., Sample Shop)",
@@ -380,6 +382,7 @@ const T = {
     /* static */
     hdr_tag: "구글 지도 무료 진단",
     lp_label: "SEARCHMANIA ・ MEO 진단",
+    hero_catch_html: '<span class="hc-q">아직 \'검색 순위\'를 신경 쓰시나요?</span><span class="hc-a">지금의 구글은 <b>보는 사람마다 결과가 다릅니다</b>.</span>',
     hero_h1_html: '상호명＋주소만으로<br><span class="grad">구글 지도 프로필 완성도</span>를<br>지금 바로 무료 진단.',
     hero_sub: "입력은 단 2가지. 완성도 점수・경쟁사 비교・개선 플랜을 그 자리에서 리포트로 정리해 드립니다.",
     ph_name: "상호명(예: 샘플 상점)",
@@ -559,6 +562,7 @@ const T = {
     /* static */
     hdr_tag: "Google 地圖免費診斷",
     lp_label: "SEARCHMANIA ・ MEO 診斷",
+    hero_catch_html: '<span class="hc-q">還在意「搜尋排名」嗎？</span><span class="hc-a">現在的 Google，<b>每個人看到的結果都不同</b>。</span>',
     hero_h1_html: '輸入商家名稱＋地址，<br>立即免費診斷您的<br><span class="grad">Google 地圖檔案完善度</span>。',
     hero_sub: "只需輸入兩項。完善度評分・競爭對手比較・改善方案，當場為您整理成報告。",
     ph_name: "商家名稱（例：範例商店）",
@@ -752,6 +756,8 @@ function applyStaticI18n() {
     const k = el.getAttribute("data-i18n-ph");
     el.setAttribute("placeholder", t(k));
   });
+  const hc = document.getElementById("hero-catch");
+  if (hc) hc.innerHTML = t("hero_catch_html");
   const h1 = document.getElementById("hero-h1");
   if (h1) h1.innerHTML = t("hero_h1_html");
   const steps = document.getElementById("load-steps");
