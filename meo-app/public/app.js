@@ -74,6 +74,7 @@ const T = {
     report_title: "診断結果レポート",
     report_sub: (v) => `${v.name} ／ ${v.addr}`,
     report_date: (v) => `📅 調査日 ${v.date}（最新調査サイクルの結果）`,
+    rh_date_sub: "（最新調査サイクル）",
     freshness_note: "※「直近クチコミ」など最新の動きは、データ更新の都合で数日〜数週間前の状態を表示する場合があります（Googleの各種レポートと同様）。最新の実状況はGoogleマップでご確認ください。",
     part1_t: "整備度", part1_s: "あなたのGoogleプロフィールの「完成度」を採点します",
     part2_t: "エリア内ランキング", part2_s: "近隣の同業の中での、あなたの順位（口コミ・評価などから算出）",
@@ -256,6 +257,7 @@ const T = {
     report_title: "Diagnostic Report",
     report_sub: (v) => `${v.name} / ${v.addr}`,
     report_date: (v) => `📅 Surveyed on ${v.date} (results from the latest survey cycle)`,
+    rh_date_sub: "(latest survey cycle)",
     freshness_note: "* The latest activity, such as \"recent reviews,\" may reflect a state from a few days to a few weeks ago due to data update timing (as with Google's own reports). Please check Google Maps for the most current status.",
     part1_t: "Profile completeness", part1_s: "We score how \"complete\" your Google profile is",
     part2_t: "Local ranking", part2_s: "Your position among nearby peers (based on reviews & ratings)",
@@ -438,6 +440,7 @@ const T = {
     report_title: "진단 결과 리포트",
     report_sub: (v) => `${v.name} ／ ${v.addr}`,
     report_date: (v) => `📅 조사일 ${v.date}(최신 조사 사이클의 결과)`,
+    rh_date_sub: "(최신 조사 사이클)",
     freshness_note: "※「최근 리뷰」 등 최신 동향은 데이터 갱신 사정으로 며칠~몇 주 전 상태를 표시할 수 있습니다(구글의 각종 리포트와 동일). 최신 실제 상황은 구글 지도에서 확인해 주세요.",
     part1_t: "완성도", part1_s: "귀하의 구글 프로필 「완성도」를 채점합니다",
     part2_t: "지역 내 랭킹", part2_s: "주변 동종 업종 중 당신의 순위(리뷰・평점 등으로 산출)",
@@ -620,6 +623,7 @@ const T = {
     report_title: "診斷結果報告",
     report_sub: (v) => `${v.name} ／ ${v.addr}`,
     report_date: (v) => `📅 調查日 ${v.date}（最新調查週期的結果）`,
+    rh_date_sub: "（最新調查週期）",
     freshness_note: "※「最近評論」等最新動態，因資料更新時間關係，可能顯示數天至數週前的狀態（與 Google 各項報告相同）。最新實際狀況請於 Google 地圖確認。",
     part1_t: "完善度", part1_s: "為您的 Google 檔案「完善程度」評分",
     part2_t: "區域內排名", part2_s: "在周邊同業中您的排名（依評論・評分等推算）",
@@ -1230,10 +1234,18 @@ function renderResult(d) {
   }
 
   $("result-view").innerHTML = `
-    <div class="report-title"><span class="g-ico">📋</span>${t("report_title")}</div>
-    <div class="report-sub">${t("report_sub", { name: esc(d.name), addr: esc(d.address || d.area) })}</div>
-    ${d.investigatedAt ? `<div class="report-date">${t("report_date", { date: esc(d.investigatedAt) })}</div>` : ""}
-    ${chipsHTML}
+    <div class="report-hero">
+      <div class="rh-deco rh-deco-l"></div>
+      <div class="rh-deco rh-deco-r"></div>
+      <div class="rh-eyebrow"><span class="rh-eye-line"></span><span class="rh-eye-text">MEO DIAGNOSTIC REPORT</span><span class="rh-eye-line"></span></div>
+      <h1 class="rh-title">${t("report_title")}</h1>
+      <div class="rh-card">
+        <div class="rh-name">${esc(d.name)}</div>
+        <div class="rh-addr">${esc(d.address || d.area)}</div>
+        ${d.investigatedAt ? `<div class="rh-date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(d.investigatedAt)} <span class="rh-date-sub">${t("rh_date_sub")}</span></div>` : ""}
+        ${chipsHTML}
+      </div>
+    </div>
     ${d.investigatedAt ? `<div class="freshness-note">${t("freshness_note")}</div>` : ""}
 
     <div class="section-head sec-seibi">
