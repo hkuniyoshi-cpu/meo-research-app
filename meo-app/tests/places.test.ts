@@ -53,14 +53,14 @@ describe("findPlace", () => {
       ok: true,
       json: async () => ({ places: [{ id: "PID1", displayName: { text: "クレープの森" } }] }),
     });
-    const res = await findPlace("クレープの森", "那覇市牧志", "KEY", fetchMock as any);
+    const res = await findPlace("クレープの森", "那覇市牧志", "KEY", "ja", fetchMock as any);
     expect(res?.id).toBe("PID1");
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("該当なしならnull", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-    const res = await findPlace("無", "無", "KEY", fetchMock as any);
+    const res = await findPlace("無", "無", "KEY", "ja", fetchMock as any);
     expect(res).toBeNull();
   });
 });

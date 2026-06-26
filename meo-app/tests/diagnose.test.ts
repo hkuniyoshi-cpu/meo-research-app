@@ -73,6 +73,10 @@ describe("trimAddress", () => {
   it("番地が無い住所はそのまま", () => {
     expect(trimAddress("沖縄県中頭郡北谷町美浜")).toBe("沖縄県中頭郡北谷町美浜");
   });
+  it("海外住所は番地行と国名を落とし、郵便番号を除去", () => {
+    expect(trimAddress("123 Main St, New York, NY 10001, USA")).toBe("New York, NY");
+    expect(trimAddress("10 Downing St, London SW1A 2AA, UK")).toBe("London SW1A 2AA");
+  });
   it("空文字は空文字", () => {
     expect(trimAddress("")).toBe("");
   });

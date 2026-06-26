@@ -19,9 +19,9 @@ const SEARCH_MASK = [
   "places.userRatingCount", "places.photos",
 ].join(",");
 
-/** 事業名＋住所/エリアで Text Search し先頭候補を返す。 */
+/** 事業名＋住所/エリアで Text Search し先頭候補を返す。lang=言語コード(日本以外は"en"等)。 */
 export async function findPlace(
-  name: string, area: string, apiKey: string, fetchFn: FetchFn = fetch
+  name: string, area: string, apiKey: string, lang: string = "ja", fetchFn: FetchFn = fetch
 ): Promise<{ id: string } | null> {
   const resp = await fetchFn("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
@@ -30,7 +30,7 @@ export async function findPlace(
       "X-Goog-Api-Key": apiKey,
       "X-Goog-FieldMask": SEARCH_MASK,
     },
-    body: JSON.stringify({ textQuery: `${name} ${area}`, languageCode: "ja", maxResultCount: 1 }),
+    body: JSON.stringify({ textQuery: `${name} ${area}`, languageCode: lang, maxResultCount: 1 }),
   });
   if (!resp.ok) throw new Error(`searchText failed: ${resp.status}`);
   const data: any = await resp.json();
@@ -39,8 +39,8 @@ export async function findPlace(
 }
 
 /** place_id の詳細を取得。 */
-export async function getDetails(placeId: string, apiKey: string, fetchFn: FetchFn = fetch): Promise<any> {
-  const resp = await fetchFn(`https://places.googleapis.com/v1/places/${placeId}?languageCode=ja`, {
+export async function getDetails(placeId: string, apiKey: string, lang: string = "ja", fetchFn: FetchFn = fetch): Promise<any> {
+  const resp = await fetchFn(`https://places.googleapis.com/v1/places/${placeId}?languageCode=${lang}`, {
     headers: { "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": DETAILS_MASK },
   });
   if (!resp.ok) throw new Error(`getDetails failed: ${resp.status}`);
@@ -49,9 +49,9 @@ export async function getDetails(placeId: string, apiKey: string, fetchFn: Fetch
 
 /** 同カテゴリ近隣の競合を Text Search で取得（軽量フィールドのみ）。 */
 export async function findCompetitors(
-  primaryType: string | undefined, area: string, apiKey: string, fetchFn: FetchFn = fetch
+  primaryType: string | undefined, area: string, apiKey: string, lang: string = "ja", fetchFn: FetchFn = fetch
 ): Promise<any[]> {
-  const q = `${primaryType ?? "店舗"} ${area}`;
+  const q = `${primaryType ?? (lang === "ja" ? "店舗" : "business")} ${area}`;
   const resp = await fetchFn("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
     headers: {
@@ -59,7 +59,7 @@ export async function findCompetitors(
       "X-Goog-Api-Key": apiKey,
       "X-Goog-FieldMask": SEARCH_MASK,
     },
-    body: JSON.stringify({ textQuery: q, languageCode: "ja", maxResultCount: 20 }),
+    body: JSON.stringify({ textQuery: q, languageCode: lang, maxResultCount: 20 }),
   });
   if (!resp.ok) throw new Error(`competitors search failed: ${resp.status}`);
   const data: any = await resp.json();

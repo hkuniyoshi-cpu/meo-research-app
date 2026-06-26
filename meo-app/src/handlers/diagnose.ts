@@ -43,15 +43,17 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   }
 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
-  const cacheKey = `diag:v28:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  const cacheKey = `diag:v29:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
   try {
-    const found = await findPlace(body.name, body.area, env.GOOGLE_PLACES_API_KEY);
+    // 入力に日本語が含まれなければ英語で取得（海外対応Phase1）
+    const lang = /[ぁ-んァ-ヶ一-龯]/.test(`${body.name}${body.area}`) ? "ja" : "en";
+    const found = await findPlace(body.name, body.area, env.GOOGLE_PLACES_API_KEY, lang);
     if (!found) return json({ error: "not_found" }, 404);
 
-    const details = normalizeDetails(await getDetails(found.id, env.GOOGLE_PLACES_API_KEY));
+    const details = normalizeDetails(await getDetails(found.id, env.GOOGLE_PLACES_API_KEY, lang));
     const weights = weightsFor(details.primaryType);
 
     // Outscraper enrichment（失敗時はnullにデグレード）
@@ -85,7 +87,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
 
     let ranking = null;
     if (body.compare) {
-      const raw = await findCompetitors(details.primaryType, body.area, env.GOOGLE_PLACES_API_KEY);
+      const raw = await findCompetitors(details.primaryType, body.area, env.GOOGLE_PLACES_API_KEY, lang);
       const comps = raw.filter((c: any) => c.id !== details.placeId).map(normalizeLight);
       ranking = rankAmong(details, comps);
     }
@@ -167,13 +169,21 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
 export function trimAddress(a: string): string {
   if (!a) return "";
   let s = a.replace(/^日本[、,\s]*/, "").replace(/^Japan[,\s]*/i, "");
-  s = s.replace(/〒?\s*\d{3}[-－]?\d{4}\s*/, ""); // 郵便番号
+  s = s.replace(/〒?\s*\d{3}[-－]?\d{4}\s*/, ""); // 郵便番号(日本)
   s = s.trim();
-  const chome = s.match(/^(.*?[0-9０-９]+\s*丁目)/); // 丁目まで残す
-  if (chome) return chome[1].replace(/\s+/g, "");
-  // 丁目表記が無い場合は最初の番地数字以降（建物名・号室も含む）をすべて落とす
-  s = s.replace(/\s*[0-9０-９].*$/, "");
-  return s.trim();
+  if (/[ぁ-んァ-ヶ一-龯]/.test(s)) {
+    // 日本語住所
+    const chome = s.match(/^(.*?[0-9０-９]+\s*丁目)/); // 丁目まで残す
+    if (chome) return chome[1].replace(/\s+/g, "");
+    // 丁目表記が無い場合は最初の番地数字以降（建物名・号室も含む）をすべて落とす
+    return s.replace(/\s*[0-9０-９].*$/, "").trim();
+  }
+  // 海外（非日本語）住所：カンマ区切りで「番地行(先頭)」と「国名(末尾)」を落とし、郵便番号を除去
+  let parts = s.split(",").map((x) => x.trim()).filter(Boolean);
+  if (parts.length >= 3) parts = parts.slice(0, -1);            // 末尾の国名を除去
+  if (parts.length > 1 && /^\d/.test(parts[0])) parts = parts.slice(1); // 番地行(数字始まり)を除去
+  parts = parts.map((p) => p.replace(/\s+\d{3,}.*$/, "").trim()).filter(Boolean); // 郵便番号(数字3桁以上)を除去
+  return parts.join(", ");
 }
 
 /**
