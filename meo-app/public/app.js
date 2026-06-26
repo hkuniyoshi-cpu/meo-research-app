@@ -68,15 +68,13 @@ const T = {
     report_sub: (v) => `${v.name} ／ ${v.addr}`,
     report_date: (v) => `📅 調査日 ${v.date}（最新調査サイクルの結果）`,
     freshness_note: "※「直近クチコミ」など最新の動きは、データ更新の都合で数日〜数週間前の状態を表示する場合があります（Googleの各種レポートと同様）。最新の実状況はGoogleマップでご確認ください。",
-    part1_t: "PART 1ー整備度", part1_s: "あなたのGoogleプロフィールの「完成度」を採点します",
-    part2_t: "PART 2ー知名度", part2_s: "近隣同業の中での「評価・順位」と競合比較",
+    part1_t: "整備度", part1_s: "あなたのGoogleプロフィールの「完成度」を採点します",
+    part2_t: "知名度", part2_s: "近隣同業の中での「評価・順位」と競合比較",
     score_head: "総合スコア（整備度）",
     per100: "/ 100",
     rank_suffix: (v) => `${v.l}ランク`,
     health_head: "MEO健康度",
-    bench_first: (v) => `🏆 近隣同業 ${v.total}店中 <b>堂々の1位</b>`,
-    bench_top: (v) => `🏆 近隣同業 ${v.total}店中 <b>${v.rank}位</b>（上位${v.pct}%）`,
-    bench_low: (v) => `📍 近隣同業 ${v.total}店中 <b>${v.rank}位</b>（あなたより下位は${v.below}店）`,
+    bench_simple: (v) => `🏆 近隣同業 ${v.total}店中 <b>${v.rank}位</b>`,
     verdict_head: "診断総評",
     balance_head: "対策バランス",
     balance_note: (v) => `特に「${v.weak}」の対策が不足しています。ここを強化すると全体の底上げが期待できます。`,
@@ -158,7 +156,7 @@ const T = {
     vs_self: "自分で", vs_pro: "SearchMania",
     vs_r1_h: "時間・手間", vs_r1_self: "大（試行錯誤）", vs_r1_pro: "おまかせ",
     vs_r2_h: "専門知識", vs_r2_self: "学習が必要", vs_r2_pro: "不要",
-    vs_r3_h: "継続運用", vs_r3_self: "続けにくい", vs_r3_pro: "代行で継続",
+    vs_r3_h: "継続運用", vs_r3_self: "続けにくい", vs_r3_pro: "自動運用",
     vs_r4_h: "成果", vs_r4_self: "不確実", vs_r4_pro: "実績に基づく",
     fc_head: "この診断結果、<br>プロと一緒に改善しませんか？",
     fc_sub: "SearchManiaが「何から手をつけるべきか」を<b>無料</b>でご提案します。",
@@ -248,15 +246,13 @@ const T = {
     report_sub: (v) => `${v.name} / ${v.addr}`,
     report_date: (v) => `📅 Surveyed on ${v.date} (results from the latest survey cycle)`,
     freshness_note: "* The latest activity, such as \"recent reviews,\" may reflect a state from a few days to a few weeks ago due to data update timing (as with Google's own reports). Please check Google Maps for the most current status.",
-    part1_t: "PART 1 — Profile completeness", part1_s: "We score how \"complete\" your Google profile is",
-    part2_t: "PART 2 — Prominence", part2_s: "Your rating/ranking among nearby peers and competitor comparison",
+    part1_t: "Profile completeness", part1_s: "We score how \"complete\" your Google profile is",
+    part2_t: "Prominence", part2_s: "Your rating/ranking among nearby peers and competitor comparison",
     score_head: "Overall score (completeness)",
     per100: "/ 100",
     rank_suffix: (v) => `Rank ${v.l}`,
     health_head: "MEO health",
-    bench_first: (v) => `🏆 <b>Clear 1st place</b> out of ${v.total} nearby peers`,
-    bench_top: (v) => `🏆 <b>#${v.rank}</b> out of ${v.total} nearby peers (top ${v.pct}%)`,
-    bench_low: (v) => `📍 <b>#${v.rank}</b> out of ${v.total} nearby peers (${v.below} ranked below you)`,
+    bench_simple: (v) => `🏆 <b>#${v.rank}</b> out of ${v.total} nearby peers`,
     verdict_head: "Overall assessment",
     balance_head: "Balance of measures",
     balance_note: (v) => `In particular, work on "${v.weak}" is lacking. Strengthening it should lift your whole profile.`,
@@ -338,7 +334,7 @@ const T = {
     vs_self: "DIY", vs_pro: "SearchMania",
     vs_r1_h: "Time & effort", vs_r1_self: "High (trial and error)", vs_r1_pro: "Leave it to us",
     vs_r2_h: "Expertise", vs_r2_self: "Learning required", vs_r2_pro: "Not needed",
-    vs_r3_h: "Ongoing operation", vs_r3_self: "Hard to keep up", vs_r3_pro: "Managed continuously",
+    vs_r3_h: "Ongoing operation", vs_r3_self: "Hard to keep up", vs_r3_pro: "Automated operation",
     vs_r4_h: "Results", vs_r4_self: "Uncertain", vs_r4_pro: "Based on a track record",
     fc_head: "Want to improve these results<br>together with a pro?",
     fc_sub: "SearchMania will suggest <b>for free</b> where you should start.",
@@ -602,20 +598,6 @@ function radarSVG(cats) {
 }
 
 /* ===== SearchManiaへの導線（CTA） ===== */
-// A. スコア帯でメッセージが変わるパーソナライズCTA
-function ctaPersonal(d) {
-  const tot = d.profile.total;
-  let head, sub, cls;
-  if (tot < 60) { cls = "high"; head = t("cta_high_head"); sub = t("cta_high_sub", { t: tot }); }
-  else if (tot < 80) { cls = "mid"; head = t("cta_mid_head"); sub = t("cta_mid_sub", { t: tot }); }
-  else { cls = "low"; head = t("cta_low_head"); sub = t("cta_low_sub", { t: tot }); }
-  return `<div class="cta-card cta-${cls}">
-    <div class="cta-head">${head}</div>
-    <p class="cta-sub">${sub}</p>
-    <a class="cta-btn" href="${CTA.site}" target="_blank" rel="noopener">${t("cta_btn")}</a>
-    <div class="cta-by">${t("cta_by")}</div>
-  </div>`;
-}
 // B. 競合差を突くCTA（1位以外のとき）
 function ctaGap(d) {
   if (!d.ranking || d.ranking.rank <= 1) return "";
@@ -639,16 +621,14 @@ function ctaVs() {
 }
 // D. 末尾の強い相談セクション
 function ctaFinal() {
-  const line = CTA.line ? `<a class="fc-btn fc-line" href="${CTA.line}" target="_blank" rel="noopener">${t("fc_line")}</a>` : "";
-  const tel = CTA.tel ? `<a class="fc-btn fc-tel" href="tel:${CTA.tel}">${t("fc_tel")}</a>` : "";
+  const lineHref = CTA.line || CTA.site; // LINE URL未設定時はサイトへフォールバック
   return `<div class="glass final-cta">
     <div class="fc-head">${t("fc_head")}</div>
     <p class="fc-sub">${t("fc_sub")}</p>
     <div class="fc-benefits"><span>${t("fc_benefit1")}</span><span>${t("fc_benefit2")}</span><span>${t("fc_benefit3")}</span></div>
     <div class="fc-btns">
       <a class="fc-btn fc-primary" href="${CTA.site}" target="_blank" rel="noopener">${t("fc_primary")}</a>
-      ${line}${tel}
-      <a class="fc-btn fc-mail" href="mailto:${CTA.email}?subject=${t("fc_mail_subject")}">${t("fc_mail")}</a>
+      <a class="fc-btn fc-line" href="${lineHref}" target="_blank" rel="noopener">${t("fc_line")}</a>
     </div>
   </div>`;
 }
@@ -659,13 +639,7 @@ function renderResult(d) {
   const health = healthOf(d.profile.total);
   // 順位を主役にした分かりやすい表現（「上位90%」のような誤解を招く表記は使わない）
   let benchHTML = "";
-  if (d.ranking) {
-    const { rank, total } = d.ranking;
-    const topPct = Math.max(1, Math.round(rank / total * 100));
-    if (rank === 1) benchHTML = `<div class="benchmark">${t("bench_first", { total })}</div>`;
-    else if (topPct <= 50) benchHTML = `<div class="benchmark">${t("bench_top", { total, rank, pct: topPct })}</div>`;
-    else benchHTML = `<div class="benchmark">${t("bench_low", { total, rank, below: total - rank })}</div>`;
-  }
+  if (d.ranking) benchHTML = `<div class="benchmark">${t("bench_simple", { total: d.ranking.total, rank: d.ranking.rank })}</div>`;
 
   const BADGE = { high: { t: t("badge_high"), cls: "pri-high" }, mid: { t: t("badge_mid"), cls: "pri-mid" }, info: { t: t("badge_info"), cls: "pri-info" } };
   const plan = d.tipsVisible.map((tip) => {
@@ -800,8 +774,8 @@ function renderResult(d) {
     ${d.investigatedAt ? `<div class="freshness-note">${t("freshness_note")}</div>` : ""}
 
     <div class="section-head sec-seibi">
-      <span class="sec-ico">🛠️</span>
-      <div class="sec-txt"><b>${t("part1_t")}</b><small>${t("part1_s")}</small></div>
+      <span class="sec-num">1</span>
+      <div class="sec-txt"><span class="sec-eyebrow">PART 1</span><b>${t("part1_t")}</b><small>${t("part1_s")}</small></div>
     </div>
 
     <div class="report-grid">
@@ -817,8 +791,6 @@ function renderResult(d) {
         <p class="verdict">${esc(verdictText(d))}</p>
       </div>
     </div>
-
-    ${ctaPersonal(d)}
 
     <div class="report-grid">
       <div class="glass">
@@ -842,8 +814,8 @@ function renderResult(d) {
     ${simHTML}
 
     <div class="section-head sec-chimei">
-      <span class="sec-ico">📊</span>
-      <div class="sec-txt"><b>${t("part2_t")}</b><small>${t("part2_s")}</small></div>
+      <span class="sec-num">2</span>
+      <div class="sec-txt"><span class="sec-eyebrow">PART 2</span><b>${t("part2_t")}</b><small>${t("part2_s")}</small></div>
     </div>
 
     ${ranking}
