@@ -68,6 +68,30 @@ describe("bizProfile", () => {
   it("uiLang未指定は従来どおり日本語（後方互換）", () => {
     expect(bizProfile("dentist", ["dentist"]).attrs).toContain("保険");
   });
+  it("uiLang=ko で韓国語の例文を返す（kind/limitedAttrsは不変・jaと異なる）", () => {
+    const ja = bizProfile("restaurant", ["restaurant", "cafe"]);
+    const ko = bizProfile("restaurant", ["restaurant", "cafe"], "ko");
+    expect(ko.kind).toBe("food");
+    expect(ko.limitedAttrs).toBe(false);
+    expect(ko.photos).toBeTruthy();
+    expect(ko.attrs).toBeTruthy();
+    expect(ko.subcat).toBeTruthy();
+    expect(ko.photos).not.toBe(ja.photos);
+    expect(ko.attrs).not.toBe(ja.attrs);
+    expect(ko.subcat).not.toBe(ja.subcat);
+  });
+  it("uiLang=zh で繁体字中国語の例文を返す（kind/limitedAttrsは不変・jaと異なる）", () => {
+    const ja = bizProfile("restaurant", ["restaurant", "cafe"]);
+    const zh = bizProfile("restaurant", ["restaurant", "cafe"], "zh");
+    expect(zh.kind).toBe("food");
+    expect(zh.limitedAttrs).toBe(false);
+    expect(zh.photos).toBeTruthy();
+    expect(zh.attrs).toBeTruthy();
+    expect(zh.subcat).toBeTruthy();
+    expect(zh.photos).not.toBe(ja.photos);
+    expect(zh.attrs).not.toBe(ja.attrs);
+    expect(zh.subcat).not.toBe(ja.subcat);
+  });
 });
 
 describe("trimAddress", () => {

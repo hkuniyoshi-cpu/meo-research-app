@@ -2,13 +2,19 @@ let turnstileToken = "";
 let tokenWaiters = [];
 window.onTurnstile = (t) => { turnstileToken = t; const w = tokenWaiters; tokenWaiters = []; w.forEach(fn => fn(t)); };
 
-/* ===== i18n（日本語／英語） ===== */
+/* ===== i18n（日本語／英語／한국어／繁體中文） ===== */
 let LANG = (() => {
   let saved = "";
   try { saved = localStorage.getItem("meo_lang") || ""; } catch (e) {}
-  if (saved === "ja" || saved === "en") return saved;
-  try { if (navigator.language && navigator.language.toLowerCase().startsWith("ja")) return "ja"; } catch (e) {}
-  return navigator.language ? "en" : "ja";
+  if (saved === "ja" || saved === "en" || saved === "ko" || saved === "zh") return saved;
+  try {
+    const nl = (navigator.language || "").toLowerCase();
+    if (nl.startsWith("ja")) return "ja";
+    if (nl.startsWith("ko")) return "ko";
+    if (nl.startsWith("zh")) return "zh";
+    if (nl) return "en";
+  } catch (e) {}
+  return "ja";
 })();
 
 const T = {
@@ -370,6 +376,364 @@ const T = {
     img_share_title: "MEO Check Results",
     img_filename: "MEO-check",
   },
+  ko: {
+    /* static */
+    hdr_tag: "구글 지도 무료 진단",
+    lp_label: "SEARCHMANIA ・ MEO 진단",
+    hero_h1_html: '상호명＋주소만으로<br><span class="grad">구글 지도 프로필 완성도</span>를<br>지금 바로 무료 진단.',
+    hero_sub: "입력은 단 2가지. 완성도 점수・경쟁사 비교・개선 플랜을 그 자리에서 리포트로 정리해 드립니다.",
+    ph_name: "상호명(예: 샘플 상점)",
+    ph_area: "주소 / 지역(예: 나하시 마키시)",
+    compare_opt: "경쟁사 비교도 함께(선택)",
+    go_btn: "무료로 MEO 진단하기",
+    trust1_t: "완전 무료", trust1_s: "가입 불필요",
+    trust2_t: "경쟁사 비교", trust2_s: "주변과 상대 평가",
+    trust3_t: "즉시 리포트", trust3_s: "그 자리에서 표시",
+    load_prep: "분석을 준비 중…",
+    policy_link: "개인정보 처리방침・이용 시 주의사항",
+    lang_label: "한국어",
+
+    /* loading */
+    load_steps: ["구글 지도에서 매장 확인 중…", "기본 정보(NAP) 대조 중…", "사진・리뷰・속성 분석 중…", "주변 경쟁사 수집・비교 중…", "완성도 점수＆인지도 산출 중…", "리포트 생성 중…"],
+    load_done: "완료!",
+    load_almost: "곧 완료…",
+    load_eta: (v) => `약 ${v.sec}초 남음`,
+
+    /* category labels */
+    cat_nap: "기본 정보", cat_category: "카테고리", cat_reviews: "리뷰", cat_photos: "사진", cat_hours: "신선도", cat_extras: "부가정보",
+
+    /* errors */
+    err_input: "상호명과 주소/지역을 입력해 주세요",
+    err_comm: "통신에 실패했습니다. 잠시 후 다시 시도해 주세요",
+    err_not_found: "해당하는 매장을 찾을 수 없습니다. 상호명이나 주소를 다시 확인해 주세요",
+    err_rate_limited: "오늘의 진단 한도에 도달했습니다. 내일 다시 시도할 수 있습니다",
+    err_bot_check_failed: "봇 판정을 다시 실행했습니다. \"무료로 MEO 진단하기\"를 한 번 더 눌러 주세요",
+    err_missing_fields: "입력이 부족합니다",
+    err_upstream_error: "데이터 취득에 실패했습니다. 잠시 후 다시 시도해 주세요",
+    err_default: "진단에 실패했습니다",
+
+    /* rank */
+    rank_excellent: "탁월", rank_good: "양호", rank_almost: "조금 더", rank_improve: "개선 필요", rank_action: "대책 필요",
+    /* health */
+    health_great: "최상", health_almost: "조금 더", health_action: "대책 필요",
+    /* badges */
+    badge_high: "최우선", badge_mid: "권장", badge_info: "팁",
+
+    /* verdict */
+    verdict_90: "매우 잘 정비되어 있습니다. 이 높은 수준을 유지하세요.",
+    verdict_75: "양호한 상태입니다. 조금만 더 개선하면 상위 노출을 노릴 수 있습니다.",
+    verdict_60: "합격선까지 한 걸음 남았습니다. 약한 항목을 채워 나가세요.",
+    verdict_45: "개선의 여지가 큰 상태입니다. 기본 항목부터 차근차근 정비하세요.",
+    verdict_0: "조속한 대책이 필요합니다. 우선 기본 정보 정비부터 시작하세요.",
+    verdict_tail: (v) => `특히 「${v.weak}」이(가) 약점입니다. 이곳을 강화하면 전체가 끌어올려집니다.`,
+
+    /* report */
+    report_title: "진단 결과 리포트",
+    report_sub: (v) => `${v.name} ／ ${v.addr}`,
+    report_date: (v) => `📅 조사일 ${v.date}(최신 조사 사이클의 결과)`,
+    freshness_note: "※「최근 리뷰」 등 최신 동향은 데이터 갱신 사정으로 며칠~몇 주 전 상태를 표시할 수 있습니다(구글의 각종 리포트와 동일). 최신 실제 상황은 구글 지도에서 확인해 주세요.",
+    part1_t: "완성도", part1_s: "귀하의 구글 프로필 「완성도」를 채점합니다",
+    part2_t: "인지도", part2_s: "주변 동종 업종 내에서의 「평가・순위」와 경쟁사 비교",
+    score_head: "종합 점수(완성도)",
+    per100: "/ 100",
+    rank_suffix: (v) => `${v.l} 등급`,
+    health_head: "MEO 건강도",
+    bench_simple: (v) => `🏆 주변 동종 업종 ${v.total}곳 중 <b>${v.rank}위</b>`,
+    verdict_head: "진단 총평",
+    balance_head: "대책 밸런스",
+    balance_note: (v) => `특히 「${v.weak}」에 대한 대책이 부족합니다. 이곳을 강화하면 전체 향상을 기대할 수 있습니다.`,
+    plan_head: "향후 액션 플랜",
+    plan_more: (v) => `＋그 외 ${v.n}개 항목을 개선하면 더 상위를 노릴 수 있습니다`,
+    plan_mail_cta: "정리된 상세 리포트를 이메일로 받기",
+
+    /* chips */
+    chip_verified: "✓ 소유자 인증 완료",
+    chip_unverified: "미인증 가능성",
+    chip_photos: (v) => `📷 사진 ${v.n}장${v.ok ? " ✓" : `(권장 ${v.rec}장~)`}`,
+    chip_reviews: (v) => `🔎 최근 리뷰 최신 ${v.days}일 전${v.pace != null ? ` / 월 ${v.pace}건 페이스` : ""}`,
+
+    /* strengths */
+    str_head: "귀하 매장의 강점",
+    str_owner: "소유자 인증 완료", str_photos: "사진이 풍부", str_reviews: "리뷰가 최신",
+    str_note: "이를 유지하면서 리뷰・게시물로 적극적으로 어필하면 효과적입니다.",
+
+    /* prediction */
+    pred_head: "향후 전망(예측)",
+    pred_note: "귀하 매장의 현재 데이터로 산출한 기준치입니다(실제 결과를 보장하지 않습니다).",
+    pred_gap_name: (v) => `「${v.cat}」(+${v.gain}점)`,
+    pred_score_gaps: (v) => `<b>완성도 점수의 성장 여력: +${v.gain}점</b>(${v.cur}점 → <b>${v.pot}점</b>)<br>특히 크게 오르는 부분은 ${v.names}. 이곳을 채우는 것이 가장 빠른 길입니다.`,
+    pred_score_plain: (v) => `<b>완성도 점수의 성장 여력: +${v.gain}점</b>(${v.cur}점 → <b>${v.pot}점</b>)까지 끌어올릴 수 있을 전망입니다.`,
+    pred_score_top: (v) => `<b>완성도는 상위 수준</b>: 현재 ${v.cur}점을 유지하면 상위 노출을 유지하기 쉬운 상태입니다.`,
+    pred_rank: (v) => `<b>순위 상승의 사정권: 인지도 ${v.gap}포인트 남음</b><br>현재 주변 동종 업종 ${v.total}곳 중 ${v.rank}위. 한 단계 위 매장과의 인지도 차이는 ${v.gap}pt${v.pace ? `. 월 ${v.pace}건의 리뷰 획득을 이어가면 사정권에 듭니다.` : ". 리뷰와 최신 정보 강화로 좁힐 수 있습니다."}`,
+    pred_review6m: (v) => `<b>리뷰의 미래 예측</b>: 현재 ${v.now}건・월 ${v.pace}건 페이스 → <b>반년 후 약 ${v.in6m}건</b>${v.milestone && v.months != null ? `. 이 추세라면 <b>약 ${v.months}개월 후 ${v.milestone}건 고지</b>에 도달합니다.` : "."}`,
+    pred_review_goal: (v) => `<b>리뷰 목표 설정</b>: 현재 ${v.now}건. 다음 이정표는 <b>${v.milestone}건</b>. 월 몇 건 획득 계획을 세우면 도달 시기가 보입니다.`,
+
+    /* risk */
+    risk_head: "방치할 경우의 리스크(시뮬레이션)",
+    risk_note: "갱신을 게을리하면 완성도 점수와 집객력은 시간이 갈수록 떨어집니다(현재 데이터로부터의 기준치).",
+    risk_legend_up: "개선을 이어간 경우", risk_legend_dn: "방치한 경우",
+    risk_x: ["현재", "3개월 후", "6개월 후", "12개월 후"],
+    risk_pts: (v) => `${v.n}점`,
+    risk_item_hours_t: "최신 정보 게시를 중단",
+    risk_item_hours_d: (v) => `「신선도」가 약 ${v.n}점 하락. 정보가 오래되었다고 판단되어 노출 기회가 줄어듭니다.`,
+    risk_item_rev_t: "리뷰 획득을 중단",
+    risk_item_rev_d: (v) => `신선도 저하로 리뷰 평가가 약 ${v.n}점 감소. 새 리뷰를 모으는 경쟁사에게 추월당하기 쉬워집니다.`,
+    risk_item_misc_t: "사진・영업시간・부가정보를 방치",
+    risk_item_misc_d: "정보의 신뢰성이 떨어지고, 방문 판단 근거가 줄어 기회 손실로 이어집니다.",
+    risk_item_join: "그리고…",
+    risk_warn: (v) => `이대로 방치하면 <b>12개월에 최대 −${v.decline}점</b>. 개선했을 경우와의 차이는 <b>${v.diff}점</b>까지 벌어집니다. <b>빨리 움직일수록 유리</b>합니다.`,
+
+    /* simulator */
+    sim_head: "효과 시뮬레이터",
+    sim_note: "개선하고 싶은 항목을 체크하면 예상 점수가 그 자리에서 바뀝니다.",
+    sim_score_label: "예상 점수",
+    sim_opt: (v) => `${v.cat} 개선`,
+
+    /* ranking */
+    ranking_head: (v) => `검색 평가(예상) — 주변 ${v.total}곳 중 ${v.rank}위`,
+    ranking_note_full: "※완성도 점수(/100)와는 별개의 지표입니다. 리뷰 수・평점 등으로 산출한 「주변 동종 업종 내 인지도의 상대값」을 나타냅니다. 각 경쟁사는 「완성도 조사」 버튼으로 TOP으로 돌아가지 않고 완성도 점수를 조사해 비교할 수 있습니다.",
+    ranking_head_plain: "검색 평가(예상)",
+    ranking_note_plain: "※완성도 점수(/100)와는 별개의 지표입니다. 리뷰 수・평점 등으로 산출한 인지도의 상대값입니다.",
+    comp_you_badge: "조사 대상",
+    comp_diag_btn: "🔍 이 매장을 조사",
+    comp_report_head: (v) => `📋 ${v.name}의 조사 결과`,
+    comp_index: (v) => `인지도 ${v.n}`,
+    comp_reviews: (v) => `리뷰 ${v.n}건`,
+
+    /* completeness comparison */
+    cmp_head: "완성도 비교(조사한 시설)",
+    cmp_note: "「완성도 조사」를 한 매장을 완성도 점수가 높은 순으로 나열합니다. 자기 매장의 객관적인 위치를 알 수 있습니다.",
+    cmp_diag_loading: "조사 중…",
+    cmp_diag_done: "✓ 조사 완료(아래 비교에 추가)",
+
+    /* CTA */
+    cta_high_head: "지금이 움직일 때입니다.",
+    cta_high_sub: (v) => `현재 <b>${v.t}점</b>. 검색에서 「발견될 기회」를 놓치고 있다는 신호입니다. 올바른 MEO 대책으로 만회할 수 있습니다.`,
+    cta_mid_head: "한 걸음이면 상위권.",
+    cta_mid_sub: (v) => `<b>${v.t}점</b>은 아쉬운 수준. 전문가의 마무리로 경쟁사와의 차이가 뚜렷해집니다.`,
+    cta_low_head: "이 강점을 독주로.",
+    cta_low_sub: (v) => `<b>${v.t}점</b>은 상위 수준. 유지・확대에는 지속적인 운영이 핵심. 더 위를 노릴 수 있습니다.`,
+    cta_btn: "이 결과를 무료로 전문가에게 상담",
+    cta_by: "MEO/SEO 전문가 집단 <b>SearchMania</b>가 가장 빠른 길을 제안합니다",
+    cta_gap: (v) => `주변 동종 업종 ${v.total}곳 중 <b>${v.rank}위</b>. ${v.gap ? `한 단계 위 매장과의 인지도 차이는 <b>${v.gap}pt</b>. ` : ""}이 차이는 <b>올바른 MEO 대책으로 좁힐 수 있습니다</b>.`,
+    cta_gap_link: "차이를 좁히는 방법 상담하기 →",
+    vs_head: "직접 대책 vs 전문가에게 맡기기",
+    vs_self: "직접", vs_pro: "SearchMania",
+    vs_r1_h: "시간・수고", vs_r1_self: "큼(시행착오)", vs_r1_pro: "맡기면 끝",
+    vs_r2_h: "전문 지식", vs_r2_self: "학습 필요", vs_r2_pro: "불필요",
+    vs_r3_h: "지속 운영", vs_r3_self: "지속하기 어려움", vs_r3_pro: "자동 운영",
+    vs_r4_h: "성과", vs_r4_self: "불확실", vs_r4_pro: "실적 기반",
+    fc_head: "이 진단 결과,<br>전문가와 함께 개선해 보지 않으시겠어요?",
+    fc_sub: "SearchMania가 「무엇부터 손대야 할지」를 <b>무료</b>로 제안해 드립니다.",
+    fc_benefit1: "✓ 전문 지식 불필요", fc_benefit2: "✓ 시간을 들이지 않고", fc_benefit3: "✓ 성과에 집중",
+    fc_primary: "무료 상담・문의",
+    fc_line: "LINE으로 상담", fc_tel: "전화로 상담", fc_mail: "이메일로 상담",
+    fc_mail_subject: "MEO 진단 상담",
+
+    /* share */
+    share_head: "결과 공유",
+    share_native: "스마트폰 / SNS로 공유",
+    share_img: "이미지로 저장", share_line: "LINE", share_x: "포스트", share_copy: "링크 복사",
+    toast_copied: "링크를 복사했습니다",
+    toast_copy_failed: "복사에 실패했습니다",
+    toast_img_saved: "이미지를 저장했습니다",
+
+    /* nav / footer */
+    nav_re: "🔍 다른 매장 재조사",
+    nav_top: "🏠 TOP으로 돌아가기",
+    foot_html: 'Supervised &amp; Powered by <a href="https://search-mania.net/" target="_blank" rel="noopener">SearchMania</a> ・ <a href="https://search-mania.net/" target="_blank" rel="noopener">더 자세히 개선하고 싶으신 분은 여기로</a>',
+
+    /* share text / image */
+    share_title: "MEO 무료 진단",
+    share_text: (v) => `${v.name}의 MEO 진단 결과: 완성도 점수 ${v.total}점(${v.l} 등급)｜SearchMania MEO 무료 진단`,
+    img_title: "MEO 진단 결과 리포트",
+    img_rank: (v) => `${v.l} 등급 ${v.label}`,
+    img_bench: (v) => `주변 동종 업종 ${v.total}곳 중 ${v.rank}위`,
+    img_verified: "✓ 소유자 인증 완료",
+    img_photos: (v) => `📷 사진 ${v.n}장`,
+    img_reviews: (v) => `🔎 최근 리뷰 ${v.days}일 전`,
+    img_share_title: "MEO 진단 결과",
+    img_filename: "MEO진단",
+  },
+  zh: {
+    /* static */
+    hdr_tag: "Google 地圖免費診斷",
+    lp_label: "SEARCHMANIA ・ MEO 診斷",
+    hero_h1_html: '輸入商家名稱＋地址，<br>立即免費診斷您的<br><span class="grad">Google 地圖檔案完善度</span>。',
+    hero_sub: "只需輸入兩項。完善度評分・競爭對手比較・改善方案，當場為您整理成報告。",
+    ph_name: "商家名稱（例：範例商店）",
+    ph_area: "地址 / 地區（例：那霸市牧志）",
+    compare_opt: "一併進行競爭對手比較（選填）",
+    go_btn: "免費進行 MEO 診斷",
+    trust1_t: "完全免費", trust1_s: "免註冊",
+    trust2_t: "競爭對手比較", trust2_s: "與周邊相對評估",
+    trust3_t: "即時報告", trust3_s: "當場顯示",
+    load_prep: "正在準備分析…",
+    policy_link: "隱私權政策・使用注意事項",
+    lang_label: "繁體中文",
+
+    /* loading */
+    load_steps: ["正在 Google 地圖上定位商家…", "正在比對基本資訊（NAP）…", "正在分析照片・評論・屬性…", "正在擷取並比較周邊競爭對手…", "正在計算完善度＆知名度…", "正在生成報告…"],
+    load_done: "完成！",
+    load_almost: "即將完成…",
+    load_eta: (v) => `約剩 ${v.sec} 秒`,
+
+    /* category labels */
+    cat_nap: "基本資訊", cat_category: "類別", cat_reviews: "評論", cat_photos: "照片", cat_hours: "新鮮度", cat_extras: "附加資訊",
+
+    /* errors */
+    err_input: "請輸入商家名稱與地址/地區",
+    err_comm: "通訊失敗。請稍後再試",
+    err_not_found: "找不到符合的商家。請重新確認商家名稱或地址",
+    err_rate_limited: "已達今日診斷上限。明天可再次嘗試",
+    err_bot_check_failed: "已重新進行機器人驗證。請再按一次「免費進行 MEO 診斷」",
+    err_missing_fields: "輸入內容不足",
+    err_upstream_error: "資料取得失敗。請稍後再試",
+    err_default: "診斷失敗",
+
+    /* rank */
+    rank_excellent: "卓越", rank_good: "良好", rank_almost: "差一步", rank_improve: "需改善", rank_action: "需對策",
+    /* health */
+    health_great: "極佳", health_almost: "差一步", health_action: "需對策",
+    /* badges */
+    badge_high: "最優先", badge_mid: "建議", badge_info: "提示",
+
+    /* verdict */
+    verdict_90: "您的檔案維護得非常完善。請維持這個高水準。",
+    verdict_75: "狀態良好。再稍加改善即可爭取排名靠前。",
+    verdict_60: "距離及格線僅差一步。請補強較弱的項目。",
+    verdict_45: "仍有很大的改善空間。請從基本項目開始穩紮穩打地完善。",
+    verdict_0: "需要儘速採取對策。請先從整理基本資訊開始。",
+    verdict_tail: (v) => `特別是「${v.weak}」為弱點。強化此處可帶動整體提升。`,
+
+    /* report */
+    report_title: "診斷結果報告",
+    report_sub: (v) => `${v.name} ／ ${v.addr}`,
+    report_date: (v) => `📅 調查日 ${v.date}（最新調查週期的結果）`,
+    freshness_note: "※「最近評論」等最新動態，因資料更新時間關係，可能顯示數天至數週前的狀態（與 Google 各項報告相同）。最新實際狀況請於 Google 地圖確認。",
+    part1_t: "完善度", part1_s: "為您的 Google 檔案「完善程度」評分",
+    part2_t: "知名度", part2_s: "在周邊同業中的「評價・排名」與競爭對手比較",
+    score_head: "綜合評分（完善度）",
+    per100: "/ 100",
+    rank_suffix: (v) => `${v.l} 級`,
+    health_head: "MEO 健康度",
+    bench_simple: (v) => `🏆 周邊同業 ${v.total} 家中 <b>第 ${v.rank} 名</b>`,
+    verdict_head: "診斷總評",
+    balance_head: "對策平衡",
+    balance_note: (v) => `特別是「${v.weak}」的對策不足。強化此處可望帶動整體提升。`,
+    plan_head: "後續行動方案",
+    plan_more: (v) => `＋再改善 ${v.n} 個項目，即可爭取更高排名`,
+    plan_mail_cta: "以電子郵件接收完整詳細報告",
+
+    /* chips */
+    chip_verified: "✓ 已通過擁有者驗證",
+    chip_unverified: "可能未驗證",
+    chip_photos: (v) => `📷 照片 ${v.n} 張${v.ok ? " ✓" : `（建議 ${v.rec} 張起）`}`,
+    chip_reviews: (v) => `🔎 最近評論 最新 ${v.days} 天前${v.pace != null ? ` / 每月約 ${v.pace} 則` : ""}`,
+
+    /* strengths */
+    str_head: "您商家的優勢",
+    str_owner: "已通過擁有者驗證", str_photos: "照片豐富", str_reviews: "評論新近",
+    str_note: "請維持這些優勢，並透過評論・貼文積極宣傳會更有效果。",
+
+    /* prediction */
+    pred_head: "後續展望（預測）",
+    pred_note: "這是依據您商家現況資料推算的參考值（不保證實際結果）。",
+    pred_gap_name: (v) => `「${v.cat}」（+${v.gain} 分）`,
+    pred_score_gaps: (v) => `<b>完善度評分的成長空間：+${v.gain} 分</b>（${v.cur} 分 → <b>${v.pot} 分</b>）<br>特別能提升的是 ${v.names}。補強這些是最快的途徑。`,
+    pred_score_plain: (v) => `<b>完善度評分的成長空間：+${v.gain} 分</b>（${v.cur} 分 → <b>${v.pot} 分</b>），可望提升至此。`,
+    pred_score_top: (v) => `<b>完善度為頂尖水準</b>：維持目前 ${v.cur} 分，即可保持容易排名靠前的狀態。`,
+    pred_rank: (v) => `<b>晉升排名的射程：知名度還差 ${v.gap} 分</b><br>目前周邊同業 ${v.total} 家中第 ${v.rank} 名。與上一名商家的知名度差距為 ${v.gap}pt${v.pace ? `。持續每月獲得 ${v.pace} 則評論即可進入射程範圍。` : "。可透過強化評論與最新資訊來縮短。"}`,
+    pred_review6m: (v) => `<b>評論未來預測</b>：目前 ${v.now} 則・每月約 ${v.pace} 則 → <b>半年後約 ${v.in6m} 則</b>${v.milestone && v.months != null ? `。照這個速度，<b>約 ${v.months} 個月即可達到 ${v.milestone} 則的大關</b>。` : "。"}`,
+    pred_review_goal: (v) => `<b>評論目標設定</b>：目前 ${v.now} 則。下一個里程碑是 <b>${v.milestone} 則</b>。訂定每月獲取數量的計畫，便能看見達成時程。`,
+
+    /* risk */
+    risk_head: "放任不管的風險（模擬）",
+    risk_note: "若疏於更新，完善度評分與集客力會隨時間下滑（依現況資料推算的參考值）。",
+    risk_legend_up: "持續改善的情況", risk_legend_dn: "放任不管的情況",
+    risk_x: ["現在", "3 個月後", "6 個月後", "12 個月後"],
+    risk_pts: (v) => `${v.n} 分`,
+    risk_item_hours_t: "停止發布最新資訊",
+    risk_item_hours_d: (v) => `「新鮮度」下降約 ${v.n} 分。資訊被判定為過時，曝光機會逐漸減少。`,
+    risk_item_rev_t: "停止獲取評論",
+    risk_item_rev_d: (v) => `新鮮度下降使評論評價減少約 ${v.n} 分。容易被持續累積新評論的競爭對手超越。`,
+    risk_item_misc_t: "放任照片・營業時間・附加資訊",
+    risk_item_misc_d: "資訊可信度下降，顧客判斷是否上門的依據減少，導致錯失機會。",
+    risk_item_join: "以及…",
+    risk_warn: (v) => `若就此放任，<b>12 個月內最多 −${v.decline} 分</b>。與改善情況的差距更會擴大至 <b>${v.diff} 分</b>。<b>越早行動越有利</b>。`,
+
+    /* simulator */
+    sim_head: "成效模擬器",
+    sim_note: "勾選想改善的項目，預估評分會當場變動。",
+    sim_score_label: "預估評分",
+    sim_opt: (v) => `改善${v.cat}`,
+
+    /* ranking */
+    ranking_head: (v) => `搜尋評價（預估）— 周邊 ${v.total} 家中第 ${v.rank} 名`,
+    ranking_note_full: "※這是與完善度評分（/100）不同的指標。它顯示依評論數・評分等推算的「周邊同業內知名度相對值」。各競爭對手可透過「調查完善度」按鈕，在不返回首頁的情況下查詢其完善度評分並進行比較。",
+    ranking_head_plain: "搜尋評價（預估）",
+    ranking_note_plain: "※這是與完善度評分（/100）不同的指標。為依評論數・評分等推算的知名度相對值。",
+    comp_you_badge: "調查對象",
+    comp_diag_btn: "🔍 調查此商家",
+    comp_report_head: (v) => `📋 ${v.name} 的調查結果`,
+    comp_index: (v) => `知名度 ${v.n}`,
+    comp_reviews: (v) => `評論 ${v.n} 則`,
+
+    /* completeness comparison */
+    cmp_head: "完善度比較（已調查的商家）",
+    cmp_note: "將您執行「調查完善度」的商家，依完善度評分由高至低排列。可了解自家商家的客觀定位。",
+    cmp_diag_loading: "調查中…",
+    cmp_diag_done: "✓ 已調查（已加入下方比較）",
+
+    /* CTA */
+    cta_high_head: "現在正是行動的時候。",
+    cta_high_sub: (v) => `目前 <b>${v.t} 分</b>。這是您正在錯失「被搜尋發現的機會」的訊號。透過正確的 MEO 對策即可扭轉。`,
+    cta_mid_head: "距離頂尖只差一步。",
+    cta_mid_sub: (v) => `<b>${v.t} 分</b>相當可惜。透過專業的收尾，能與競爭對手明顯拉開差距。`,
+    cta_low_head: "讓這項優勢一路領先。",
+    cta_low_sub: (v) => `<b>${v.t} 分</b>已是頂尖水準。維持・擴大的關鍵在於持續經營。還能爭取更高的目標。`,
+    cta_btn: "免費向專家諮詢此結果",
+    cta_by: "MEO/SEO 專業團隊 <b>SearchMania</b> 為您提案最快途徑",
+    cta_gap: (v) => `周邊同業 ${v.total} 家中 <b>第 ${v.rank} 名</b>。${v.gap ? `與上一名商家的知名度差距為 <b>${v.gap}pt</b>。` : ""}這個差距<b>可透過正確的 MEO 對策縮短</b>。`,
+    cta_gap_link: "諮詢如何縮短差距 →",
+    vs_head: "自行對策 vs 交給專家",
+    vs_self: "自行", vs_pro: "SearchMania",
+    vs_r1_h: "時間・心力", vs_r1_self: "大（不斷試錯）", vs_r1_pro: "全權交辦",
+    vs_r2_h: "專業知識", vs_r2_self: "需要學習", vs_r2_pro: "不需要",
+    vs_r3_h: "持續經營", vs_r3_self: "難以持續", vs_r3_pro: "自動經營",
+    vs_r4_h: "成效", vs_r4_self: "不確定", vs_r4_pro: "依實績為基礎",
+    fc_head: "這份診斷結果，<br>要不要和專家一起改善呢？",
+    fc_sub: "SearchMania 將<b>免費</b>為您提案「該從何處著手」。",
+    fc_benefit1: "✓ 無需專業知識", fc_benefit2: "✓ 不耗費您的時間", fc_benefit3: "✓ 講求成效",
+    fc_primary: "免費諮詢・聯絡我們",
+    fc_line: "用 LINE 諮詢", fc_tel: "用電話諮詢", fc_mail: "用電子郵件諮詢",
+    fc_mail_subject: "MEO 診斷諮詢",
+
+    /* share */
+    share_head: "分享結果",
+    share_native: "分享至手機 / 社群",
+    share_img: "存成圖片", share_line: "LINE", share_x: "發文", share_copy: "複製連結",
+    toast_copied: "已複製連結",
+    toast_copy_failed: "複製失敗",
+    toast_img_saved: "已儲存圖片",
+
+    /* nav / footer */
+    nav_re: "🔍 重新調查其他商家",
+    nav_top: "🏠 返回首頁",
+    foot_html: 'Supervised &amp; Powered by <a href="https://search-mania.net/" target="_blank" rel="noopener">SearchMania</a> ・ <a href="https://search-mania.net/" target="_blank" rel="noopener">想進一步改善的人請點這裡</a>',
+
+    /* share text / image */
+    share_title: "MEO 免費診斷",
+    share_text: (v) => `${v.name} 的 MEO 診斷結果：完善度評分 ${v.total} 分（${v.l} 級）｜SearchMania MEO 免費診斷`,
+    img_title: "MEO 診斷結果報告",
+    img_rank: (v) => `${v.l} 級 ${v.label}`,
+    img_bench: (v) => `周邊同業 ${v.total} 家中第 ${v.rank} 名`,
+    img_verified: "✓ 已通過擁有者驗證",
+    img_photos: (v) => `📷 照片 ${v.n} 張`,
+    img_reviews: (v) => `🔎 最近評論 ${v.days} 天前`,
+    img_share_title: "MEO 診斷結果",
+    img_filename: "MEO診斷",
+  },
 };
 
 function t(key, vars) {
@@ -393,8 +757,8 @@ function applyStaticI18n() {
   const steps = document.getElementById("load-steps");
   if (steps) steps.innerHTML = (t("load_steps") || []).map(s => `<li>${esc(s)}</li>`).join("");
   document.documentElement.lang = LANG;
-  const tog = document.getElementById("lang-toggle");
-  if (tog) tog.textContent = t("lang_label");
+  const sel = document.getElementById("lang-select");
+  if (sel) sel.value = LANG;
 }
 
 /* 管理者バイパス：URLに ?admin=キー を付けて開くと保存し、以後の診断で1日上限をスキップ。
@@ -1090,12 +1454,14 @@ function backToTop(clear) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-/* ===== i18n 言語トグル＆初期適用 ===== */
+/* ===== i18n 言語セレクター＆初期適用 ===== */
 (function initI18n() {
   applyStaticI18n();
-  const tog = document.getElementById("lang-toggle");
-  if (tog) tog.addEventListener("click", () => {
-    LANG = LANG === "ja" ? "en" : "ja";
+  const sel = document.getElementById("lang-select");
+  if (sel) sel.addEventListener("change", (e) => {
+    const v = e.target.value;
+    if (v !== "ja" && v !== "en" && v !== "ko" && v !== "zh") return;
+    LANG = v;
     try { localStorage.setItem("meo_lang", LANG); } catch (e) {}
     applyStaticI18n();
     // 結果ビューが表示中なら、その場で現在の言語で再描画

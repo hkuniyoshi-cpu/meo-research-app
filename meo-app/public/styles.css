@@ -25,6 +25,17 @@ body {
 .lang-toggle:hover { background:rgba(220,235,255,.95); box-shadow:0 3px 9px -5px rgba(26,115,232,.6); }
 .lang-toggle:active { transform:scale(.96); }
 
+/* 言語セレクター（淡い青のピル型 select） */
+.lang-select { border:1px solid rgba(66,133,244,.45); background:rgba(255,255,255,.7); color:#1a73e8;
+  font-weight:800; font-size:12px; letter-spacing:.02em; padding:6px 28px 6px 13px; border-radius:999px; cursor:pointer;
+  backdrop-filter:blur(6px); transition:background .15s, box-shadow .15s; white-space:nowrap; line-height:1.2;
+  appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M1 3l4 4 4-4' fill='none' stroke='%231a73e8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 11px center; }
+.lang-select:hover { background-color:rgba(220,235,255,.95); box-shadow:0 3px 9px -5px rgba(26,115,232,.6); }
+.lang-select:focus { outline:none; box-shadow:0 0 0 3px rgba(66,133,244,.25); }
+.lang-select option { color:#13294b; }
+
 /* ランディング ヒーロー */
 .lp-hero { text-align:center; padding:18px 6px 22px; }
 .hero-h1 { font-size:34px; font-weight:900; line-height:1.35; margin:10px 0 14px; color:#13294b; letter-spacing:-.5px; }
