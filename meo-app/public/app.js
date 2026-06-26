@@ -1598,15 +1598,15 @@ function backToTop(clear) {
   const cv = document.getElementById("bg-net");
   if (!cv) return;
   const ctx = cv.getContext("2d");
-  const COLORS = ["#4285F4", "#EA4335", "#FBBC05", "#34A853"];
+  const COLORS = ["#4285F4","#EA4335","#FBBC05","#34A853","#9b5cf6","#E91E93","#0abde3","#FF9500"];
   let w, h, pts;
   function resize() {
     w = cv.width = window.innerWidth;
     h = cv.height = window.innerHeight;
-    const n = Math.max(28, Math.min(72, Math.floor(w * h / 24000)));
+    const n = Math.max(32, Math.min(80, Math.floor(w * h / 18000)));
     pts = Array.from({ length: n }, (_, i) => ({
       x: Math.random() * w, y: Math.random() * h,
-      vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5,
+      vx: (Math.random() - 0.5) * 0.55, vy: (Math.random() - 0.5) * 0.55,
       c: COLORS[i % COLORS.length],
     }));
   }
@@ -1620,15 +1620,15 @@ function backToTop(clear) {
     for (let i = 0; i < pts.length; i++) {
       for (let j = i + 1; j < pts.length; j++) {
         const a = pts[i], b = pts[j], dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy);
-        if (d < 140) {
-          ctx.globalAlpha = (1 - d / 140) * 0.4;
-          ctx.strokeStyle = a.c; ctx.lineWidth = 1;
+        if (d < 150) {
+          ctx.globalAlpha = (1 - d / 150) * 0.55;
+          ctx.strokeStyle = a.c; ctx.lineWidth = 1.2;
           ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         }
       }
     }
-    ctx.globalAlpha = 0.85;
-    for (const p of pts) { ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 2.2, 0, 6.3); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    for (const p of pts) { ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, 6.3); ctx.fill(); }
     requestAnimationFrame(loop);
   }
   window.addEventListener("resize", resize);
