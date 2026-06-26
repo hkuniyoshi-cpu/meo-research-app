@@ -306,12 +306,20 @@ function renderResult(d) {
     </div>` : "";
 
 
+  // 知名度の上位1〜3位にメダルを付ける（自店も含めた全体の順位）
+  const allIdxSorted = [d.prominence, ...(d.ranking ? d.ranking.competitors.map(c => c.index) : [])].sort((a, b) => b - a);
+  const medalFor = (idx) => {
+    const pos = allIdxSorted.indexOf(idx);
+    return pos === 0 ? '<span class="medal">🥇</span>' : pos === 1 ? '<span class="medal">🥈</span>' : pos === 2 ? '<span class="medal">🥉</span>' : "";
+  };
   const compRow = (name, rating, reviews, index, isYou) => `
     <div class="comp ${isYou ? "you" : ""}">
-      <div class="comp-top"><span class="comp-name">${isYou ? '<span class="you-badge">調査対象</span>' : ""}${esc(name)}</span><span class="comp-idx">知名度 ${index}</span></div>
+      <div class="comp-top">
+        <span class="comp-name">${isYou ? '<span class="you-badge">調査対象</span>' : ""}${esc(name)}${!isYou ? `<button class="comp-diag" data-name="${esc(name)}">🔍 この店舗を調査</button>` : ""}</span>
+        <span class="comp-idx">${medalFor(index)}知名度 ${index}</span>
+      </div>
       ${(rating != null || reviews != null) ? `<div class="comp-meta">${rating != null ? `★${rating}` : ""}${reviews != null ? `${rating != null ? " ・ " : ""}クチコミ${reviews}件` : ""}</div>` : ""}
       <div class="comp-bar"><i data-w="${Math.max(4, Math.min(100, index))}"></i></div>
-      ${!isYou ? `<button class="comp-diag" data-name="${esc(name)}"><span class="cd-ico">🔍</span>この店舗の整備度を調査</button>` : ""}
     </div>`;
   const ranking = d.ranking ? `
     <div class="glass">
