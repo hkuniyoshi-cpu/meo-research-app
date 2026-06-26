@@ -1171,31 +1171,57 @@ function renderResult(d) {
     </div>` : "";
 
 
-  // 知名度の上位1〜3位にメダルを付ける（自店も含めた全体の順位）
-  const allIdxSorted = [d.prominence, ...(d.ranking ? d.ranking.competitors.map(c => c.index) : [])].sort((a, b) => b - a);
-  const medalFor = (idx) => {
-    const pos = allIdxSorted.indexOf(idx);
-    return pos === 0 ? '<span class="medal">🥇</span>' : pos === 1 ? '<span class="medal">🥈</span>' : pos === 2 ? '<span class="medal">🥉</span>' : "";
-  };
-  const compRow = (name, rating, reviews, index, isYou) => `
-    <div class="comp ${isYou ? "you" : ""}">
+  // ===== エリア内ランキング（表彰台＋順位リスト） =====
+  const rankRow = (e) => `
+    <div class="comp ${e.you ? "you" : ""}">
       <div class="comp-top">
-        <span class="comp-name">${isYou ? `<span class="you-badge">${t("comp_you_badge")}</span>` : ""}${esc(name)}${!isYou ? `<button class="comp-diag" data-name="${esc(name)}">${t("comp_diag_btn")}</button>` : ""}</span>
-        <span class="comp-idx">${medalFor(index)}${t("comp_index", { n: index })}</span>
+        <span class="comp-name"><span class="rank-no${e.rank <= 3 ? " top" : ""}">${e.rank}</span>${e.you ? `<span class="you-badge">${t("comp_you_badge")}</span>` : ""}${esc(e.name)}${!e.you ? `<button class="comp-diag" data-name="${esc(e.name)}">${t("comp_diag_btn")}</button>` : ""}</span>
+        <span class="comp-idx">${t("comp_index", { n: e.index })}</span>
       </div>
-      ${(rating != null || reviews != null) ? `<div class="comp-meta">${rating != null ? `★${rating}` : ""}${reviews != null ? `${rating != null ? " ・ " : ""}${t("comp_reviews", { n: reviews })}` : ""}</div>` : ""}
-      <div class="comp-bar"><i data-w="${Math.max(4, Math.min(100, index))}"></i></div>
+      ${(e.rating != null || e.reviews != null) ? `<div class="comp-meta">${e.rating != null ? `★${e.rating}` : ""}${e.reviews != null ? `${e.rating != null ? " ・ " : ""}${t("comp_reviews", { n: e.reviews })}` : ""}</div>` : ""}
+      <div class="comp-bar"><i data-w="${Math.max(4, Math.min(100, e.index))}"></i></div>
     </div>`;
-  const ranking = d.ranking ? `
+  let ranking;
+  if (d.ranking) {
+    const me = { name: d.name, index: d.prominence, rating: d.rating, reviews: d.reviewCount, you: true };
+    const comps = d.ranking.competitors.map(c => ({ name: c.name, index: c.index, rating: c.rating, reviews: c.reviews, you: false }));
+    const all = [me, ...comps].sort((a, b) => b.index - a.index).map((x, i) => ({ ...x, rank: i + 1 }));
+    const medals = ["🥇", "🥈", "🥉"];
+    const top3 = all.slice(0, 3);
+    const order = top3.length === 3 ? [top3[1], top3[0], top3[2]] : top3.length === 2 ? [top3[1], top3[0]] : top3;
+    const podBlock = (e) => `
+      <div class="pod pod-r${e.rank} ${e.you ? "you" : ""}">
+        <div class="pod-card">
+          ${e.you ? `<span class="pod-you">${t("comp_you_badge")}</span>` : ""}
+          <div class="pod-medal">${medals[e.rank - 1]}</div>
+          <div class="pod-name">${esc(e.name)}</div>
+          <div class="pod-score">${t("comp_index", { n: e.index })}</div>
+          ${!e.you ? `<button class="comp-diag pod-diag" data-name="${esc(e.name)}">${t("comp_diag_btn")}</button>` : ""}
+        </div>
+        <div class="pod-step"><span class="pod-rank">${e.rank}</span></div>
+      </div>`;
+    const podium = `<div class="podium pod-n${order.length}">${order.map(podBlock).join("")}</div>`;
+    const rest = all.slice(3);
+    const shown = rest.slice(0, 6);
+    const meRank = all.find(x => x.you).rank;
+    const tail = (meRank > 3 && !shown.some(x => x.you)) ? all.find(x => x.you) : null;
+    const list = (shown.length || tail) ? `<div class="rank-list">
+      ${shown.map(rankRow).join("")}
+      ${tail ? `<div class="rank-sep">⋯</div>${rankRow(tail)}` : ""}
+    </div>` : "";
+    ranking = `
     <div class="glass">
       <div class="g-head"><span class="g-ico">📊</span>${t("ranking_head", { total: d.ranking.total, rank: d.ranking.rank })}</div>
       <div class="note">${t("ranking_note_full")}</div>
-      ${compRow(d.name, d.rating, d.reviewCount, d.prominence, true)}
-      ${d.ranking.competitors.slice(0, 7).map(c => compRow(c.name, c.rating, c.reviews, c.index, false)).join("")}
-    </div>` : `
+      ${podium}
+      ${list}
+    </div>`;
+  } else {
+    ranking = `
     <div class="glass"><div class="g-head"><span class="g-ico">📊</span>${t("ranking_head_plain")}</div>
       <div class="note">${t("ranking_note_plain")}</div>
-      ${compRow(d.name, d.rating, d.reviewCount, d.prominence, true)}</div>`;
+      ${rankRow({ name: d.name, index: d.prominence, rating: d.rating, reviews: d.reviewCount, you: true, rank: 1 })}</div>`;
+  }
 
   $("result-view").innerHTML = `
     <div class="report-title"><span class="g-ico">📋</span>${t("report_title")}</div>

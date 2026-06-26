@@ -196,6 +196,47 @@ h1 { font-size:24px; margin:8px 0 18px; line-height:1.4; }
 /* 知名度の1〜3位メダル */
 .medal { font-size:15px; margin-right:4px; vertical-align:middle; }
 
+/* 🏆 表彰台（エリア内ランキング 上位3） */
+.podium { display:flex; align-items:flex-end; justify-content:center; gap:10px; margin:14px 0 18px; }
+.pod { flex:1 1 0; max-width:175px; display:flex; flex-direction:column; align-items:center; }
+.pod-card { width:100%; text-align:center; background:rgba(255,255,255,.75); border:1.5px solid rgba(120,160,210,.3);
+  border-radius:14px; padding:12px 8px 10px; box-shadow:0 8px 20px -12px rgba(80,130,200,.5); position:relative; }
+.pod-medal { font-size:30px; line-height:1; }
+.pod-name { font-size:12px; font-weight:800; color:#1c3a63; margin:5px 0 3px; line-height:1.3;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.pod-score { font-size:12px; font-weight:900; color:#1a73e8; }
+.pod-you { position:absolute; top:-9px; left:50%; transform:translateX(-50%); font-size:9px; font-weight:900; color:#fff;
+  background:linear-gradient(135deg,#4285F4,#1a73e8); padding:2px 9px; border-radius:999px; white-space:nowrap;
+  box-shadow:0 2px 6px rgba(26,115,232,.4); }
+.pod-step { width:100%; display:flex; align-items:flex-start; justify-content:center; padding-top:8px; border-radius:9px 9px 0 0;
+  color:#fff; font-weight:900; margin-top:7px; box-shadow:inset 0 2px 8px rgba(255,255,255,.35); }
+.pod-rank { font-size:22px; text-shadow:0 1px 3px rgba(0,0,0,.18); }
+.pod-r1 .pod-step { height:76px; background:linear-gradient(180deg,#ffd64d,#f2a900); }
+.pod-r2 .pod-step { height:56px; background:linear-gradient(180deg,#d2dbe6,#a3b4c7); }
+.pod-r3 .pod-step { height:42px; background:linear-gradient(180deg,#e7ab74,#c47a3d); }
+.pod-r1 .pod-card { border-color:rgba(242,169,0,.5); box-shadow:0 12px 26px -12px rgba(242,169,0,.6); }
+.pod-r1 .pod-medal { font-size:38px; }
+.pod-r1 .pod-name, .pod-r1 .pod-score { font-size:13px; }
+.pod.you .pod-card { border:2px solid #1a73e8; background:linear-gradient(120deg,#e3f0ff,#f1f7ff); }
+.pod-card .pod-diag { margin:8px 0 0; width:100%; justify-content:center; font-size:10px; padding:5px 6px; gap:3px;
+  white-space:normal; line-height:1.25; }
+@media (max-width:560px){
+  .podium { gap:6px; }
+  .pod-card { padding:10px 5px 8px; }
+  .pod-medal { font-size:25px; }
+  .pod-r1 .pod-medal { font-size:31px; }
+  .pod-name { font-size:11px; }
+  .pod-score { font-size:11px; }
+  .pod-rank { font-size:18px; }
+}
+
+/* 順位リスト（4位以降＋自店） */
+.rank-no { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 5px;
+  font-size:12px; font-weight:900; color:#5b7aa3; background:rgba(120,160,210,.18); border-radius:7px; margin-right:8px; flex:none; }
+.rank-no.top { color:#fff; background:linear-gradient(135deg,#7db8ff,#4f93f0); }
+.comp.you .rank-no { color:#fff; background:linear-gradient(135deg,#4285F4,#1a73e8); }
+.rank-sep { text-align:center; color:#9fb3cc; font-weight:900; letter-spacing:3px; margin:2px 0 4px; }
+
 /* 競合の「同等の調査結果」グループ */
 .comp-report { margin:16px 0; padding:16px 14px 4px; border-radius:20px;
   background:linear-gradient(180deg,rgba(124,77,255,.06),rgba(124,77,255,.02));
