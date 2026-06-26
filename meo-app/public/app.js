@@ -1,5 +1,6 @@
 let turnstileToken = "";
-window.onTurnstile = (t) => { turnstileToken = t; };
+let tokenWaiters = [];
+window.onTurnstile = (t) => { turnstileToken = t; const w = tokenWaiters; tokenWaiters = []; w.forEach(fn => fn(t)); };
 
 /* 管理者バイパス：URLに ?admin=キー を付けて開くと保存し、以後の診断で1日上限をスキップ。
    解除は ?admin= を空で開くか、コンソールで localStorage.removeItem("meo_admin")。 */
@@ -310,11 +311,12 @@ function renderResult(d) {
       <div class="comp-top"><span class="comp-name">${isYou ? '<span class="you-badge">調査対象</span>' : ""}${esc(name)}</span><span class="comp-idx">知名度 ${index}</span></div>
       ${(rating != null || reviews != null) ? `<div class="comp-meta">${rating != null ? `★${rating}` : ""}${reviews != null ? `${rating != null ? " ・ " : ""}クチコミ${reviews}件` : ""}</div>` : ""}
       <div class="comp-bar"><i data-w="${Math.max(4, Math.min(100, index))}"></i></div>
+      ${!isYou ? `<button class="comp-diag" data-name="${esc(name)}"><span class="cd-ico">🔍</span>この店舗の整備度を調査</button>` : ""}
     </div>`;
   const ranking = d.ranking ? `
     <div class="glass">
-      <div class="g-head"><span class="g-ico">📊</span>検索評価（想定）— 近隣${d.ranking.total}件中 ${d.ranking.rank}位相当</div>
-      <div class="note">※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した「近隣同業内での知名度の相対値」を示します。</div>
+      <div class="g-head"><span class="g-ico">📊</span>検索評価（想定）— 近隣${d.ranking.total}件中 ${d.ranking.rank}位</div>
+      <div class="note">※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した「近隣同業内での知名度の相対値」を示します。各競合は「整備度を調査」ボタンで、TOPに戻らず整備スコアを調べて比較できます。</div>
       ${compRow(d.name, d.rating, d.reviewCount, d.prominence, true)}
       ${d.ranking.competitors.slice(0, 7).map(c => compRow(c.name, c.rating, c.reviews, c.index, false)).join("")}
     </div>` : `
@@ -328,6 +330,11 @@ function renderResult(d) {
     ${d.investigatedAt ? `<div class="report-date">📅 調査日 ${esc(d.investigatedAt)}（最新調査サイクルの結果）</div>` : ""}
     ${chipsHTML}
     ${d.investigatedAt ? `<div class="freshness-note">※「直近クチコミ」など最新の動きは、データ更新の都合で数日〜数週間前の状態を表示する場合があります（Googleの各種レポートと同様）。最新の実状況はGoogleマップでご確認ください。</div>` : ""}
+
+    <div class="section-head sec-seibi">
+      <span class="sec-ico">🛠️</span>
+      <div class="sec-txt"><b>PART 1ー整備度</b><small>あなたのGoogleプロフィールの「完成度」を採点します</small></div>
+    </div>
 
     <div class="report-grid">
       <div class="glass score-card">
@@ -358,13 +365,20 @@ function renderResult(d) {
 
     ${strongHTML}
 
-    ${ranking}
-
     ${predHTML}
 
     ${riskHTML}
 
     ${simHTML}
+
+    <div class="section-head sec-chimei">
+      <span class="sec-ico">📊</span>
+      <div class="sec-txt"><b>PART 2ー知名度</b><small>近隣同業の中での「評価・順位」と競合比較</small></div>
+    </div>
+
+    ${ranking}
+
+    <div id="compare-host"></div>
 
     <div class="glass share">
       <div class="g-head"><span class="g-ico">📤</span>結果をシェア</div>
@@ -422,7 +436,68 @@ function renderResult(d) {
     document.querySelectorAll(".sim-cb:checked").forEach(c => s += parseFloat(c.dataset.gain));
     const el = document.getElementById("sim-val"); if (el) el.textContent = Math.min(100, Math.round(s));
   }));
+
+  // 📊 整備度くらべ：競合の「整備度を調査」ボタン
+  compareList = [{ name: d.name, total: d.profile.total, you: true }];
+  document.querySelectorAll(".comp-diag").forEach(b => b.addEventListener("click", () => diagnoseCompetitor(b.dataset.name, b)));
+  renderCompare();
+
   currentResult = d;
+}
+
+/* 📊 整備度くらべ（TOPに戻らず競合の整備度を調査して横並び比較） */
+let compareList = [];
+function renderCompare() {
+  const host = document.getElementById("compare-host");
+  if (!host) return;
+  if (compareList.length < 2) { host.innerHTML = ""; return; }
+  const sorted = [...compareList].sort((a, b) => b.total - a.total);
+  const rows = sorted.map((x) => {
+    const rk = rankOf(x.total);
+    return `<div class="cmp ${x.you ? "you" : ""}">
+      <div class="cmp-top"><span class="cmp-name">${x.you ? '<span class="you-badge">調査対象</span>' : ""}${esc(x.name)}</span>
+        <span class="cmp-score" style="color:${rk.c}">${x.total}<small> /100・${rk.l}</small></span></div>
+      <div class="cmp-bar"><i style="width:${Math.max(3, x.total)}%;background:${rk.c}"></i></div>
+    </div>`;
+  }).join("");
+  host.innerHTML = `<div class="glass cmp-card">
+    <div class="g-head"><span class="g-ico">📊</span>整備度くらべ（調査した施設）</div>
+    <div class="note">「整備度を調査」した店舗を、整備スコアの高い順に並べています。自店の客観的な立ち位置が分かります。</div>
+    ${rows}</div>`;
+}
+
+async function diagnoseCompetitor(name, btn) {
+  if (!name || !currentResult) return;
+  if (compareList.some(x => x.name === name)) { document.getElementById("compare-host")?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+  const label = btn.innerHTML;
+  btn.disabled = true; btn.classList.add("loading"); btn.textContent = "調査中…";
+  try {
+    const token = await getFreshToken();
+    const resp = await fetch("/api/diagnose", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, area: currentResult.area, compare: false, turnstileToken: token, admin: ADMIN_KEY || undefined }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { btn.disabled = false; btn.classList.remove("loading"); btn.innerHTML = label; toast(errMessage(data.error)); return; }
+    compareList.push({ name: data.name, total: data.profile.total });
+    btn.classList.remove("loading"); btn.classList.add("done"); btn.textContent = "✓ 調査済み（下の比較に追加）";
+    renderCompare();
+    document.getElementById("compare-host")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  } catch (e) {
+    btn.disabled = false; btn.classList.remove("loading"); btn.innerHTML = label; toast("通信に失敗しました。時間をおいて再度お試しください");
+  }
+}
+
+/* 競合調査用に新しいTurnstileトークンを取得（管理者は不要） */
+function getFreshToken() {
+  if (ADMIN_KEY) return Promise.resolve("");
+  return new Promise((resolve) => {
+    let done = false;
+    const fin = (t) => { if (!done) { done = true; resolve(t || ""); } };
+    tokenWaiters.push(fin);
+    try { window.turnstile && window.turnstile.reset(); } catch (e) {}
+    setTimeout(() => fin(turnstileToken), 8000);
+  });
 }
 
 /* 🖼 結果カード画像を生成して保存/共有 */
