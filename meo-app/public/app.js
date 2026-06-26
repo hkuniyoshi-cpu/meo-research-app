@@ -955,12 +955,25 @@ function verdictText(d) {
 /* ===== SVGグラフ ===== */
 function donutSVG(color) {
   const R = 54, C = (2 * Math.PI * R).toFixed(1);
+  const gid = "dg-" + Math.random().toString(36).slice(2, 7);
   return `<svg class="donut" viewBox="0 0 140 140">
+    <defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.65"/>
+        <stop offset="100%" stop-color="${color}"/>
+      </linearGradient>
+      <filter id="${gid}-shadow" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="2.5"/>
+        <feOffset dy="3"/><feComponentTransfer><feFuncA type="linear" slope=".35"/></feComponentTransfer>
+        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
     <circle cx="70" cy="70" r="${R}" fill="none" stroke="rgba(120,160,210,.18)" stroke-width="14"/>
-    <circle class="donut-val" cx="70" cy="70" r="${R}" fill="none" stroke="${color}" stroke-width="14"
-      stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" transform="rotate(-90 70 70)"/>
-    <text x="70" y="74" text-anchor="middle" class="donut-num" id="dnum" fill="${color}">0</text>
-    <text x="70" y="92" text-anchor="middle" class="donut-sub">/ 100</text>
+    <circle class="donut-val" cx="70" cy="70" r="${R}" fill="none" stroke="url(#${gid})" stroke-width="14"
+      stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" transform="rotate(-90 70 70)"
+      filter="url(#${gid}-shadow)"/>
+    <text x="70" y="78" text-anchor="middle" class="donut-num" id="dnum" fill="${color}">0</text>
+    <text x="70" y="98" text-anchor="middle" class="donut-sub">/ 100</text>
   </svg>`;
 }
 function radarSVG(cats) {
@@ -977,8 +990,18 @@ function radarSVG(cats) {
     const [x, y] = pt(1.28, i);
     return `<text x="${x.toFixed(1)}" y="${(y + 3).toFixed(1)}" text-anchor="middle" class="radar-lbl">${esc(SHORT()[c.key] || c.label)}</text>`;
   }).join("");
-  return `<svg class="radar" viewBox="-22 -22 244 244">${grid}${axes}
-    <polygon class="radar-val" points="${valPts}" fill="rgba(66,133,244,.25)" stroke="#4285F4" stroke-width="2"/>
+  return `<svg class="radar" viewBox="-22 -22 244 244">
+    <defs>
+      <radialGradient id="rgrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="rgba(66,133,244,.45)"/>
+        <stop offset="100%" stop-color="rgba(123,92,255,.18)"/>
+      </radialGradient>
+      <filter id="rglow"><feGaussianBlur stdDeviation="3.2" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    ${grid}${axes}
+    <polygon class="radar-val" points="${valPts}" fill="url(#rgrad)" stroke="#4285F4" stroke-width="2.6"
+      stroke-linejoin="round" filter="url(#rglow)"/>
     ${dots}${labels}</svg>`;
 }
 
@@ -1106,12 +1129,16 @@ function buildStrong(d) {
 function donutSVGStatic(color, total) {
   const R = 54, C = 2 * Math.PI * R;
   const off = (C * (1 - total / 100)).toFixed(1);
+  const gid = "dgs-" + Math.random().toString(36).slice(2, 7);
   return `<svg class="donut" viewBox="0 0 140 140">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity=".65"/><stop offset="100%" stop-color="${color}"/>
+    </linearGradient></defs>
     <circle cx="70" cy="70" r="${R}" fill="none" stroke="rgba(120,160,210,.18)" stroke-width="14"/>
-    <circle class="donut-val" cx="70" cy="70" r="${R}" fill="none" stroke="${color}" stroke-width="14"
+    <circle class="donut-val" cx="70" cy="70" r="${R}" fill="none" stroke="url(#${gid})" stroke-width="14"
       stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off}" transform="rotate(-90 70 70)"/>
-    <text x="70" y="74" text-anchor="middle" class="donut-num" fill="${color}">${total}</text>
-    <text x="70" y="92" text-anchor="middle" class="donut-sub">/ 100</text>
+    <text x="70" y="78" text-anchor="middle" class="donut-num" fill="${color}">${total}</text>
+    <text x="70" y="98" text-anchor="middle" class="donut-sub">/ 100</text>
   </svg>`;
 }
 // 競合の「同等の調査結果」（アクションプラン・CTA・シェア等は出さない）
