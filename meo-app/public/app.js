@@ -106,7 +106,8 @@ const T = {
     pred_gap_name: (v) => `「${v.cat}」（+${v.gain}点）`,
     pred_score_gaps: (v) => `<b>整備スコアの伸びしろ：+${v.gain}点</b>（${v.cur}点 → <b>${v.pot}点</b>）<br>特に伸びるのは ${v.names}。ここを埋めるのが最短ルートです。`,
     pred_score_plain: (v) => `<b>整備スコアの伸びしろ：+${v.gain}点</b>（${v.cur}点 → <b>${v.pot}点</b>）まで引き上げられる見込みです。`,
-    pred_score_top: (v) => `<b>整備度は上位水準</b>：現在${v.cur}点を維持すれば、上位表示を保ちやすい状態です。`,
+    pred_score_top_keep: (v) => `<b>整備度は上位水準</b>：現在${v.cur}点。この水準を維持すれば優位を保ちやすい状態です。`,
+    pred_score_top_lift: (v) => `<b>整備度は上位水準（土台は万全）</b>：現在${v.cur}点。あとはクチコミ・評価を伸ばして知名度（順位）を上げるのが次の一手です。`,
     pred_rank: (v) => `<b>順位アップの射程：あと知名度${v.gap}ポイント</b><br>現在 近隣同業${v.total}店中${v.rank}位。1つ上の店との知名度差は${v.gap}pt${v.pace ? `。月${v.pace}件のクチコミ獲得を続ければ射程圏内です。` : "。クチコミと最新情報の強化で詰められます。"}`,
     pred_review6m: (v) => `<b>クチコミの将来予測</b>：現在${v.now}件・月${v.pace}件ペース → <b>半年後 約${v.in6m}件</b>${v.milestone && v.months != null ? `。この調子なら<b>約${v.months}ヶ月で${v.milestone}件の大台</b>に到達します。` : "。"}`,
     pred_review_goal: (v) => `<b>クチコミの目標設定</b>：現在${v.now}件。次の節目は<b>${v.milestone}件</b>。月◯件の獲得計画を立てると到達時期が見えてきます。`,
@@ -287,7 +288,8 @@ const T = {
     pred_gap_name: (v) => `"${v.cat}" (+${v.gain} pts)`,
     pred_score_gaps: (v) => `<b>Room to grow your completeness score: +${v.gain} pts</b> (${v.cur} → <b>${v.pot}</b>)<br>The biggest gains come from ${v.names}. Filling these is the fastest route.`,
     pred_score_plain: (v) => `<b>Room to grow your completeness score: +${v.gain} pts</b> (${v.cur} → <b>${v.pot}</b>) is achievable.`,
-    pred_score_top: (v) => `<b>Your completeness is top-tier</b>: maintaining your current ${v.cur} keeps you well positioned for top placement.`,
+    pred_score_top_keep: (v) => `<b>Your completeness is top-tier</b>: at ${v.cur}, maintaining this keeps your advantage.`,
+    pred_score_top_lift: (v) => `<b>Completeness is top-tier — a solid foundation</b>: at ${v.cur}. Your next move is to grow reviews & ratings to raise your prominence (ranking).`,
     pred_rank: (v) => `<b>Within reach of a higher rank: ${v.gap} prominence points to go</b><br>Currently #${v.rank} of ${v.total} nearby peers. The prominence gap to the business one rank above is ${v.gap}pt${v.pace ? `. Keep earning ~${v.pace} reviews/month and it's within reach.` : ". You can close it by strengthening reviews and updates."}`,
     pred_review6m: (v) => `<b>Review forecast</b>: ${v.now} now at ~${v.pace}/month → <b>about ${v.in6m} in six months</b>${v.milestone && v.months != null ? `. At this pace you'll hit the <b>${v.milestone}-review milestone in about ${v.months} months</b>.` : "."}`,
     pred_review_goal: (v) => `<b>Set a review goal</b>: ${v.now} now. The next milestone is <b>${v.milestone}</b>. Plan for X reviews per month to see when you'll get there.`,
@@ -468,7 +470,8 @@ const T = {
     pred_gap_name: (v) => `「${v.cat}」(+${v.gain}점)`,
     pred_score_gaps: (v) => `<b>완성도 점수의 성장 여력: +${v.gain}점</b>(${v.cur}점 → <b>${v.pot}점</b>)<br>특히 크게 오르는 부분은 ${v.names}. 이곳을 채우는 것이 가장 빠른 길입니다.`,
     pred_score_plain: (v) => `<b>완성도 점수의 성장 여력: +${v.gain}점</b>(${v.cur}점 → <b>${v.pot}점</b>)까지 끌어올릴 수 있을 전망입니다.`,
-    pred_score_top: (v) => `<b>완성도는 상위 수준</b>: 현재 ${v.cur}점을 유지하면 상위 노출을 유지하기 쉬운 상태입니다.`,
+    pred_score_top_keep: (v) => `<b>완성도는 상위 수준</b>: 현재 ${v.cur}점. 이 수준을 유지하면 우위를 지키기 쉽습니다.`,
+    pred_score_top_lift: (v) => `<b>완성도는 상위 수준(토대는 탄탄)</b>: 현재 ${v.cur}점. 이제 리뷰・평점을 늘려 인지도(순위)를 올리는 것이 다음 단계입니다.`,
     pred_rank: (v) => `<b>순위 상승의 사정권: 인지도 ${v.gap}포인트 남음</b><br>현재 주변 동종 업종 ${v.total}곳 중 ${v.rank}위. 한 단계 위 매장과의 인지도 차이는 ${v.gap}pt${v.pace ? `. 월 ${v.pace}건의 리뷰 획득을 이어가면 사정권에 듭니다.` : ". 리뷰와 최신 정보 강화로 좁힐 수 있습니다."}`,
     pred_review6m: (v) => `<b>리뷰의 미래 예측</b>: 현재 ${v.now}건・월 ${v.pace}건 페이스 → <b>반년 후 약 ${v.in6m}건</b>${v.milestone && v.months != null ? `. 이 추세라면 <b>약 ${v.months}개월 후 ${v.milestone}건 고지</b>에 도달합니다.` : "."}`,
     pred_review_goal: (v) => `<b>리뷰 목표 설정</b>: 현재 ${v.now}건. 다음 이정표는 <b>${v.milestone}건</b>. 월 몇 건 획득 계획을 세우면 도달 시기가 보입니다.`,
@@ -649,7 +652,8 @@ const T = {
     pred_gap_name: (v) => `「${v.cat}」（+${v.gain} 分）`,
     pred_score_gaps: (v) => `<b>完善度評分的成長空間：+${v.gain} 分</b>（${v.cur} 分 → <b>${v.pot} 分</b>）<br>特別能提升的是 ${v.names}。補強這些是最快的途徑。`,
     pred_score_plain: (v) => `<b>完善度評分的成長空間：+${v.gain} 分</b>（${v.cur} 分 → <b>${v.pot} 分</b>），可望提升至此。`,
-    pred_score_top: (v) => `<b>完善度為頂尖水準</b>：維持目前 ${v.cur} 分，即可保持容易排名靠前的狀態。`,
+    pred_score_top_keep: (v) => `<b>完善度為頂尖水準</b>：目前 ${v.cur} 分。維持此水準即可保持優勢。`,
+    pred_score_top_lift: (v) => `<b>完善度為頂尖水準（基礎穩固）</b>：目前 ${v.cur} 分。接下來透過增加評論・評分來提升知名度（排名）是下一步。`,
     pred_rank: (v) => `<b>晉升排名的射程：知名度還差 ${v.gap} 分</b><br>目前周邊同業 ${v.total} 家中第 ${v.rank} 名。與上一名商家的知名度差距為 ${v.gap}pt${v.pace ? `。持續每月獲得 ${v.pace} 則評論即可進入射程範圍。` : "。可透過強化評論與最新資訊來縮短。"}`,
     pred_review6m: (v) => `<b>評論未來預測</b>：目前 ${v.now} 則・每月約 ${v.pace} 則 → <b>半年後約 ${v.in6m} 則</b>${v.milestone && v.months != null ? `。照這個速度，<b>約 ${v.months} 個月即可達到 ${v.milestone} 則的大關</b>。` : "。"}`,
     pred_review_goal: (v) => `<b>評論目標設定</b>：目前 ${v.now} 則。下一個里程碑是 <b>${v.milestone} 則</b>。訂定每月獲取數量的計畫，便能看見達成時程。`,
@@ -1040,7 +1044,9 @@ function buildPred(d) {
           ? `<li>${t("pred_score_gaps", { gain: pr.scoreGain, cur: d.profile.total, pot: pr.potentialScore, names: gapNames.join(LANG === "ja" ? "・" : ", ") })}</li>`
           : pr.scoreGain > 0
             ? `<li>${t("pred_score_plain", { gain: pr.scoreGain, cur: d.profile.total, pot: pr.potentialScore })}</li>`
-            : `<li>${t("pred_score_top", { cur: d.profile.total })}</li>`}
+            : (d.ranking && d.ranking.rank > 3)
+              ? `<li>${t("pred_score_top_lift", { cur: d.profile.total })}</li>`
+              : `<li>${t("pred_score_top_keep", { cur: d.profile.total })}</li>`}
         ${pr.nextRank
           ? `<li>${t("pred_rank", { gap: pr.nextRank.gap, total: pr.nextRank.total, rank: pr.nextRank.rank, pace: pr.monthlyPace || 0 })}</li>`
           : ""}
