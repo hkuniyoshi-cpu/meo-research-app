@@ -55,10 +55,17 @@ body {
   filter:drop-shadow(0 3px 10px rgba(123,92,255,.25)); }
 @keyframes gradmove { to { background-position:250% 0; } }
 .hero-sub { font-size:15px; color:#3a5a85; line-height:1.7; margin:0 auto; max-width:460px; }
+
+/* 改行を自然に（末尾1文字だけ次行に落ちる等を防ぐ） */
+.hero-sub, .hc-a, .note, .verdict, .freshness-note, .cta-sub, .fc-sub, .cr-sub,
+.predlist li, .risklist li, .tip-detail, .policy-lead, .policy-sec li, .policy-sec p {
+  text-wrap:balance; text-wrap:pretty; line-break:strict; overflow-wrap:anywhere;
+}
 @media (max-width:560px){
-  .hero-h1 { font-size:32px; }
+  .hero-h1 { font-size:30px; }
   .hc-a { font-size:17px; }
   .hc-a b { white-space:normal; }
+  .hero-sub { font-size:14px; }
 }
 
 /* フォームカード */
@@ -431,3 +438,37 @@ a.brand { text-decoration:none; display:inline-block; }
 .predlist li:last-child { border-bottom:0; }
 .predlist li::before { content:"▶"; position:absolute; left:4px; color:#34A853; font-size:10px; top:11px; }
 .predlist b { color:#1a3a63; }
+
+/* ===== モバイル最適化（総合） ===== */
+@media (max-width:560px){
+  body { padding:0 10px 24px; }
+  .site-header { padding:14px 2px 10px; margin-bottom:2px; flex-wrap:wrap; gap:8px; }
+  .brand { font-size:15px; padding:7px 13px; }
+  .hdr-tag { display:none; } /* 幅確保のため非表示 */
+  .card, .glass { padding:16px 14px; border-radius:16px; }
+  .field { font-size:16px; } /* iOSの自動ズーム防止に16px */
+  .btn { font-size:15px; padding:13px; }
+  .report-title { font-size:18px; }
+  .report-sub { font-size:13px; }
+  .section-head { margin:24px 0 10px; gap:10px; }
+  .section-head .sec-num { width:36px; height:36px; font-size:17px; border-radius:12px; }
+  .section-head .sec-txt b { font-size:17px; }
+  .section-head .sec-txt small { font-size:11px; }
+  .g-head { font-size:14px; }
+  .donut-num { font-size:34px; }
+  .rankbadge { font-size:18px; padding:6px 18px; }
+  /* CTA・相談ボタンは縦積み */
+  .fc-btns, .nav-btns { flex-direction:column; }
+  .fc-btn, .navbtn { width:100%; text-align:center; }
+  .sh-row { grid-template-columns:1fr 1fr; }
+  .vs th, .vs td { padding:8px 5px; font-size:12px; }
+  .cta-card, .final-cta { padding:18px 16px; }
+  .fc-head { font-size:18px; }
+  .cta-head { font-size:17px; }
+  .comp-report { padding:13px 11px 4px; }
+  .comp-report .cr-head { font-size:15px; }
+  /* 競合行：店名とボタンが窮屈にならないよう調整 */
+  .comp-diag { margin-left:0; margin-top:6px; }
+  .comp-name { flex-basis:100%; }
+  .lang-select { font-size:11px; padding:5px 24px 5px 11px; }
+}

@@ -1138,7 +1138,9 @@ function renderResult(d) {
   if (d.ranking) benchHTML = `<div class="benchmark">${t("bench_simple", { total: d.ranking.total, rank: d.ranking.rank })}</div>`;
 
   const BADGE = { high: { t: t("badge_high"), cls: "pri-high" }, mid: { t: t("badge_mid"), cls: "pri-mid" }, info: { t: t("badge_info"), cls: "pri-info" } };
-  const plan = d.tipsVisible.map((tip) => {
+  // 言語切替時もアクションプランが切り替わるよう、現在の言語のtipsを使う（無ければ診断時の言語）
+  const tipsList = (d.tipsByLang && d.tipsByLang[LANG]) || d.tipsVisible || [];
+  const plan = tipsList.map((tip) => {
     const b = BADGE[tip.level] || BADGE.mid;
     return `<li><div class="tip-head"><span class="pri ${b.cls}">${b.t}</span><b>${esc(tip.title)}</b></div><div class="tip-detail">${esc(tip.detail)}</div></li>`;
   }).join("");

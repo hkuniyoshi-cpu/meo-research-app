@@ -50,7 +50,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
   // v30: uiLang をキャッシュキーに追加（言語別に結果をキャッシュ）
   // v31: 多言語拡張（ko/zh-TW）。Places lang を uiLang から導出。旧キャッシュ無効化
-  const cacheKey = `diag:v31:${body.name}|${body.area}|${body.compare ? 1 : 0}|${uiLang}`;
+  const cacheKey = `diag:v32:${body.name}|${body.area}|${body.compare ? 1 : 0}|${uiLang}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -90,7 +90,11 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
     const profile = scoreProfile(details, weights, new Date(), enriched ?? undefined);
     const now = new Date();
 
-    const tips = buildTips(details, profile, enriched ?? undefined, now, activity, uiLang);
+    // 改善ポイントは全言語分を生成して結果に持たせる（フロントで言語切替時にtipsも切り替わるように）
+    const UI_LANGS: UiLang[] = ["ja", "en", "ko", "zh"];
+    const tipsAll: Record<string, Tip[]> = {};
+    for (const L of UI_LANGS) tipsAll[L] = buildTips(details, profile, enriched ?? undefined, now, activity, L);
+    const tips = tipsAll[uiLang];
 
     let ranking = null;
     if (body.compare) {
@@ -149,6 +153,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
       reviewCount: details.userRatingCount,
       ranking,
       tipsVisible: tips.slice(0, VISIBLE_TIPS),
+      tipsByLang: Object.fromEntries(UI_LANGS.map((L) => [L, tipsAll[L].slice(0, VISIBLE_TIPS)])),
       tipsLockedCount: Math.max(0, tips.length - VISIBLE_TIPS),
       // Outscraper enriched fields (null when unavailable)
       verified: enriched?.verified ?? null,
