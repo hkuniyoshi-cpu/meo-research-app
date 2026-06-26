@@ -1063,7 +1063,7 @@ function buildPred(d) {
   if (!pr) return "";
   const gapNames = (pr.topGaps || []).map(g => t("pred_gap_name", { cat: SHORT()[g.key] || g.label, gain: g.gain }));
   return `
-    <div class="glass">
+    <div class="glass pred-card">
       <div class="g-head"><span class="g-ico">🔮</span>${t("pred_head")}</div>
       <div class="note">${t("pred_note")}</div>
       <ul class="predlist">
@@ -1378,6 +1378,22 @@ function renderResult(d) {
     if (ring) { const C = parseFloat(ring.getAttribute("stroke-dasharray")); ring.style.strokeDashoffset = (C * (1 - d.profile.total / 100)).toFixed(1); }
     const rv = document.querySelector(".radar-val"); if (rv) rv.classList.add("in");
     document.querySelectorAll(".comp-bar i").forEach(el => { el.style.width = el.dataset.w + "%"; });
+  });
+
+  // ✨ スクロールフェードイン（初期表示はずらし、スクロール入りは即時）
+  let _animI = 0;
+  const _obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      _obs.unobserve(e.target);
+      e.target.classList.add("anim-in");
+    });
+  }, { threshold: 0.04 });
+  $("result-view").querySelectorAll(".glass, .section-head, .podium").forEach(el => {
+    const inView = el.getBoundingClientRect().top < window.innerHeight * 1.05;
+    if (inView) el.style.animationDelay = Math.min(_animI++ * 0.06, 0.24) + "s";
+    el.classList.add("anim-target");
+    _obs.observe(el);
   });
 
   // 🎚 効果シミュレーターのライブ更新
