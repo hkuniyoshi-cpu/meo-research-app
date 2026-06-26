@@ -132,6 +132,7 @@ const T = {
     ranking_note_plain: "※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した知名度の相対値です。",
     comp_you_badge: "調査対象",
     comp_diag_btn: "🔍 この店舗を調査",
+    comp_report_head: (v) => `📋 ${v.name} の調査結果`,
     comp_index: (v) => `知名度 ${v.n}`,
     comp_reviews: (v) => `クチコミ${v.n}件`,
 
@@ -310,6 +311,7 @@ const T = {
     ranking_note_plain: "* This is a separate metric from the completeness score (/100). It's a relative prominence value calculated from review count, rating, and more.",
     comp_you_badge: "This business",
     comp_diag_btn: "🔍 Check this business",
+    comp_report_head: (v) => `📋 Diagnosis for ${v.name}`,
     comp_index: (v) => `Prominence ${v.n}`,
     comp_reviews: (v) => `${v.n} reviews`,
 
@@ -633,23 +635,8 @@ function ctaFinal() {
   </div>`;
 }
 
-/* ===== メイン描画 ===== */
-function renderResult(d) {
-  const r = rankOf(d.profile.total);
-  const health = healthOf(d.profile.total);
-  // 順位を主役にした分かりやすい表現（「上位90%」のような誤解を招く表記は使わない）
-  let benchHTML = "";
-  if (d.ranking) benchHTML = `<div class="benchmark">${t("bench_simple", { total: d.ranking.total, rank: d.ranking.rank })}</div>`;
-
-  const BADGE = { high: { t: t("badge_high"), cls: "pri-high" }, mid: { t: t("badge_mid"), cls: "pri-mid" }, info: { t: t("badge_info"), cls: "pri-info" } };
-  const plan = d.tipsVisible.map((tip) => {
-    const b = BADGE[tip.level] || BADGE.mid;
-    return `<li><div class="tip-head"><span class="pri ${b.cls}">${b.t}</span><b>${esc(tip.title)}</b></div><div class="tip-detail">${esc(tip.detail)}</div></li>`;
-  }).join("");
-  const lockedPlan = d.tipsLockedCount > 0
-    ? `<li class="more">${t("plan_more", { n: d.tipsLockedCount })}</li>` : "";
-
-  // 実データ補足チップ（Outscraper enrichmentがある時のみ）
+/* ===== レポート部品（本診断・競合診断で共用） ===== */
+function buildChips(d) {
   const chips = [];
   if (d.verified === true) chips.push(`<span class="chip ok">${t("chip_verified")}</span>`);
   else if (d.verified === false) chips.push(`<span class="chip warn">${t("chip_unverified")}</span>`);
@@ -663,12 +650,13 @@ function renderResult(d) {
     const okR = a.latestDays <= 60;
     chips.push(`<span class="chip ${okR ? "ok" : "warn"}">${t("chip_reviews", { days: a.latestDays, pace: a.monthlyPace != null ? a.monthlyPace : null })}</span>`);
   }
-  const chipsHTML = chips.length ? `<div class="chips">${chips.join("")}</div>` : "";
-
-  // 今後の見通し（予測）— 店ごとに弱点・数値が変わる具体予測
+  return chips.length ? `<div class="chips">${chips.join("")}</div>` : "";
+}
+function buildPred(d) {
   const pr = d.prediction;
-  const gapNames = (pr?.topGaps || []).map(g => t("pred_gap_name", { cat: SHORT()[g.key] || g.label, gain: g.gain }));
-  const predHTML = pr ? `
+  if (!pr) return "";
+  const gapNames = (pr.topGaps || []).map(g => t("pred_gap_name", { cat: SHORT()[g.key] || g.label, gain: g.gain }));
+  return `
     <div class="glass">
       <div class="g-head"><span class="g-ico">🔮</span>${t("pred_head")}</div>
       <div class="note">${t("pred_note")}</div>
@@ -687,21 +675,23 @@ function renderResult(d) {
             ? `<li>${t("pred_review_goal", { now: pr.reviewNow, milestone: pr.nextMilestone })}</li>`
             : ""}
       </ul>
-    </div>` : "";
-
-  // ⚠️ 放置した場合のリスク（マイナス予測シミュレーション）
+    </div>`;
+}
+function buildRisk(d) {
+  const pr = d.prediction;
   const hoursCat = d.profile.categories.find(c => c.key === "hours");
   const revCat = d.profile.categories.find(c => c.key === "reviews");
-  const hoursDecay = hoursCat ? Math.min(hoursCat.score, hoursCat.max * 0.5) : 0; // 投稿停止で鮮度部分が消える
-  const revDecay = revCat ? revCat.score * 0.3 : 0; // 新規クチコミが止まると鮮度評価が目減り
+  const hoursDecay = hoursCat ? Math.min(hoursCat.score, hoursCat.max * 0.5) : 0;
+  const revDecay = revCat ? revCat.score * 0.3 : 0;
   const decline = Math.round(hoursDecay + revDecay);
   const base = d.profile.total;
   const gain = pr ? pr.scoreGain : 0;
+  if (!pr || decline < 1) return "";
   const riskItems = [];
   if (hoursDecay >= 1) riskItems.push({ t: t("risk_item_hours_t"), d: t("risk_item_hours_d", { n: Math.round(hoursDecay) }) });
   if (revDecay >= 1) riskItems.push({ t: t("risk_item_rev_t"), d: t("risk_item_rev_d", { n: Math.round(revDecay) }) });
   riskItems.push({ t: t("risk_item_misc_t"), d: t("risk_item_misc_d") });
-  const riskHTML = (pr && decline >= 1) ? `
+  return `
     <div class="glass risk-card">
       <div class="g-head"><span class="g-ico">⚠️</span>${t("risk_head")}</div>
       <div class="note">${t("risk_note")}</div>
@@ -711,21 +701,85 @@ function renderResult(d) {
         ${riskItems.map(x => `<li><b>${esc(x.t + t("risk_item_join"))}</b>${esc(x.d)}</li>`).join("")}
       </ul>
       <div class="risk-warn">${t("risk_warn", { decline, diff: (base + gain) - (base - decline) })}</div>
-    </div>` : "";
-
-  // ✨ あなたの店の強み（高スコアのカテゴリ＋良好な実データ）
+    </div>`;
+}
+function buildStrong(d) {
   const strong = [];
   [...d.profile.categories].sort((a, b) => (b.score / b.max) - (a.score / a.max))
     .forEach(c => { if (c.score / c.max >= 0.8) strong.push(SHORT()[c.key] || c.label); });
   if (d.verified === true) strong.push(t("str_owner"));
   if (d.photosCount != null && d.photosCount >= (d.recPhotos || 200)) strong.push(t("str_photos"));
   if (d.reviewActivity && d.reviewActivity.latestDays != null && d.reviewActivity.latestDays <= 30) strong.push(t("str_reviews"));
-  const strongHTML = strong.length ? `
+  return strong.length ? `
     <div class="glass strengths-card">
       <div class="g-head"><span class="g-ico">✨</span>${t("str_head")}</div>
       <div class="str-tags">${strong.slice(0, 6).map(s => `<span class="str-tag">${esc(s)}</span>`).join("")}</div>
       <div class="note">${t("str_note")}</div>
     </div>` : "";
+}
+// 競合用：アニメに依存しない静的ドーナツ
+function donutSVGStatic(color, total) {
+  const R = 54, C = 2 * Math.PI * R;
+  const off = (C * (1 - total / 100)).toFixed(1);
+  return `<svg class="donut" viewBox="0 0 140 140">
+    <circle cx="70" cy="70" r="${R}" fill="none" stroke="rgba(120,160,210,.18)" stroke-width="14"/>
+    <circle class="donut-val" cx="70" cy="70" r="${R}" fill="none" stroke="${color}" stroke-width="14"
+      stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off}" transform="rotate(-90 70 70)"/>
+    <text x="70" y="74" text-anchor="middle" class="donut-num" fill="${color}">${total}</text>
+    <text x="70" y="92" text-anchor="middle" class="donut-sub">/ 100</text>
+  </svg>`;
+}
+// 競合の「同等の調査結果」（アクションプラン・CTA・シェア等は出さない）
+function competitorReportHTML(d) {
+  const r = rankOf(d.profile.total), health = healthOf(d.profile.total);
+  return `<div class="comp-report">
+    <div class="cr-head">${t("comp_report_head", { name: esc(d.name) })}</div>
+    <div class="cr-sub">${esc(d.address || d.area)}</div>
+    ${buildChips(d)}
+    <div class="report-grid">
+      <div class="glass score-card">
+        <div class="g-head"><span class="g-ico">🎯</span>${t("score_head")}</div>
+        ${donutSVGStatic(r.c, d.profile.total)}
+        <div class="rankbadge" style="background:${r.c}">${t("rank_suffix", { l: r.l })}<small>${r.label}</small></div>
+        <div class="health" style="border-color:${health.c}55"><span class="health-ico">${health.icon}${health.sky}</span>${t("health_head")}${LANG === "ja" ? "：" : ": "}<b style="color:${health.c}">${health.label}</b></div>
+      </div>
+      <div class="glass">
+        <div class="g-head"><span class="g-ico">💬</span>${t("verdict_head")}</div>
+        <p class="verdict">${esc(verdictText(d))}</p>
+      </div>
+    </div>
+    <div class="glass">
+      <div class="g-head"><span class="g-ico">⚖️</span>${t("balance_head")}</div>
+      ${radarSVG(d.profile.categories)}
+      <div class="note">${t("balance_note", { weak: esc(SHORT()[weakestCat(d).key] || weakestCat(d).label) })}</div>
+    </div>
+    ${buildStrong(d)}
+    ${buildPred(d)}
+    ${buildRisk(d)}
+  </div>`;
+}
+
+/* ===== メイン描画 ===== */
+function renderResult(d) {
+  const r = rankOf(d.profile.total);
+  const health = healthOf(d.profile.total);
+  // 順位を主役にした分かりやすい表現（「上位90%」のような誤解を招く表記は使わない）
+  let benchHTML = "";
+  if (d.ranking) benchHTML = `<div class="benchmark">${t("bench_simple", { total: d.ranking.total, rank: d.ranking.rank })}</div>`;
+
+  const BADGE = { high: { t: t("badge_high"), cls: "pri-high" }, mid: { t: t("badge_mid"), cls: "pri-mid" }, info: { t: t("badge_info"), cls: "pri-info" } };
+  const plan = d.tipsVisible.map((tip) => {
+    const b = BADGE[tip.level] || BADGE.mid;
+    return `<li><div class="tip-head"><span class="pri ${b.cls}">${b.t}</span><b>${esc(tip.title)}</b></div><div class="tip-detail">${esc(tip.detail)}</div></li>`;
+  }).join("");
+  const lockedPlan = d.tipsLockedCount > 0
+    ? `<li class="more">${t("plan_more", { n: d.tipsLockedCount })}</li>` : "";
+
+  // 実データ補足チップ・予測・リスク・強み（部品関数で生成＝競合診断と共用）
+  const chipsHTML = buildChips(d);
+  const predHTML = buildPred(d);
+  const riskHTML = buildRisk(d);
+  const strongHTML = buildStrong(d);
 
   // 🎚 効果シミュレーター（改善項目をトグルで想定スコアが動く）
   const simCats = d.profile.categories.filter(c => c.score / c.max < 0.85);
@@ -823,6 +877,8 @@ function renderResult(d) {
     ${ctaGap(d)}
 
     <div id="compare-host"></div>
+
+    <div id="comp-reports"></div>
 
     ${ctaVs()}
 
@@ -930,7 +986,16 @@ async function diagnoseCompetitor(name, btn) {
     compareList.push({ name: data.name, total: data.profile.total });
     btn.classList.remove("loading"); btn.classList.add("done"); btn.textContent = t("cmp_diag_done");
     renderCompare();
-    document.getElementById("compare-host")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // フル調査結果（同等・アクションプランは除く）を下部に追加
+    const host = document.getElementById("comp-reports");
+    if (host) {
+      const wrap = document.createElement("div");
+      wrap.innerHTML = competitorReportHTML(data);
+      const node = wrap.firstElementChild;
+      host.appendChild(node);
+      requestAnimationFrame(() => { node.querySelectorAll(".radar-val").forEach(el => el.classList.add("in")); });
+      node.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   } catch (e) {
     btn.disabled = false; btn.classList.remove("loading"); btn.innerHTML = label; toast(t("err_comm"));
   }
