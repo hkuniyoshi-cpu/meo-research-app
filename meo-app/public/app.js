@@ -196,7 +196,15 @@ function radarSVG(cats) {
 function renderResult(d) {
   const r = rankOf(d.profile.total);
   const health = healthOf(d.profile.total);
-  const benchPct = d.ranking ? Math.max(1, Math.round(d.ranking.rank / d.ranking.total * 100)) : null;
+  // 順位を主役にした分かりやすい表現（「上位90%」のような誤解を招く表記は使わない）
+  let benchHTML = "";
+  if (d.ranking) {
+    const { rank, total } = d.ranking;
+    const topPct = Math.max(1, Math.round(rank / total * 100));
+    if (rank === 1) benchHTML = `<div class="benchmark">🏆 近隣同業 ${total}店中 <b>堂々の1位</b></div>`;
+    else if (topPct <= 50) benchHTML = `<div class="benchmark">🏆 近隣同業 ${total}店中 <b>${rank}位</b>（上位${topPct}%）</div>`;
+    else benchHTML = `<div class="benchmark">📍 近隣同業 ${total}店中 <b>${rank}位</b>（あなたより下位は${total - rank}店）</div>`;
+  }
 
   const BADGE = { high: { t: "最優先", cls: "pri-high" }, mid: { t: "推奨", cls: "pri-mid" }, info: { t: "ヒント", cls: "pri-info" } };
   const plan = d.tipsVisible.map((t) => {
@@ -327,7 +335,7 @@ function renderResult(d) {
         ${donutSVG(r.c)}
         <div class="rankbadge" style="background:${r.c}">${r.l}ランク<small>${r.label}</small></div>
         <div class="health" style="border-color:${health.c}55"><span class="health-ico">${health.icon}${health.sky}</span>MEO健康度：<b style="color:${health.c}">${health.label}</b></div>
-        ${benchPct != null ? `<div class="benchmark">🏆 近隣同業 ${d.ranking.total}店中 <b>上位${benchPct}%</b>（${d.ranking.rank}位相当）</div>` : ""}
+        ${benchHTML}
       </div>
       <div class="glass">
         <div class="g-head"><span class="g-ico">💬</span>診断総評</div>
@@ -442,7 +450,7 @@ window.saveImage = () => {
   x.fillStyle = "#fff"; x.font = "bold 40px sans-serif"; x.fillText(`${r.l}ランク ${r.label}`, 540, 666);
   x.textAlign = "left"; x.fillStyle = "#1c3a63"; x.font = "32px sans-serif";
   const stats = [];
-  const bench = d.ranking ? `近隣同業 上位${Math.max(1, Math.round(d.ranking.rank / d.ranking.total * 100))}%` : null;
+  const bench = d.ranking ? `近隣同業${d.ranking.total}店中 ${d.ranking.rank}位` : null;
   if (bench) stats.push("🏆 " + bench);
   if (d.verified) stats.push("✓ オーナー認証済み");
   if (d.photosCount != null) stats.push(`📷 写真 ${d.photosCount}枚`);
