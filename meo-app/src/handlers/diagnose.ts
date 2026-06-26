@@ -19,7 +19,9 @@ export interface Env {
 const RATE_LIMIT_PER_DAY = 20;
 const VISIBLE_TIPS = 3; // 無料版で見せる改善ポイント数（もったいぶり）
 
-interface Body { name: string; area: string; compare: boolean; turnstileToken: string; admin?: string; }
+interface Body { name: string; area: string; compare: boolean; turnstileToken: string; admin?: string; uiLang?: string; }
+
+type UiLang = "ja" | "en";
 
 export async function handleDiagnose(req: Request, env: Env): Promise<Response> {
   const ip = req.headers.get("CF-Connecting-IP") ?? "0.0.0.0";
@@ -42,8 +44,12 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
     if (!rate.allowed) return json({ error: "rate_limited" }, 429);
   }
 
+  // UI言語（TIPS/業種例文をローカライズ）。Placesの lang とは別物（lang は入力から自動判定）
+  const uiLang: UiLang = body.uiLang === "en" ? "en" : "ja";
+
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
-  const cacheKey = `diag:v29:${body.name}|${body.area}|${body.compare ? 1 : 0}`;
+  // v30: uiLang をキャッシュキーに追加（言語別に結果をキャッシュ）
+  const cacheKey = `diag:v30:${body.name}|${body.area}|${body.compare ? 1 : 0}|${uiLang}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -83,7 +89,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
     const profile = scoreProfile(details, weights, new Date(), enriched ?? undefined);
     const now = new Date();
 
-    const tips = buildTips(details, profile, enriched ?? undefined, now, activity);
+    const tips = buildTips(details, profile, enriched ?? undefined, now, activity, uiLang);
 
     let ranking = null;
     if (body.compare) {
@@ -194,31 +200,38 @@ export function trimAddress(a: string): string {
  */
 export interface BizProfile { kind: string; photos: string; attrs: string; subcat: string; limitedAttrs: boolean; }
 
-// 業種判定ルール（上から順に評価。具体的な業種を先に置く）。Places の type は英語スネークケース。
-const BIZ_RULES: { re: RegExp; p: BizProfile }[] = [
-  { re: /laundr|dry_clean|coin_/, p: { kind: "laundromat", photos: "店内・設備（洗濯機/乾燥機）・外観・駐車場・利用案内", attrs: "24時間営業・駐車場・各種キャッシュレス決済・Wi-Fiなど", subcat: "例：コインランドリー＋宅配クリーニング", limitedAttrs: false } },
-  { re: /car_|\bauto|vehicle|gas_station|motorcycle|\btire|car_wash|car_repair|car_dealer/, p: { kind: "auto", photos: "車両・店舗/工場外観・作業場・作業風景・スタッフ", attrs: "駐車場・各種キャッシュレス決済・見積無料・代車あり・即日対応など", subcat: "例：自動車整備＋車検、販売＋買取", limitedAttrs: false } },
-  { re: /real_estate|estate_agent/, p: { kind: "real_estate", photos: "取扱物件・店舗外観/内観・スタッフ・周辺環境", attrs: "駐車場・オンライン相談対応・対応エリア・営業時間など", subcat: "例：不動産売買＋賃貸仲介、賃貸管理＋リフォーム", limitedAttrs: false } },
-  { re: /contractor|plumber|electrician|painter|roofing|locksmith|moving_company|cleaning|pest_control|handyman|renovation|construction|exterminat/, p: { kind: "home-service", photos: "施工/対応事例（ビフォー/アフター）・スタッフ・作業風景・自社/店舗外観", attrs: "見積無料・対応エリア・オンライン相談対応・駐車場など", subcat: "例：外壁塗装＋リフォーム、ハウスクリーニング＋エアコン洗浄", limitedAttrs: false } },
-  { re: /lodging|hotel|motel|resort|guest_house|hostel|ryokan|\binn\b|bed_and_breakfast|campground|cottage|capsule/, p: { kind: "lodging", photos: "客室・外観・館内設備・周辺・食事", attrs: "駐車場・Wi-Fi・チェックイン/アウト時間・対応言語など", subcat: "例：ホテル＋宴会場、旅館＋日帰り温泉", limitedAttrs: false } },
-  { re: /dentist|doctor|hospital|clinic|health|physio|chiropract|pharmacy|drugstore|medical|veterinar|dental|nursing|therapist|acupunctur/, p: { kind: "medical", photos: "院内・外観・スタッフ・設備・受付の様子", attrs: "予約可・バリアフリー・駐車場・各種保険対応など", subcat: "例：整骨院＋鍼灸院、歯科＋小児歯科", limitedAttrs: false } },
-  { re: /hair|beauty|salon|\bspa\b|nail|barber|massage|esthetic|aesthetic|eyelash|\blash|tanning|sauna|skin_care|makeup|foot_care|reflexolog|wax|depilat|hair_removal|cosmetic|wellness|relax/, p: { kind: "beauty", photos: "施術例（ビフォー/アフター）・店内・個室・スタッフ・メニュー表・外観", attrs: "予約可・各種キャッシュレス決済・個室・女性スタッフ在籍・駐車場・バリアフリーなど", subcat: "例：美容室＋ヘッドスパ、ネイル＋まつげエクステ、エステ＋脱毛", limitedAttrs: false } },
-  { re: /gym|fitness|yoga|sports_|stadium|dance|martial|swimming|pilates|crossfit|golf/, p: { kind: "fitness", photos: "設備・館内・トレーニング/レッスン風景・スタッフ", attrs: "駐車場・更衣室/シャワー・見学体験可・キャッシュレス決済など", subcat: "例：ジム＋パーソナル、ヨガ＋ピラティス", limitedAttrs: false } },
-  { re: /restaurant|\bfood|cafe|\bbar\b|bakery|meal_|izakaya|ramen|sushi|diner|\bpub\b|brewery|coffee|ice_cream|confectioner|\bdeli\b/, p: { kind: "food", photos: "料理・店内・外観・スタッフ・メニュー表", attrs: "テイクアウト・予約可・各種キャッシュレス決済・Wi-Fiなど", subcat: "例：居酒屋＋宴会場、カフェ＋ケーキ店", limitedAttrs: false } },
-  { re: /school|education|tutor|university|preschool|kindergarten|training|lesson|library|cram|juku/, p: { kind: "education", photos: "教室/校舎・授業/レッスン風景・講師・教材・外観", attrs: "オンライン対応・駐車場・体験/見学可など、該当する項目", subcat: "例：学習塾＋オンライン講座、英会話＋資格対策", limitedAttrs: true } },
-  { re: /night_club|nightclub|karaoke|cinema|movie_theater|amusement|bowling|casino|arcade|internet_cafe|game_center|\btheater\b/, p: { kind: "entertainment", photos: "店内・設備・イベント/プレイ風景・外観・メニュー", attrs: "予約可・駐車場・各種キャッシュレス決済・個室/貸切可など", subcat: "例：カラオケ＋飲食、バー＋イベントスペース", limitedAttrs: false } },
-  { re: /store|\bshop|market|retail|clothing|grocery|supermarket|convenience|book|furniture|electronics|jewelry|florist|hardware|pet_store|liquor|department|\bmall\b|boutique|bicycle|optician/, p: { kind: "retail", photos: "商品・売場/店内・外観・陳列・スタッフ", attrs: "駐車場・各種キャッシュレス決済・通販/宅配対応など", subcat: "例：物販＋修理対応、小売＋カフェ併設", limitedAttrs: false } },
-  { re: /consult|lawyer|account|finance|insurance|corporate_office|software|marketing|design|web_|advertis|legal|\btax\b|notary|architect|engineer|agency|\bcompany\b|\boffice\b|it_|technology|telecom|\bbank\b|attorney|recruit|employment/, p: { kind: "professional", photos: "オフィス外観・スタッフ・サービス内容や実績の資料・セミナー/打合せの様子", attrs: "オンライン相談対応・対応エリア・駐車場など、該当する項目", subcat: "例：ITコンサル＋システム開発、税理士＋経営コンサル", limitedAttrs: true } },
-];
-const BIZ_DEFAULT: BizProfile = { kind: "default", photos: "外観・内観・スタッフ・提供サービスの様子", attrs: "駐車場・オンライン対応など、業種に該当する項目", subcat: "提供サービスに合う副カテゴリ", limitedAttrs: true };
+// 言語別の例文（ja/en）を持つ内部定義。bizProfile() が uiLang に応じて文字列を選ぶ。
+interface BizProfileL { kind: string; limitedAttrs: boolean; photos: { ja: string; en: string }; attrs: { ja: string; en: string }; subcat: { ja: string; en: string }; }
 
-export function bizProfile(primaryType: string | undefined, types: string[]): BizProfile {
+// 業種判定ルール（上から順に評価。具体的な業種を先に置く）。Places の type は英語スネークケース。
+const BIZ_RULES: { re: RegExp; p: BizProfileL }[] = [
+  { re: /laundr|dry_clean|coin_/, p: { kind: "laundromat", limitedAttrs: false, photos: { ja: "店内・設備（洗濯機/乾燥機）・外観・駐車場・利用案内", en: "interior, equipment (washers/dryers), exterior, parking, usage guide" }, attrs: { ja: "24時間営業・駐車場・各種キャッシュレス決済・Wi-Fiなど", en: "24-hour operation, parking, cashless payment options, Wi-Fi, etc." }, subcat: { ja: "例：コインランドリー＋宅配クリーニング", en: "e.g., laundromat + delivery dry cleaning" } } },
+  { re: /car_|\bauto|vehicle|gas_station|motorcycle|\btire|car_wash|car_repair|car_dealer/, p: { kind: "auto", limitedAttrs: false, photos: { ja: "車両・店舗/工場外観・作業場・作業風景・スタッフ", en: "vehicles, shop/garage exterior, work bay, work in progress, staff" }, attrs: { ja: "駐車場・各種キャッシュレス決済・見積無料・代車あり・即日対応など", en: "parking, cashless payment options, free estimates, loaner cars, same-day service, etc." }, subcat: { ja: "例：自動車整備＋車検、販売＋買取", en: "e.g., auto repair + vehicle inspection, sales + buyback" } } },
+  { re: /real_estate|estate_agent/, p: { kind: "real_estate", limitedAttrs: false, photos: { ja: "取扱物件・店舗外観/内観・スタッフ・周辺環境", en: "listed properties, office exterior/interior, staff, surrounding area" }, attrs: { ja: "駐車場・オンライン相談対応・対応エリア・営業時間など", en: "parking, online consultation, service areas, business hours, etc." }, subcat: { ja: "例：不動産売買＋賃貸仲介、賃貸管理＋リフォーム", en: "e.g., property sales + rental brokerage, rental management + renovation" } } },
+  { re: /contractor|plumber|electrician|painter|roofing|locksmith|moving_company|cleaning|pest_control|handyman|renovation|construction|exterminat/, p: { kind: "home-service", limitedAttrs: false, photos: { ja: "施工/対応事例（ビフォー/アフター）・スタッフ・作業風景・自社/店舗外観", en: "project/job examples (before/after), staff, work in progress, company/shop exterior" }, attrs: { ja: "見積無料・対応エリア・オンライン相談対応・駐車場など", en: "free estimates, service areas, online consultation, parking, etc." }, subcat: { ja: "例：外壁塗装＋リフォーム、ハウスクリーニング＋エアコン洗浄", en: "e.g., exterior painting + renovation, house cleaning + AC cleaning" } } },
+  { re: /lodging|hotel|motel|resort|guest_house|hostel|ryokan|\binn\b|bed_and_breakfast|campground|cottage|capsule/, p: { kind: "lodging", limitedAttrs: false, photos: { ja: "客室・外観・館内設備・周辺・食事", en: "guest rooms, exterior, on-site facilities, surroundings, meals" }, attrs: { ja: "駐車場・Wi-Fi・チェックイン/アウト時間・対応言語など", en: "parking, Wi-Fi, check-in/out times, supported languages, etc." }, subcat: { ja: "例：ホテル＋宴会場、旅館＋日帰り温泉", en: "e.g., hotel + banquet hall, inn + day-use hot spring" } } },
+  { re: /dentist|doctor|hospital|clinic|health|physio|chiropract|pharmacy|drugstore|medical|veterinar|dental|nursing|therapist|acupunctur/, p: { kind: "medical", limitedAttrs: false, photos: { ja: "院内・外観・スタッフ・設備・受付の様子", en: "interior, exterior, staff, equipment, reception area" }, attrs: { ja: "予約可・バリアフリー・駐車場・各種保険対応など", en: "appointments available, accessibility, parking, insurance accepted, etc." }, subcat: { ja: "例：整骨院＋鍼灸院、歯科＋小児歯科", en: "e.g., osteopathic clinic + acupuncture, dentistry + pediatric dentistry" } } },
+  { re: /hair|beauty|salon|\bspa\b|nail|barber|massage|esthetic|aesthetic|eyelash|\blash|tanning|sauna|skin_care|makeup|foot_care|reflexolog|wax|depilat|hair_removal|cosmetic|wellness|relax/, p: { kind: "beauty", limitedAttrs: false, photos: { ja: "施術例（ビフォー/アフター）・店内・個室・スタッフ・メニュー表・外観", en: "treatment examples (before/after), interior, private rooms, staff, menu, exterior" }, attrs: { ja: "予約可・各種キャッシュレス決済・個室・女性スタッフ在籍・駐車場・バリアフリーなど", en: "appointments available, cashless payment options, private rooms, female staff on hand, parking, accessibility, etc." }, subcat: { ja: "例：美容室＋ヘッドスパ、ネイル＋まつげエクステ、エステ＋脱毛", en: "e.g., hair salon + head spa, nails + eyelash extensions, esthetics + hair removal" } } },
+  { re: /gym|fitness|yoga|sports_|stadium|dance|martial|swimming|pilates|crossfit|golf/, p: { kind: "fitness", limitedAttrs: false, photos: { ja: "設備・館内・トレーニング/レッスン風景・スタッフ", en: "equipment, interior, training/class sessions, staff" }, attrs: { ja: "駐車場・更衣室/シャワー・見学体験可・キャッシュレス決済など", en: "parking, locker rooms/showers, trial visits available, cashless payment, etc." }, subcat: { ja: "例：ジム＋パーソナル、ヨガ＋ピラティス", en: "e.g., gym + personal training, yoga + pilates" } } },
+  { re: /restaurant|\bfood|cafe|\bbar\b|bakery|meal_|izakaya|ramen|sushi|diner|\bpub\b|brewery|coffee|ice_cream|confectioner|\bdeli\b/, p: { kind: "food", limitedAttrs: false, photos: { ja: "料理・店内・外観・スタッフ・メニュー表", en: "dishes, interior, exterior, staff, menu" }, attrs: { ja: "テイクアウト・予約可・各種キャッシュレス決済・Wi-Fiなど", en: "takeout, reservations available, cashless payment options, Wi-Fi, etc." }, subcat: { ja: "例：居酒屋＋宴会場、カフェ＋ケーキ店", en: "e.g., izakaya + banquet hall, cafe + cake shop" } } },
+  { re: /school|education|tutor|university|preschool|kindergarten|training|lesson|library|cram|juku/, p: { kind: "education", limitedAttrs: true, photos: { ja: "教室/校舎・授業/レッスン風景・講師・教材・外観", en: "classrooms/building, lessons in session, instructors, materials, exterior" }, attrs: { ja: "オンライン対応・駐車場・体験/見学可など、該当する項目", en: "online options, parking, trial/observation available, and other applicable items" }, subcat: { ja: "例：学習塾＋オンライン講座、英会話＋資格対策", en: "e.g., cram school + online courses, English conversation + exam prep" } } },
+  { re: /night_club|nightclub|karaoke|cinema|movie_theater|amusement|bowling|casino|arcade|internet_cafe|game_center|\btheater\b/, p: { kind: "entertainment", limitedAttrs: false, photos: { ja: "店内・設備・イベント/プレイ風景・外観・メニュー", en: "interior, facilities, events/play in action, exterior, menu" }, attrs: { ja: "予約可・駐車場・各種キャッシュレス決済・個室/貸切可など", en: "reservations available, parking, cashless payment options, private rooms/full venue rental, etc." }, subcat: { ja: "例：カラオケ＋飲食、バー＋イベントスペース", en: "e.g., karaoke + dining, bar + event space" } } },
+  { re: /store|\bshop|market|retail|clothing|grocery|supermarket|convenience|book|furniture|electronics|jewelry|florist|hardware|pet_store|liquor|department|\bmall\b|boutique|bicycle|optician/, p: { kind: "retail", limitedAttrs: false, photos: { ja: "商品・売場/店内・外観・陳列・スタッフ", en: "products, sales floor/interior, exterior, displays, staff" }, attrs: { ja: "駐車場・各種キャッシュレス決済・通販/宅配対応など", en: "parking, cashless payment options, online/delivery service, etc." }, subcat: { ja: "例：物販＋修理対応、小売＋カフェ併設", en: "e.g., retail + repair service, retail + in-store cafe" } } },
+  { re: /consult|lawyer|account|finance|insurance|corporate_office|software|marketing|design|web_|advertis|legal|\btax\b|notary|architect|engineer|agency|\bcompany\b|\boffice\b|it_|technology|telecom|\bbank\b|attorney|recruit|employment/, p: { kind: "professional", limitedAttrs: true, photos: { ja: "オフィス外観・スタッフ・サービス内容や実績の資料・セミナー/打合せの様子", en: "office exterior, staff, materials on services and results, seminars/meetings" }, attrs: { ja: "オンライン相談対応・対応エリア・駐車場など、該当する項目", en: "online consultation, service areas, parking, and other applicable items" }, subcat: { ja: "例：ITコンサル＋システム開発、税理士＋経営コンサル", en: "e.g., IT consulting + system development, tax accounting + management consulting" } } },
+];
+const BIZ_DEFAULT_L: BizProfileL = { kind: "default", limitedAttrs: true, photos: { ja: "外観・内観・スタッフ・提供サービスの様子", en: "exterior, interior, staff, services in action" }, attrs: { ja: "駐車場・オンライン対応など、業種に該当する項目", en: "parking, online options, and other items relevant to your industry" }, subcat: { ja: "提供サービスに合う副カテゴリ", en: "a secondary category that fits your services" } };
+
+function resolveBiz(p: BizProfileL, uiLang: UiLang = "ja"): BizProfile {
+  return { kind: p.kind, limitedAttrs: p.limitedAttrs, photos: p.photos[uiLang], attrs: p.attrs[uiLang], subcat: p.subcat[uiLang] };
+}
+
+export function bizProfile(primaryType: string | undefined, types: string[], uiLang: UiLang = "ja"): BizProfile {
   const ts = [primaryType, ...(types || [])].filter(Boolean).map(t => String(t).toLowerCase());
   // primaryType を優先的に評価し、無ければ types 全体で判定
   for (const source of [primaryType ? [String(primaryType).toLowerCase()] : [], ts]) {
-    for (const { re, p } of BIZ_RULES) if (source.some(t => re.test(t))) return p;
+    for (const { re, p } of BIZ_RULES) if (source.some(t => re.test(t))) return resolveBiz(p, uiLang);
   }
-  return BIZ_DEFAULT;
+  return resolveBiz(BIZ_DEFAULT_L, uiLang);
 }
 
 /**
@@ -227,64 +240,135 @@ export function bizProfile(primaryType: string | undefined, types: string[]): Bi
  */
 interface Tip { title: string; detail: string; level: "high" | "mid" | "info"; }
 
+// buildTips 内で使う言語別テンプレート。{x} はプレースホルダ。
+const TIP_T: Record<UiLang, Record<string, string | ((v: Record<string, string | number>) => string)>> = {
+  ja: {
+    website_t: "Webサイト/予約リンクを登録",
+    website_d: "公式サイト・SNS・ネット予約のリンクが未登録です。登録すると情報の信頼性が上がり、来店前のユーザーを取りこぼしません。",
+    phone_t: "電話番号を登録",
+    phone_d: "電話番号が未登録です。問い合わせ・予約の導線として必ず登録しましょう。",
+    subcat_t: "副カテゴリを追加",
+    subcat_d: (v) => `主カテゴリだけになっています。提供サービスに合う副カテゴリ（${v.subcat}）を追加すると、関連キーワードでの露出が広がります。`,
+    revcount_t: "クチコミ件数を増やす",
+    revcount_d: (v) => `現在${v.count}件。来店時の一声やレジ横のQR・カードでレビュー依頼を仕組み化しましょう。件数は上位表示の主要因です。`,
+    rating_t: "平均評価を引き上げる",
+    rating_d: (v) => `現在★${v.rating}。低評価の要因（提供時間・接客・清潔感など）を洗い出し、運用改善と丁寧な返信で評価を底上げしましょう。`,
+    hours_t: "営業時間を登録",
+    hours_d: "営業時間が未設定です。曜日ごとの営業時間・定休日・祝日対応・特別営業を登録しましょう。",
+    photos_t: "写真を増やす",
+    photos_d: (v) => `現在${v.count}枚。${v.photos}など、推奨${v.rec}枚以上を目安に高画質写真を追加・定期更新しましょう。写真量は閲覧数とクリック率に直結します。`,
+    photos_light_d: (v) => `現在${v.count}枚。${v.photos}などの写真を追加しましょう。`,
+    attrs_full_t: "属性を充実させる",
+    attrs_full_d: (v) => `${v.attrs}など、業種に該当する属性があれば登録しましょう。${v.svc ? "サービス業はそもそも設定できる属性が少なめですが、" : ""}埋めるほど『条件で絞り込む』検索にヒットしやすくなります。`,
+    attrs_full_open_d: (v) => `${v.attrs}など、未設定の属性を追加しましょう。『条件で絞り込む』検索にヒットしやすくなります。`,
+    attrs_light_t: "属性を登録",
+    attrs_light_d: (v) => `${v.attrs}など、業種に該当する属性を登録しましょう。`,
+    lowrev_t: "低評価への対応",
+    lowrev_d: (v) => `★1〜2の割合がやや高めです（${v.pct}%）。共通する不満点を特定し、運用改善＋誠実な返信で印象を回復しましょう。`,
+    recency_t: "クチコミの新着ペース回復",
+    recency_d: (v) => `最新クチコミが${v.days}日前です。定期的なレビュー依頼で新着クチコミを絶やさないように。新着性も鮮度シグナルになります。`,
+    ok_t: "整備度は良好です",
+    ok_d: "確認できる基本項目に大きな欠落はありません。下のレーダー・各指標で現状を確認しつつ、下記の習慣化で上位を狙いましょう。",
+    maintain_t: "今の強みを維持・さらに伸ばす",
+    maintain_d: "クチコミへの返信と最新情報の定期投稿を継続し、写真を増やし続けることで、さらに上位表示と来店率の向上が狙えます。",
+  },
+  en: {
+    website_t: "Add a website / booking link",
+    website_d: "No links to an official site, social media, or online booking are registered. Adding them boosts the credibility of your information and keeps you from losing customers before they visit.",
+    phone_t: "Add a phone number",
+    phone_d: "No phone number is registered. Be sure to add one as a path for inquiries and bookings.",
+    subcat_t: "Add secondary categories",
+    subcat_d: (v) => `You only have a primary category. Adding secondary categories that fit your services (${v.subcat}) broadens your exposure for related keywords.`,
+    revcount_t: "Get more reviews",
+    revcount_d: (v) => `Currently ${v.count} reviews. Systematize review requests with a quick word at checkout or a QR code/card by the register. Review count is a major ranking factor.`,
+    rating_t: "Raise your average rating",
+    rating_d: (v) => `Currently ★${v.rating}. Identify the causes of low ratings (wait times, service, cleanliness, etc.) and lift your score through operational improvements and thoughtful replies.`,
+    hours_t: "Add business hours",
+    hours_d: "Business hours are not set. Register your hours by day of the week, regular closing days, holiday hours, and special hours.",
+    photos_t: "Add more photos",
+    photos_d: (v) => `Currently ${v.count} photos. Add high-quality photos of ${v.photos} and more, aiming for at least the recommended ${v.rec}, and refresh them regularly. Photo volume directly drives views and click-through rate.`,
+    photos_light_d: (v) => `Currently ${v.count} photos. Add photos of ${v.photos} and similar.`,
+    attrs_full_t: "Fill out your attributes",
+    attrs_full_d: (v) => `Register any attributes that apply to your business, such as ${v.attrs}. ${v.svc ? "Service businesses have relatively few attributes available to begin with, but " : ""}the more you fill in, the easier it is to appear in filtered searches.`,
+    attrs_full_open_d: (v) => `Add any unset attributes, such as ${v.attrs}. This makes it easier to appear in filtered searches.`,
+    attrs_light_t: "Register attributes",
+    attrs_light_d: (v) => `Register attributes that apply to your business, such as ${v.attrs}.`,
+    lowrev_t: "Address low ratings",
+    lowrev_d: (v) => `The share of 1–2 star reviews is somewhat high (${v.pct}%). Pinpoint the common complaints and recover your image through operational improvements and sincere replies.`,
+    recency_t: "Restore your fresh-review pace",
+    recency_d: (v) => `Your latest review is ${v.days} days old. Keep new reviews coming with regular review requests. Recency is also a freshness signal.`,
+    ok_t: "Your profile is well maintained",
+    ok_d: "There are no major gaps in the basics we can check. Review your current state with the radar and metrics below, and aim higher by making the habits below routine.",
+    maintain_t: "Keep and build on your strengths",
+    maintain_d: "Keep replying to reviews and posting updates regularly, and keep adding photos, to push for even higher rankings and visit rates.",
+  },
+};
+
 function buildTips(
   p: ReturnType<typeof normalizeDetails>,
   profile: ReturnType<typeof scoreProfile>,
   e?: Enriched,
   now: Date = new Date(),
   activity?: ReviewActivity | null,
+  uiLang: UiLang = "ja",
 ): Tip[] {
+  const T = TIP_T[uiLang];
+  const tt = (k: string): string => T[k] as string;
+  const td = (k: string, v: Record<string, string | number> = {}): string => {
+    const e2 = T[k];
+    return typeof e2 === "function" ? e2(v) : (e2 as string);
+  };
   const ratio = (key: string) => {
     const c = profile.categories.find(x => x.key === key);
     return c ? c.score / c.max : 1;
   };
   const items: { r: number; title: string; detail: string }[] = [];
-  const bp = bizProfile(p.primaryType, p.types);
+  const bp = bizProfile(p.primaryType, p.types, uiLang);
   // 公式Places属性(信頼可)とOutscraper(補助)の多い方＝取りこぼしに強い属性件数
   const reliableAttr = Math.max(p.attributeCount, e ? e.attributeFilled : 0);
 
   // ---- 基本情報 ----
-  if (!p.websiteUri) items.push({ r: ratio("nap"), title: "Webサイト/予約リンクを登録", detail: "公式サイト・SNS・ネット予約のリンクが未登録です。登録すると情報の信頼性が上がり、来店前のユーザーを取りこぼしません。" });
-  if (!p.nationalPhoneNumber) items.push({ r: ratio("nap"), title: "電話番号を登録", detail: "電話番号が未登録です。問い合わせ・予約の導線として必ず登録しましょう。" });
+  if (!p.websiteUri) items.push({ r: ratio("nap"), title: tt("website_t"), detail: tt("website_d") });
+  if (!p.nationalPhoneNumber) items.push({ r: ratio("nap"), title: tt("phone_t"), detail: tt("phone_d") });
 
   if (p.types.filter(t => t !== p.primaryType).length === 0)
-    items.push({ r: ratio("category"), title: "副カテゴリを追加", detail: `主カテゴリだけになっています。提供サービスに合う副カテゴリ（${bp.subcat}）を追加すると、関連キーワードでの露出が広がります。` });
+    items.push({ r: ratio("category"), title: tt("subcat_t"), detail: td("subcat_d", { subcat: bp.subcat }) });
 
   if (p.userRatingCount < 30)
-    items.push({ r: ratio("reviews"), title: "クチコミ件数を増やす", detail: `現在${p.userRatingCount}件。来店時の一声やレジ横のQR・カードでレビュー依頼を仕組み化しましょう。件数は上位表示の主要因です。` });
+    items.push({ r: ratio("reviews"), title: tt("revcount_t"), detail: td("revcount_d", { count: p.userRatingCount }) });
   if (p.rating != null && p.rating < 4.0)
-    items.push({ r: ratio("reviews"), title: "平均評価を引き上げる", detail: `現在★${p.rating.toFixed(1)}。低評価の要因（提供時間・接客・清潔感など）を洗い出し、運用改善と丁寧な返信で評価を底上げしましょう。` });
+    items.push({ r: ratio("reviews"), title: tt("rating_t"), detail: td("rating_d", { rating: p.rating.toFixed(1) }) });
 
   // 宿泊業は「営業時間」概念が薄く、Placesでも取得しづらいため誤検知を避けて出さない
-  if (!p.hasRegularHours && bp.kind !== "lodging") items.push({ r: ratio("hours"), title: "営業時間を登録", detail: "営業時間が未設定です。曜日ごとの営業時間・定休日・祝日対応・特別営業を登録しましょう。" });
+  if (!p.hasRegularHours && bp.kind !== "lodging") items.push({ r: ratio("hours"), title: tt("hours_t"), detail: tt("hours_d") });
 
   if (e) {
     // 「最新情報の投稿◯日前」はデータ更新の遅延でズレるため“表には出さない”。
     // 鮮度(postFresh)は scoring.ts で「最新性」スコアに反映済み（裏側の評価として保持）。
 
     if (e.photosCount < REC_PHOTOS)
-      items.push({ r: ratio("photos"), title: "写真を増やす", detail: `現在${e.photosCount}枚。${bp.photos}など、推奨${REC_PHOTOS}枚以上を目安に高画質写真を追加・定期更新しましょう。写真量は閲覧数とクリック率に直結します。` });
+      items.push({ r: ratio("photos"), title: tt("photos_t"), detail: td("photos_d", { count: e.photosCount, photos: bp.photos, rec: REC_PHOTOS }) });
 
     // 公式属性＋補助の信頼件数で判定（3件未満のみ提案）。宿泊業は不可測項目が多いため出さない。
     if (reliableAttr < 3 && bp.kind !== "lodging")
-      items.push({ r: ratio("extras"), title: "属性を充実させる", detail: bp.limitedAttrs
-        ? `${bp.attrs}など、業種に該当する属性があれば登録しましょう。${bp.kind === "professional" || bp.kind === "education" ? "サービス業はそもそも設定できる属性が少なめですが、" : ""}埋めるほど『条件で絞り込む』検索にヒットしやすくなります。`
-        : `${bp.attrs}など、未設定の属性を追加しましょう。『条件で絞り込む』検索にヒットしやすくなります。` });
+      items.push({ r: ratio("extras"), title: tt("attrs_full_t"), detail: bp.limitedAttrs
+        ? td("attrs_full_d", { attrs: bp.attrs, svc: (bp.kind === "professional" || bp.kind === "education") ? 1 : 0 })
+        : td("attrs_full_open_d", { attrs: bp.attrs }) });
 
     const rpsValues = Object.values(e.reviewsPerScore);
     const rpsTotal = rpsValues.reduce((a, b) => a + b, 0);
     const low = (e.reviewsPerScore["1"] ?? 0) + (e.reviewsPerScore["2"] ?? 0);
     if (rpsTotal > 0 && low / rpsTotal > 0.2)
-      items.push({ r: ratio("reviews"), title: "低評価への対応", detail: `★1〜2の割合がやや高めです（${Math.round((low / rpsTotal) * 100)}%）。共通する不満点を特定し、運用改善＋誠実な返信で印象を回復しましょう。` });
+      items.push({ r: ratio("reviews"), title: tt("lowrev_t"), detail: td("lowrev_d", { pct: Math.round((low / rpsTotal) * 100) }) });
   } else {
     if (p.photoCount < 10)
-      items.push({ r: ratio("photos"), title: "写真を増やす", detail: `現在${p.photoCount}枚。${bp.photos}などの写真を追加しましょう。` });
+      items.push({ r: ratio("photos"), title: tt("photos_t"), detail: td("photos_light_d", { count: p.photoCount, photos: bp.photos }) });
     if (!bp.limitedAttrs && bp.kind !== "lodging" && reliableAttr < 3)
-      items.push({ r: ratio("extras"), title: "属性を登録", detail: `${bp.attrs}など、業種に該当する属性を登録しましょう。` });
+      items.push({ r: ratio("extras"), title: tt("attrs_light_t"), detail: td("attrs_light_d", { attrs: bp.attrs }) });
   }
 
   if (activity && activity.latestDays != null && activity.latestDays > 60)
-    items.push({ r: ratio("reviews"), title: "クチコミの新着ペース回復", detail: `最新クチコミが${activity.latestDays}日前です。定期的なレビュー依頼で新着クチコミを絶やさないように。新着性も鮮度シグナルになります。` });
+    items.push({ r: ratio("reviews"), title: tt("recency_t"), detail: td("recency_d", { days: activity.latestDays }) });
 
   // 弱いカテゴリ由来を先頭へ、ratioで優先度を決定
   items.sort((a, b) => a.r - b.r);
@@ -293,9 +377,9 @@ function buildTips(
 
   // 良好な店でも中身が薄くならないよう、維持・強化の提案を補足
   if (out.length === 0)
-    out.push({ title: "整備度は良好です", level: "info", detail: "確認できる基本項目に大きな欠落はありません。下のレーダー・各指標で現状を確認しつつ、下記の習慣化で上位を狙いましょう。" });
+    out.push({ title: tt("ok_t"), level: "info", detail: tt("ok_d") });
   if (out.length < 3)
-    out.push({ title: "今の強みを維持・さらに伸ばす", level: "info", detail: "クチコミへの返信と最新情報の定期投稿を継続し、写真を増やし続けることで、さらに上位表示と来店率の向上が狙えます。" });
+    out.push({ title: tt("maintain_t"), level: "info", detail: tt("maintain_d") });
 
   return out;
 }

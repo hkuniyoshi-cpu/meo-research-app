@@ -14,30 +14,33 @@
 
   <header class="site-header">
     <a class="brand" href="https://search-mania.net/" target="_blank" rel="noopener">SearchMania Inc.</a>
-    <div class="hdr-tag">Googleマップ 無料診断</div>
+    <div class="hdr-right">
+      <div class="hdr-tag" data-i18n="hdr_tag">Googleマップ 無料診断</div>
+      <button id="lang-toggle" class="lang-toggle" type="button" aria-label="Switch language">EN</button>
+    </div>
   </header>
 
   <main class="wrap">
     <section id="input-view">
       <div class="lp-hero">
-        <div class="label">SEARCHMANIA ・ MEO診断</div>
-        <h1 class="hero-h1">事業名＋住所で、<br><span class="grad">Googleマップ整備度</span>を<br>その場で無料診断。</h1>
-        <p class="hero-sub">入力は2つだけ。整備スコア・競合比較・改善プランを、その場でレポート化します。</p>
+        <div class="label" data-i18n="lp_label">SEARCHMANIA ・ MEO診断</div>
+        <h1 class="hero-h1" id="hero-h1">事業名＋住所で、<br><span class="grad">Googleマップ整備度</span>を<br>その場で無料診断。</h1>
+        <p class="hero-sub" data-i18n="hero_sub">入力は2つだけ。整備スコア・競合比較・改善プランを、その場でレポート化します。</p>
       </div>
 
       <div class="card form-card">
-        <input id="f-name" class="field" placeholder="事業名（例：サンプル商店）" />
-        <input id="f-area" class="field" placeholder="住所 / エリア（例：那覇市牧志）" />
-        <label class="toggle"><input id="f-compare" type="checkbox" checked /> 競合比較もする（任意）</label>
+        <input id="f-name" class="field" data-i18n-ph="ph_name" placeholder="事業名（例：サンプル商店）" />
+        <input id="f-area" class="field" data-i18n-ph="ph_area" placeholder="住所 / エリア（例：那覇市牧志）" />
+        <label class="toggle"><input id="f-compare" type="checkbox" checked /> <span data-i18n="compare_opt">競合比較もする（任意）</span></label>
         <div class="cf-turnstile" data-sitekey="0x4AAAAAADnWDrv5_bsETVew" data-callback="onTurnstile"></div>
-        <button id="go" class="btn"><span>無料でMEO診断する</span></button>
+        <button id="go" class="btn"><span data-i18n="go_btn">無料でMEO診断する</span></button>
         <p id="err" class="err" hidden></p>
       </div>
 
       <div class="trust">
-        <div class="trust-item"><b>完全無料</b><span>登録不要</span></div>
-        <div class="trust-item"><b>競合比較</b><span>近隣と相対評価</span></div>
-        <div class="trust-item"><b>即レポート</b><span>その場で表示</span></div>
+        <div class="trust-item"><b data-i18n="trust1_t">完全無料</b><span data-i18n="trust1_s">登録不要</span></div>
+        <div class="trust-item"><b data-i18n="trust2_t">競合比較</b><span data-i18n="trust2_s">近隣と相対評価</span></div>
+        <div class="trust-item"><b data-i18n="trust3_t">即レポート</b><span data-i18n="trust3_s">その場で表示</span></div>
       </div>
     </section>
 
@@ -46,14 +49,8 @@
         <div class="scan"><span class="pin">📍</span></div>
         <p id="loading-text" class="loading-text">店舗を特定中…</p>
         <div class="load-track"><div id="load-bar" class="load-bar"></div></div>
-        <div class="load-meta"><span id="load-pct">0%</span><span id="load-eta">解析を準備中…</span></div>
-        <ul id="load-steps" class="load-steps">
-          <li>店舗をGoogleマップで特定</li>
-          <li>基本情報（NAP）を照合</li>
-          <li>写真・口コミ・属性を解析</li>
-          <li>近隣の競合を取得・比較</li>
-          <li>整備スコア＆知名度を算出</li>
-        </ul>
+        <div class="load-meta"><span id="load-pct">0%</span><span id="load-eta" data-i18n="load_prep">解析を準備中…</span></div>
+        <ul id="load-steps" class="load-steps"></ul>
       </div>
     </section>
 
@@ -61,7 +58,7 @@
   </main>
 
   <footer class="site-foot">
-    <div class="foot-links"><a href="/policy.html">プライバシーポリシー・ご利用上の注意</a></div>
+    <div class="foot-links"><a href="/policy.html" data-i18n="policy_link">プライバシーポリシー・ご利用上の注意</a></div>
     Supervised &amp; Copyright © <a href="https://search-mania.net/" target="_blank" rel="noopener">SearchMania Inc.</a> All Rights Reserved.
   </footer>
 

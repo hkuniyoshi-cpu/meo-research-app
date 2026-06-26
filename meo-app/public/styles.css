@@ -15,7 +15,15 @@ body {
 .site-header { max-width:1100px; display:flex; align-items:center; justify-content:space-between; padding:18px 6px; margin-bottom:6px; }
 .brand { font-weight:900; font-size:17px; background:linear-gradient(135deg,#4285F4,#1a73e8); color:#fff; padding:8px 16px; border-radius:12px;
   box-shadow:0 6px 16px rgba(66,133,244,.35); }
+.hdr-right { display:flex; align-items:center; gap:10px; }
 .hdr-tag { font-size:13px; font-weight:700; color:#2a5085; }
+
+/* 言語トグル（淡い青のピル） */
+.lang-toggle { border:1px solid rgba(66,133,244,.45); background:rgba(255,255,255,.7); color:#1a73e8;
+  font-weight:800; font-size:12px; letter-spacing:.02em; padding:6px 13px; border-radius:999px; cursor:pointer;
+  backdrop-filter:blur(6px); transition:background .15s, box-shadow .15s, transform .1s; white-space:nowrap; }
+.lang-toggle:hover { background:rgba(220,235,255,.95); box-shadow:0 3px 9px -5px rgba(26,115,232,.6); }
+.lang-toggle:active { transform:scale(.96); }
 
 /* ランディング ヒーロー */
 .lp-hero { text-align:center; padding:18px 6px 22px; }

@@ -57,6 +57,17 @@ describe("bizProfile", () => {
     // primaryType=restaurant を優先し food に。types先頭のstoreに引っ張られない
     expect(bizProfile("restaurant", ["store", "restaurant"]).kind).toBe("food");
   });
+  it("uiLang=en で英語の例文を返す（kind/limitedAttrsは不変）", () => {
+    const ja = bizProfile("restaurant", ["restaurant", "cafe"]);
+    const en = bizProfile("restaurant", ["restaurant", "cafe"], "en");
+    expect(en.kind).toBe("food");
+    expect(en.limitedAttrs).toBe(false);
+    expect(en.photos).toContain("dishes");
+    expect(en.photos).not.toBe(ja.photos);
+  });
+  it("uiLang未指定は従来どおり日本語（後方互換）", () => {
+    expect(bizProfile("dentist", ["dentist"]).attrs).toContain("保険");
+  });
 });
 
 describe("trimAddress", () => {
