@@ -1422,13 +1422,12 @@ function renderResult(d) {
   currentResult = d;
 }
 
-/* 🗺 競合マップ */
+/* 🗺 競合マップ（Google Maps） */
 let _compMap = null;
 function initCompMap(d) {
   const el = document.getElementById("comp-map");
-  if (!el || typeof L === "undefined") return;
+  if (!el || typeof google === "undefined" || !google.maps) return;
 
-  // 座標付き店舗を収集
   const places = [];
   if (d.location) places.push({ lat: d.location.lat, lng: d.location.lng, name: d.name, index: d.prominence, you: true });
   if (d.ranking) {
@@ -1438,39 +1437,40 @@ function initCompMap(d) {
   }
   if (places.length === 0) { el.style.display = "none"; return; }
 
-  // prominence 順にソートしてランク付与
   const sorted = [...places].sort((a, b) => b.index - a.index).map((p, i) => ({ ...p, rank: i + 1 }));
+  const you = sorted.find(m => m.you);
+  _compMap = null;
 
-  // 前回マップを破棄
-  if (_compMap) { _compMap.remove(); _compMap = null; }
-
-  _compMap = L.map(el, { zoomControl: true, scrollWheelZoom: false });
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank">CARTO</a>',
-    maxZoom: 19,
-  }).addTo(_compMap);
-
-  const bounds = [];
-  sorted.forEach(m => {
-    const rankBg = m.rank === 1 ? "#FBBC05" : m.rank === 2 ? "#9E9E9E" : m.rank === 3 ? "#CD7F32" : "#888";
-    const icon = L.divIcon({
-      className: "",
-      html: m.you
-        ? `<div class="map-pin map-you">${m.rank}</div>`
-        : `<div class="map-pin" style="background:${rankBg}">${m.rank}</div>`,
-      iconSize: m.you ? [36, 36] : [30, 30],
-      iconAnchor: m.you ? [18, 18] : [15, 15],
-    });
-    const popup = `<b>${m.name}</b><br>#${m.rank}`;
-    L.marker([m.lat, m.lng], { icon }).addTo(_compMap).bindPopup(popup);
-    bounds.push([m.lat, m.lng]);
+  const center = you ? { lat: you.lat, lng: you.lng } : { lat: sorted[0].lat, lng: sorted[0].lng };
+  _compMap = new google.maps.Map(el, {
+    center, zoom: 15,
+    mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
   });
 
-  const you = sorted.find(m => m.you);
-  if (bounds.length === 1) _compMap.setView(bounds[0], 15);
-  else {
-    _compMap.fitBounds(bounds, { padding: [28, 28] });
-    if (you) _compMap.setView([you.lat, you.lng], _compMap.getZoom());
+  const bounds = new google.maps.LatLngBounds();
+  sorted.forEach(m => {
+    const rankBg = m.rank === 1 ? "#FBBC05" : m.rank === 2 ? "#9E9E9E" : m.rank === 3 ? "#CD7F32" : "#888";
+    const bg = m.you ? "#1a73e8" : rankBg;
+    const sz = m.you ? 36 : 30;
+    const svgPin = `<svg xmlns="http://www.w3.org/2000/svg" width="${sz}" height="${sz}"><circle cx="${sz/2}" cy="${sz/2}" r="${sz/2-2}" fill="${bg}" stroke="white" stroke-width="2.5"/><text x="${sz/2}" y="${sz/2+5}" text-anchor="middle" fill="white" font-size="${m.you ? 14 : 12}" font-weight="800" font-family="sans-serif">${m.rank}</text></svg>`;
+    const marker = new google.maps.Marker({
+      position: { lat: m.lat, lng: m.lng },
+      map: _compMap,
+      icon: {
+        url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svgPin),
+        scaledSize: new google.maps.Size(sz, sz),
+        anchor: new google.maps.Point(sz / 2, sz / 2),
+      },
+      title: m.name,
+    });
+    const iw = new google.maps.InfoWindow({ content: `<b>${esc(m.name)}</b><br>#${m.rank}` });
+    marker.addListener("click", () => iw.open(_compMap, marker));
+    bounds.extend({ lat: m.lat, lng: m.lng });
+  });
+
+  if (sorted.length > 1) {
+    _compMap.fitBounds(bounds, 28);
+    if (you) google.maps.event.addListenerOnce(_compMap, "idle", () => _compMap.panTo({ lat: you.lat, lng: you.lng }));
   }
 }
 
