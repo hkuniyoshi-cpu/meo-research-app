@@ -1253,7 +1253,7 @@ function renderResult(d) {
     ranking = `
     <div class="glass">
       <div class="g-head"><span class="g-ico">📊</span>${t("ranking_head", { total: d.ranking.total, rank: d.ranking.rank })}</div>
-      <div class="note">${t("ranking_note_full")}</div>
+      <details class="note-details"><summary class="note-summary">${LANG === "ja" ? "※ 算出方法・注意事項" : LANG === "en" ? "* Notes" : LANG === "ko" ? "※ 주의 사항" : "※ 注意事項"}</summary><div class="note">${t("ranking_note_full")}</div></details>
       ${podium}
       ${list}
       <div id="comp-map" class="comp-map"></div>
@@ -1278,12 +1278,11 @@ function renderResult(d) {
         ${chipsHTML}
       </div>
     </div>
-    ${d.investigatedAt ? `<div class="freshness-note">${t("freshness_note")}</div>` : ""}
-
-    <div class="obj-note">
-      <span class="obj-ico">🔍</span>
-      <span>${t("obj_note")}</span>
-    </div>
+    <details class="note-details note-details-main">
+      <summary class="note-summary"><span class="obj-ico">🔍</span>${LANG === "ja" ? "この診断についての注意事項" : LANG === "en" ? "About this diagnostic" : LANG === "ko" ? "이 진단에 대한 주의 사항" : "關於此診斷的注意事項"}</summary>
+      ${d.investigatedAt ? `<p class="freshness-note" style="text-align:left;margin:8px 0 4px">${t("freshness_note")}</p>` : ""}
+      <p class="obj-note-body">${t("obj_note")}</p>
+    </details>
 
     <div class="section-head sec-seibi">
       <span class="sec-num">1</span>
@@ -1467,8 +1466,12 @@ function initCompMap(d) {
     bounds.push([m.lat, m.lng]);
   });
 
+  const you = sorted.find(m => m.you);
   if (bounds.length === 1) _compMap.setView(bounds[0], 15);
-  else _compMap.fitBounds(bounds, { padding: [28, 28] });
+  else {
+    _compMap.fitBounds(bounds, { padding: [28, 28] });
+    if (you) _compMap.setView([you.lat, you.lng], _compMap.getZoom());
+  }
 }
 
 /* 📊 整備度くらべ（TOPに戻らず競合の整備度を調査して横並び比較） */
