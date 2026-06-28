@@ -1256,6 +1256,7 @@ function renderResult(d) {
       <div class="note">${t("ranking_note_full")}</div>
       ${podium}
       ${list}
+      <div id="comp-map" class="comp-map"></div>
     </div>`;
   } else {
     ranking = `
@@ -1417,8 +1418,57 @@ function renderResult(d) {
   compareList = [{ name: d.name, total: d.profile.total, you: true }];
   document.querySelectorAll(".comp-diag").forEach(b => b.addEventListener("click", () => diagnoseCompetitor(b.dataset.name, b)));
   renderCompare();
+  initCompMap(d);
 
   currentResult = d;
+}
+
+/* 🗺 競合マップ */
+let _compMap = null;
+function initCompMap(d) {
+  const el = document.getElementById("comp-map");
+  if (!el || typeof L === "undefined") return;
+
+  // 座標付き店舗を収集
+  const places = [];
+  if (d.location) places.push({ lat: d.location.lat, lng: d.location.lng, name: d.name, index: d.prominence, you: true });
+  if (d.ranking) {
+    d.ranking.competitors.forEach(c => {
+      if (c.location) places.push({ lat: c.location.lat, lng: c.location.lng, name: c.name, index: c.index, you: false });
+    });
+  }
+  if (places.length === 0) { el.style.display = "none"; return; }
+
+  // prominence 順にソートしてランク付与
+  const sorted = [...places].sort((a, b) => b.index - a.index).map((p, i) => ({ ...p, rank: i + 1 }));
+
+  // 前回マップを破棄
+  if (_compMap) { _compMap.remove(); _compMap = null; }
+
+  _compMap = L.map(el, { zoomControl: true, scrollWheelZoom: false });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(_compMap);
+
+  const bounds = [];
+  sorted.forEach(m => {
+    const rankBg = m.rank === 1 ? "#FBBC05" : m.rank === 2 ? "#9E9E9E" : m.rank === 3 ? "#CD7F32" : "#888";
+    const icon = L.divIcon({
+      className: "",
+      html: m.you
+        ? `<div class="map-pin map-you">${m.rank}</div>`
+        : `<div class="map-pin" style="background:${rankBg}">${m.rank}</div>`,
+      iconSize: m.you ? [36, 36] : [30, 30],
+      iconAnchor: m.you ? [18, 18] : [15, 15],
+    });
+    const popup = `<b>${m.name}</b><br>#${m.rank}`;
+    L.marker([m.lat, m.lng], { icon }).addTo(_compMap).bindPopup(popup);
+    bounds.push([m.lat, m.lng]);
+  });
+
+  if (bounds.length === 1) _compMap.setView(bounds[0], 15);
+  else _compMap.fitBounds(bounds, { padding: [28, 28] });
 }
 
 /* 📊 整備度くらべ（TOPに戻らず競合の整備度を調査して横並び比較） */

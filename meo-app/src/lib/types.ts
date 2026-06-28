@@ -24,6 +24,7 @@ export interface PlaceData {
   attributeCount: number;
   hasReservationLink: boolean;
   hasMenuLink: boolean;
+  location?: { latitude: number; longitude: number };
 }
 
 export interface CategoryScore {
@@ -42,5 +43,5 @@ export interface RankResult {
   index: number;             // 対象店の知名度指数(0-100)
   rank: number;              // 1始まり
   total: number;             // 比較母数(対象含む)
-  competitors: { name: string; rating?: number; reviews: number; index: number }[];
+  competitors: { name: string; rating?: number; reviews: number; index: number; location?: { lat: number; lng: number } }[];
 }

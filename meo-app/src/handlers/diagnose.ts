@@ -50,7 +50,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
   // v30: uiLang をキャッシュキーに追加（言語別に結果をキャッシュ）
   // v31: 多言語拡張（ko/zh-TW）。Places lang を uiLang から導出。旧キャッシュ無効化
-  const cacheKey = `diag:v32:${body.name}|${body.area}|${body.compare ? 1 : 0}|${uiLang}`;
+  const cacheKey = `diag:v33:${body.name}|${body.area}|${body.compare ? 1 : 0}|${uiLang}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) return json(cached);
 
@@ -151,6 +151,7 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
       prominence: prominenceLight(details),
       rating: details.rating ?? null,
       reviewCount: details.userRatingCount,
+      location: details.location ? { lat: details.location.latitude, lng: details.location.longitude } : null,
       ranking,
       tipsVisible: tips.slice(0, VISIBLE_TIPS),
       tipsByLang: Object.fromEntries(UI_LANGS.map((L) => [L, tipsAll[L].slice(0, VISIBLE_TIPS)])),

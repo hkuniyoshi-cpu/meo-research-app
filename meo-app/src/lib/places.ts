@@ -8,6 +8,7 @@ const DETAILS_MASK = [
   "reviews", "photos", "regularOpeningHours", "currentOpeningHours",
   "editorialSummary", "priceLevel", "reservable", "servesLunch", "servesDinner",
   "servesBreakfast", "takeout", "delivery", "dineIn",
+  "location",
   // 公式の実属性（同じEnterprise+Atmosphere SKU内＝追加料金階層なし）。業種横断で信頼できる属性判定に使う。
   "parkingOptions", "paymentOptions", "accessibilityOptions",
   "allowsDogs", "outdoorSeating", "restroom", "goodForChildren", "goodForGroups",
@@ -16,7 +17,7 @@ const DETAILS_MASK = [
 
 const SEARCH_MASK = [
   "places.id", "places.displayName", "places.rating",
-  "places.userRatingCount", "places.photos",
+  "places.userRatingCount", "places.photos", "places.location",
 ].join(",");
 
 /** 事業名＋住所/エリアで Text Search し先頭候補を返す。lang=言語コード(日本以外は"en"等)。 */
@@ -89,6 +90,7 @@ export function normalizeDetails(d: any): PlaceData {
     attributeCount: countAttributes(d),
     hasReservationLink: !!d.reservable,
     hasMenuLink: !!d.servesLunch || !!d.servesDinner,
+    location: d.location ? { latitude: d.location.latitude, longitude: d.location.longitude } : undefined,
   };
 }
 
@@ -116,5 +118,6 @@ export function normalizeLight(d: any): PlaceData {
     photoCount: (d.photos ?? []).length, hasVideo: false,
     hasRegularHours: false, hasSpecialHours: false, attributeCount: 0,
     hasReservationLink: false, hasMenuLink: false,
+    location: d.location ? { latitude: d.location.latitude, longitude: d.location.longitude } : undefined,
   };
 }

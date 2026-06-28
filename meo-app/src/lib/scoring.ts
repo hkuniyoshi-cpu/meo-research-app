@@ -127,6 +127,7 @@ export function rankAmong(target: PlaceData, competitors: PlaceData[]): RankResu
   const targetIndex = prominenceLight(target);
   const comps = competitors.map(c => ({
     name: c.displayName, rating: c.rating, reviews: c.userRatingCount, index: prominenceLight(c),
+    location: c.location ? { lat: c.location.latitude, lng: c.location.longitude } : undefined,
   }));
   const all = [targetIndex, ...comps.map(c => c.index)].sort((a, b) => b - a);
   const rank = all.indexOf(targetIndex) + 1;

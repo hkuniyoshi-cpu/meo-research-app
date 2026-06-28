@@ -640,6 +640,17 @@ a.brand { text-decoration:none; display:inline-block; }
 .chip.warn { color:#7a5300; background:linear-gradient(135deg, rgba(251,188,5,.24), rgba(251,188,5,.1));
   border-color:rgba(251,188,5,.55); box-shadow:0 3px 9px -3px rgba(251,188,5,.4), inset 0 1px 0 rgba(255,255,255,.5); }
 
+/* 競合マップ */
+.comp-map { height:280px; border-radius:12px; overflow:hidden; margin:16px 0 0;
+  border:1px solid rgba(120,160,210,.2); box-shadow:0 4px 16px -8px rgba(80,130,200,.25); }
+.map-pin { width:30px; height:30px; background:#888; color:#fff; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:800; border:2.5px solid #fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.35); line-height:1; }
+.map-pin.map-you { width:36px; height:36px; font-size:14px;
+  background:linear-gradient(135deg,#4f96ff,#1a73e8);
+  box-shadow:0 3px 12px rgba(26,115,232,.55); border-color:#fff; }
+
 /* 要確認チェックリスト */
 .checklist { margin:6px 0 0; padding:0; list-style:none; }
 .checklist li { font-size:13px; color:#1c3a63; padding:8px 0 8px 26px; position:relative; border-bottom:1px dashed rgba(120,160,210,.25); }
