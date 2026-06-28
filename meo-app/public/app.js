@@ -1379,6 +1379,7 @@ function renderResult(d) {
   // シェアデータ
   const url = location.origin + "/?" + new URLSearchParams({ name: d.name, area: d.area, compare: d._compare ? "1" : "0" }).toString();
   currentShare = { url, text: t("share_text", { name: d.name, total: d.profile.total, l: r.l }), title: t("share_title") };
+  history.replaceState(null, "", url);
 
   // アニメ起動
   countUp($("dnum"), d.profile.total);
