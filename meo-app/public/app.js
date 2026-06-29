@@ -1626,10 +1626,16 @@ window.saveImage = () => {
   cv.toBlob((blob) => {
     if (!blob) return;
     const file = new File([blob], t("img_filename") + ".png", { type: "image/png" });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    // iOS のみ share（共有シートに「写真に保存」がある）
+    // Android は <a download> → Downloads フォルダ → ギャラリーに反映
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    if (isIOS && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file], title: t("img_share_title") }).catch(() => {});
     } else {
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = t("img_filename") + "_" + d.name + ".png"; a.click();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = t("img_filename") + "_" + d.name + ".png";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       toast(t("toast_img_saved"));
     }
   });
