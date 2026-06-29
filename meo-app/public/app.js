@@ -1546,32 +1546,83 @@ function roundRect(x, a, b, w, h, r) {
 }
 window.saveImage = () => {
   const d = currentResult; if (!d) return;
-  const cv = document.createElement("canvas"); cv.width = 1080; cv.height = 1080;
-  const x = cv.getContext("2d");
-  const g = x.createLinearGradient(0, 0, 1080, 1080);
-  g.addColorStop(0, "#e9f3ff"); g.addColorStop(1, "#c2dcff");
-  x.fillStyle = g; x.fillRect(0, 0, 1080, 1080);
-  x.textAlign = "center";
-  x.fillStyle = "#1a73e8"; x.font = "bold 42px sans-serif"; x.fillText(t("img_title"), 540, 120);
-  x.fillStyle = "#13294b"; x.font = "bold 50px sans-serif"; x.fillText(d.name.slice(0, 18), 540, 200);
-  x.fillStyle = "#3a5a85"; x.font = "28px sans-serif"; x.fillText(d.address || d.area, 540, 248);
   const r = rankOf(d.profile.total);
-  x.beginPath(); x.arc(540, 470, 150, 0, Math.PI * 2); x.lineWidth = 30; x.strokeStyle = "rgba(120,160,210,.25)"; x.stroke();
-  x.beginPath(); x.lineCap = "round"; x.arc(540, 470, 150, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (d.profile.total / 100)); x.lineWidth = 30; x.strokeStyle = r.c; x.stroke();
-  x.fillStyle = r.c; x.font = "bold 120px sans-serif"; x.fillText(String(d.profile.total), 540, 505);
-  x.fillStyle = "#8aa3c2"; x.font = "30px sans-serif"; x.fillText("/ 100", 540, 560);
-  x.fillStyle = r.c; roundRect(x, 400, 615, 280, 74, 20); x.fill();
-  x.fillStyle = "#fff"; x.font = "bold 40px sans-serif"; x.fillText(t("img_rank", { l: r.l, label: r.label }), 540, 666);
-  x.textAlign = "left"; x.fillStyle = "#1c3a63"; x.font = "32px sans-serif";
-  const stats = [];
-  const bench = d.ranking ? t("img_bench", { total: d.ranking.total, rank: d.ranking.rank }) : null;
-  if (bench) stats.push("🏆 " + bench);
-  if (d.verified) stats.push(t("img_verified"));
-  if (d.photosCount != null) stats.push(t("img_photos", { n: d.photosCount }));
-  if (d.reviewActivity && d.reviewActivity.latestDays != null) stats.push(t("img_reviews", { days: d.reviewActivity.latestDays }));
-  stats.slice(0, 4).forEach((s, i) => x.fillText(s, 200, 770 + i * 56));
-  x.textAlign = "center"; x.fillStyle = "#1a73e8"; x.font = "bold 32px sans-serif";
-  x.fillText("SearchMania ・ search-mania.net", 540, 1020);
+  const W = 800, H = 980;
+  const cv = document.createElement("canvas"); cv.width = W * 2; cv.height = H * 2;
+  const c = cv.getContext("2d"); c.scale(2, 2);
+
+  /* ── 背景 ── */
+  const bg = c.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#dbeafe"); bg.addColorStop(1, "#bfdbfe");
+  c.fillStyle = bg; c.fillRect(0, 0, W, H);
+
+  /* ── ヘッダー（青パネル） ── */
+  const hg = c.createLinearGradient(0, 0, W, 0);
+  hg.addColorStop(0, "#1e40af"); hg.addColorStop(1, "#2563eb");
+  c.fillStyle = hg; roundRect(c, 0, 0, W, 190, 0); c.fill();
+  c.textAlign = "center";
+  c.fillStyle = "rgba(255,255,255,.5)"; c.font = "600 13px sans-serif";
+  c.fillText("MEO DIAGNOSTIC REPORT ・ SearchMania", W / 2, 36);
+  const nm = d.name.length > 18 ? d.name.slice(0, 18) + "…" : d.name;
+  c.fillStyle = "#fff"; c.font = "bold 30px sans-serif"; c.fillText(nm, W / 2, 86);
+  c.fillStyle = "rgba(255,255,255,.62)"; c.font = "15px sans-serif";
+  c.fillText(d.address || d.area, W / 2, 118);
+  if (d.investigatedAt) {
+    c.fillStyle = "rgba(255,255,255,.38)"; c.font = "13px sans-serif";
+    c.fillText("調査日 " + d.investigatedAt, W / 2, 155);
+  }
+
+  /* ── スコアカード ── */
+  c.fillStyle = "rgba(255,255,255,.86)"; roundRect(c, 28, 206, W - 56, 264, 20); c.fill();
+  /* ドーナツ */
+  const CX = 178, CY = 340, R = 88;
+  c.lineWidth = 17;
+  c.beginPath(); c.arc(CX, CY, R, 0, Math.PI * 2);
+  c.strokeStyle = "rgba(120,160,210,.18)"; c.stroke();
+  c.beginPath(); c.lineCap = "round";
+  c.arc(CX, CY, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (d.profile.total / 100));
+  c.strokeStyle = r.c; c.stroke(); c.lineWidth = 1;
+  c.textAlign = "center";
+  c.fillStyle = r.c; c.font = "bold 58px sans-serif"; c.fillText(String(d.profile.total), CX, CY + 20);
+  c.fillStyle = "#8aa3c2"; c.font = "16px sans-serif"; c.fillText("/ 100", CX, CY + 46);
+  /* ランクバッジ */
+  c.fillStyle = r.c; roundRect(c, CX - 54, CY + 64, 108, 36, 18); c.fill();
+  c.fillStyle = "#fff"; c.font = "bold 16px sans-serif";
+  c.fillText(t("rank_suffix", { l: r.l }) + "  " + r.label, CX, CY + 88);
+  /* 仕切り */
+  c.beginPath(); c.moveTo(300, 224); c.lineTo(300, 452);
+  c.strokeStyle = "rgba(120,160,210,.18)"; c.lineWidth = 1; c.stroke();
+  /* 右側テキスト */
+  c.textAlign = "left";
+  c.fillStyle = "#7b9dc4"; c.font = "600 13px sans-serif"; c.fillText("整備スコア", 328, 248);
+  c.fillStyle = r.c; c.font = "bold 42px sans-serif"; c.fillText(d.profile.total + "点", 328, 296);
+  if (d.ranking) {
+    c.fillStyle = "#7b9dc4"; c.font = "600 13px sans-serif"; c.fillText("エリア内ランキング（知名度）", 328, 340);
+    c.fillStyle = "#1a73e8"; c.font = "bold 42px sans-serif"; c.fillText(d.ranking.rank + "位", 328, 388);
+    c.fillStyle = "#5b7aa3"; c.font = "15px sans-serif"; c.fillText("近隣 " + d.ranking.total + " 店中", 328, 416);
+  }
+
+  /* ── ステータスチップ ── */
+  const chips = [];
+  if (d.verified) chips.push("✓ オーナー認証済み");
+  if (d.photosCount != null) chips.push("写真 " + d.photosCount + "枚");
+  if (d.reviewActivity && d.reviewActivity.latestDays != null) chips.push("直近クチコミ " + d.reviewActivity.latestDays + "日前");
+  if (d.rating != null) chips.push("★" + d.rating + "  （" + (d.reviewCount || 0) + "件）");
+  chips.slice(0, 4).forEach((s, i) => {
+    const col = i % 2, row = Math.floor(i / 2);
+    const bx = 36 + col * 376, by = 492 + row * 58;
+    c.fillStyle = "rgba(255,255,255,.82)"; roundRect(c, bx, by, 356, 44, 14); c.fill();
+    c.fillStyle = "#22406b"; c.font = "600 16px sans-serif"; c.textAlign = "center";
+    c.fillText(s, bx + 178, by + 27);
+  });
+
+  /* ── フッター ── */
+  c.textAlign = "center";
+  c.fillStyle = "rgba(255,255,255,.55)"; c.font = "600 13px sans-serif";
+  c.fillText("MEO無料診断ツール powered by", W / 2, 870);
+  c.fillStyle = "#1a73e8"; c.font = "bold 22px sans-serif";
+  c.fillText("SearchMania Inc.  ·  meo.search-mania.net", W / 2, 904);
+
   cv.toBlob((blob) => {
     if (!blob) return;
     const file = new File([blob], t("img_filename") + ".png", { type: "image/png" });
