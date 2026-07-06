@@ -172,7 +172,7 @@ const T = {
     fc_head: "この診断結果、<br>プロと一緒に改善しませんか？",
     fc_sub: "SearchManiaが「何から手をつけるべきか」を<b>無料</b>でご提案します。",
     fc_benefit1: "✓ 専門知識は不要", fc_benefit2: "✓ 時間をかけずに", fc_benefit3: "✓ 成果にこだわる",
-    fc_primary: "無料相談・お問い合わせ",
+    fc_primary: "メールで問い合わせ",
     fc_line: "LINEで相談", fc_tel: "電話で相談", fc_mail: "メールで相談",
     fc_mail_subject: "MEO診断の相談",
 
@@ -356,7 +356,7 @@ const T = {
     fc_head: "Want to improve these results<br>together with a pro?",
     fc_sub: "SearchMania will suggest <b>for free</b> where you should start.",
     fc_benefit1: "✓ No expertise needed", fc_benefit2: "✓ Without spending your time", fc_benefit3: "✓ Focused on results",
-    fc_primary: "Free consultation / contact us",
+    fc_primary: "Contact us by email",
     fc_line: "Chat on LINE", fc_tel: "Call us", fc_mail: "Email us",
     fc_mail_subject: "MEO check consultation",
 
@@ -540,7 +540,7 @@ const T = {
     fc_head: "이 진단 결과,<br>전문가와 함께 개선해 보지 않으시겠어요?",
     fc_sub: "SearchMania가 「무엇부터 손대야 할지」를 <b>무료</b>로 제안해 드립니다.",
     fc_benefit1: "✓ 전문 지식 불필요", fc_benefit2: "✓ 시간을 들이지 않고", fc_benefit3: "✓ 성과에 집중",
-    fc_primary: "무료 상담・문의",
+    fc_primary: "이메일로 문의",
     fc_line: "LINE으로 상담", fc_tel: "전화로 상담", fc_mail: "이메일로 상담",
     fc_mail_subject: "MEO 진단 상담",
 
@@ -724,7 +724,7 @@ const T = {
     fc_head: "這份診斷結果，<br>要不要和專家一起改善呢？",
     fc_sub: "SearchMania 將<b>免費</b>為您提案「該從何處著手」。",
     fc_benefit1: "✓ 無需專業知識", fc_benefit2: "✓ 不耗費您的時間", fc_benefit3: "✓ 講求成效",
-    fc_primary: "免費諮詢・聯絡我們",
+    fc_primary: "透過電子郵件聯絡",
     fc_line: "用 LINE 諮詢", fc_tel: "用電話諮詢", fc_mail: "用電子郵件諮詢",
     fc_mail_subject: "MEO 診斷諮詢",
 
@@ -818,8 +818,8 @@ let currentResult = null;
 // SearchManiaへの導線設定（line/tel に値を入れると自動でボタンが出ます）
 const CTA = {
   site: "https://search-mania.net/",
-  email: "h.kuniyoshi@search-mania.net",
-  line: "", // 例: "https://lin.ee/xxxxx"（空なら非表示）
+  email: "info@search-mania.net",
+  line: "https://lin.ee/uHySWZX",
   tel: "",   // 例: "098-000-0000"（空なら非表示）
 };
 
@@ -1034,12 +1034,13 @@ function ctaVs() {
 // D. 末尾の強い相談セクション
 function ctaFinal() {
   const lineHref = CTA.line || CTA.site; // LINE URL未設定時はサイトへフォールバック
+  const mailHref = `mailto:${CTA.email}?subject=${encodeURIComponent(t("fc_mail_subject"))}`;
   return `<div class="glass final-cta">
     <div class="fc-head">${t("fc_head")}</div>
     <p class="fc-sub">${t("fc_sub")}</p>
     <div class="fc-benefits"><span>${t("fc_benefit1")}</span><span>${t("fc_benefit2")}</span><span>${t("fc_benefit3")}</span></div>
     <div class="fc-btns">
-      <a class="fc-btn fc-primary" href="${CTA.site}" target="_blank" rel="noopener">${t("fc_primary")}</a>
+      <a class="fc-btn fc-primary" href="${mailHref}">${t("fc_primary")}</a>
       <a class="fc-btn fc-line" href="${lineHref}" target="_blank" rel="noopener">${t("fc_line")}</a>
     </div>
   </div>`;
