@@ -45,6 +45,7 @@ function setUpSheet() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) sh = ss.insertSheet(SHEET_NAME);
+  const _ss = ss; // toast用に保持
 
   // 既存の「シート1」など空の初期シートがあれば削除（診断ログ以外で行数0のもの）
   ss.getSheets().forEach(function (s) {
@@ -86,7 +87,8 @@ function setUpSheet() {
   // シートタブの色
   sh.setTabColor("#1a73e8");
 
-  SpreadsheetApp.getActive().toast("診断ログシートを初期化しました", "セットアップ完了", 5);
+  _ss.toast("診断ログシートを初期化しました", "セットアップ完了", 5);
+  Logger.log("診断ログシートを初期化しました");
 }
 
 /* =========================================================
