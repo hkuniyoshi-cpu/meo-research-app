@@ -21,7 +21,6 @@ const SHEET_NAME = "診断ログ";
 // 列定義（見出し・データキー・列幅）
 const COLUMNS = [
   { header: "受信日時（JST）",      key: "receivedAt", width: 155 },
-  { header: "Worker記録時刻",       key: "ts",         width: 190 },
   { header: "事業名",               key: "name",       width: 220 },
   { header: "エリア／住所",         key: "area",       width: 220 },
   { header: "競合比較",             key: "compare",    width:  75 },
