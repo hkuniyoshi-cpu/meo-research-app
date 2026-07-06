@@ -14,6 +14,7 @@ export interface Env {
   TURNSTILE_SECRET: string;
   OUTSCRAPER_API_KEY: string;
   ADMIN_KEY?: string; // 設定時、一致するとレート制限・Bot判定をスキップ（管理者用）
+  LOG_URL?: string; // GAS Web App URL（入力ログをスプレッドシートに蓄積）
 }
 
 const RATE_LIMIT_PER_DAY = 20;
@@ -23,7 +24,7 @@ interface Body { name: string; area: string; compare: boolean; turnstileToken: s
 
 type UiLang = "ja" | "en" | "ko" | "zh";
 
-export async function handleDiagnose(req: Request, env: Env): Promise<Response> {
+export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   const ip = req.headers.get("CF-Connecting-IP") ?? "0.0.0.0";
   let body: Body;
   try { body = await req.json(); } catch { return json({ error: "bad_request" }, 400); }
@@ -46,6 +47,33 @@ export async function handleDiagnose(req: Request, env: Env): Promise<Response> 
 
   // UI言語（TIPS/業種例文をローカライズ）。Placesの lang とは別物（lang は入力から自動判定）
   const uiLang: UiLang = (body.uiLang === "en" || body.uiLang === "ko" || body.uiLang === "zh") ? body.uiLang : "ja";
+
+  // 入力ログ（GAS Web App → スプレッドシート）。fire-and-forget
+  if (env.LOG_URL) {
+    const cf = (req as unknown as { cf?: Record<string, unknown> }).cf || {};
+    const logPromise = fetch(env.LOG_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ts: new Date().toISOString(),
+        name: body.name,
+        area: body.area,
+        compare: !!body.compare,
+        uiLang,
+        ip,
+        country: cf.country ?? "",
+        region: cf.region ?? "",
+        city: cf.city ?? "",
+        postalCode: cf.postalCode ?? "",
+        lat: cf.latitude ?? "",
+        lng: cf.longitude ?? "",
+        timezone: cf.timezone ?? "",
+        userAgent: req.headers.get("user-agent") ?? "",
+        referer: req.headers.get("referer") ?? "",
+      }),
+    }).catch(() => {});
+    if (ctx) ctx.waitUntil(logPromise);
+  }
 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
   // v30: uiLang をキャッシュキーに追加（言語別に結果をキャッシュ）
