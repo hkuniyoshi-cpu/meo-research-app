@@ -1034,7 +1034,7 @@ function ctaVs() {
 // D. 末尾の強い相談セクション
 function ctaFinal() {
   const lineHref = CTA.line || CTA.site; // LINE URL未設定時はサイトへフォールバック
-  const mailHref = `mailto:${CTA.email}?subject=${encodeURIComponent(t("fc_mail_subject"))}`;
+  const mailHref = `mailto:${CTA.email}?subject=${encodeURIComponent(t("fc_mail_subject"))}&body=${encodeURIComponent(buildMailBody())}`;
   return `<div class="glass final-cta">
     <div class="fc-head">${t("fc_head")}</div>
     <p class="fc-sub">${t("fc_sub")}</p>
@@ -1044,6 +1044,91 @@ function ctaFinal() {
       <a class="fc-btn fc-line" href="${lineHref}" target="_blank" rel="noopener">${t("fc_line")}</a>
     </div>
   </div>`;
+}
+
+// メール本文（診断概要を自動挿入）
+function buildMailBody() {
+  const d = currentResult;
+  if (!d) return "";
+  const r = rankOf(d.profile.total);
+  const health = healthOf(d.profile.total);
+  const weak = weakestCat(d);
+  const url = (currentShare && currentShare.url) || location.href;
+
+  const L = LANG;
+  const H = {
+    ja: {
+      greet: "SearchMania ご担当者様", intro: "MEO無料診断を実施したのでご相談したいです。以下、診断結果の概要です。",
+      biz: "■ 事業情報", name: "事業名", area: "エリア／住所",
+      diag: "■ 診断サマリー", score: "整備スコア", rank: "ランク", cond: "総合コンディション", weakest: "最も弱いカテゴリ",
+      rankArea: "エリア内順位", of: "件中", pos: "位",
+      stats: "■ 主要指標", verified: "オーナー確認", photos: "写真枚数", reviews: "クチコミ件数", rating: "評価",
+      url: "■ 診断結果URL", ask: "■ ご相談したいこと", askPh: "（ここに具体的なご相談内容をご記入ください）",
+    },
+    en: {
+      greet: "Hello SearchMania,", intro: "I ran the free MEO diagnosis and would like to consult. Below is the summary.",
+      biz: "■ Business", name: "Name", area: "Area / Address",
+      diag: "■ Diagnosis Summary", score: "Score", rank: "Grade", cond: "Overall Condition", weakest: "Weakest Category",
+      rankArea: "Local Ranking", of: "of", pos: "",
+      stats: "■ Key Metrics", verified: "Verified", photos: "Photos", reviews: "Reviews", rating: "Rating",
+      url: "■ Result URL", ask: "■ What to discuss", askPh: "(Please write your specific questions here)",
+    },
+    ko: {
+      greet: "SearchMania 담당자님", intro: "무료 MEO 진단을 실행하여 상담을 요청드립니다. 아래는 진단 결과 요약입니다.",
+      biz: "■ 사업 정보", name: "사업명", area: "지역／주소",
+      diag: "■ 진단 요약", score: "정비 점수", rank: "등급", cond: "종합 컨디션", weakest: "가장 취약한 카테고리",
+      rankArea: "지역 내 순위", of: "건 중", pos: "위",
+      stats: "■ 주요 지표", verified: "오너 확인", photos: "사진 수", reviews: "리뷰 수", rating: "평점",
+      url: "■ 결과 URL", ask: "■ 상담 내용", askPh: "（구체적인 상담 내용을 여기에 기재해 주세요）",
+    },
+    zh: {
+      greet: "SearchMania 負責人您好", intro: "我完成了免費MEO診斷，希望能諮詢。以下是診斷結果摘要。",
+      biz: "■ 業務資訊", name: "名稱", area: "區域／地址",
+      diag: "■ 診斷摘要", score: "整備分數", rank: "等級", cond: "整體狀態", weakest: "最弱類別",
+      rankArea: "區域內排名", of: "家中", pos: "名",
+      stats: "■ 主要指標", verified: "業主認證", photos: "照片數", reviews: "評論數", rating: "評分",
+      url: "■ 結果連結", ask: "■ 諮詢內容", askPh: "（請在此填寫具體諮詢內容）",
+    },
+  };
+  const H2 = H[L] || H.ja;
+
+  const num = (v) => (v == null ? "-" : v);
+  const verifiedTxt = d.chips && d.chips.verified ? "✓" : "-";
+  const photos = (d.chips && d.chips.photos != null) ? d.chips.photos : (d.enriched && d.enriched.photosCount) || "-";
+  const reviews = (d.chips && d.chips.reviews != null) ? d.chips.reviews : num(d.userRatingCount);
+  const rating  = (d.chips && d.chips.rating != null) ? d.chips.rating : num(d.rating);
+
+  const rankLine = d.ranking
+    ? `${H2.rankArea}: ${d.ranking.total}${H2.of} ${d.ranking.rank}${H2.pos}\n`
+    : "";
+
+  return [
+    H2.greet + "\n",
+    H2.intro + "\n",
+    H2.biz,
+    `${H2.name}: ${d.name || "-"}`,
+    `${H2.area}: ${d.area || "-"}`,
+    "",
+    H2.diag,
+    `${H2.score}: ${d.profile.total} / 100`,
+    `${H2.rank}: ${r.l}（${r.label}）`,
+    `${H2.cond}: ${health.icon} ${health.label}`,
+    `${H2.weakest}: ${weak.label}`,
+    rankLine.trimEnd(),
+    "",
+    H2.stats,
+    `${H2.verified}: ${verifiedTxt}`,
+    `${H2.photos}: ${photos}`,
+    `${H2.reviews}: ${reviews}`,
+    `${H2.rating}: ${rating}`,
+    "",
+    H2.url,
+    url,
+    "",
+    H2.ask,
+    H2.askPh,
+    "",
+  ].filter(l => l !== null && l !== undefined).join("\n");
 }
 
 /* ===== レポート部品（本診断・競合診断で共用） ===== */
