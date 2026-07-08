@@ -48,45 +48,49 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
   // UI言語（TIPS/業種例文をローカライズ）。Placesの lang とは別物（lang は入力から自動判定）
   const uiLang: UiLang = (body.uiLang === "en" || body.uiLang === "ko" || body.uiLang === "zh") ? body.uiLang : "ja";
 
-  // 入力ログ（GAS Web App → スプレッドシート）。fire-and-forget
-  if (env.LOG_URL) {
-    const cf = (req as unknown as { cf?: Record<string, unknown> }).cf || {};
-    const logPromise = fetch(env.LOG_URL, {
+  // 入力＋接続元情報（診断後に結果と一緒にログ送信するため保持）
+  const cf = (req as unknown as { cf?: Record<string, unknown> }).cf || {};
+  const inputLog = {
+    name: body.name,
+    area: body.area,
+    compare: !!body.compare,
+    uiLang,
+    ip,
+    country: cf.country ?? "",
+    region: cf.region ?? "",
+    city: cf.city ?? "",
+    postalCode: cf.postalCode ?? "",
+    lat: cf.latitude ?? "",
+    lng: cf.longitude ?? "",
+    timezone: cf.timezone ?? "",
+    userAgent: req.headers.get("user-agent") ?? "",
+    referer: req.headers.get("referer") ?? "",
+  };
+  const sendLog = (extra: Record<string, unknown>) => {
+    if (!env.LOG_URL) return;
+    const p = fetch(env.LOG_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ts: new Date().toISOString(),
-        name: body.name,
-        area: body.area,
-        compare: !!body.compare,
-        uiLang,
-        ip,
-        country: cf.country ?? "",
-        region: cf.region ?? "",
-        city: cf.city ?? "",
-        postalCode: cf.postalCode ?? "",
-        lat: cf.latitude ?? "",
-        lng: cf.longitude ?? "",
-        timezone: cf.timezone ?? "",
-        userAgent: req.headers.get("user-agent") ?? "",
-        referer: req.headers.get("referer") ?? "",
-      }),
+      body: JSON.stringify({ ts: new Date().toISOString(), ...inputLog, ...extra }),
     }).catch(() => {});
-    if (ctx) ctx.waitUntil(logPromise);
-  }
+    if (ctx) ctx.waitUntil(p);
+  };
 
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
   // v30: uiLang をキャッシュキーに追加（言語別に結果をキャッシュ）
   // v31: 多言語拡張（ko/zh-TW）。Places lang を uiLang から導出。旧キャッシュ無効化
   const cacheKey = `diag:v33:${body.name}|${body.area}|${body.compare ? 1 : 0}|${uiLang}`;
   const cached = await getCached(env.CACHE, cacheKey);
-  if (cached) return json(cached);
+  if (cached) {
+    sendLog({ status: "cached", ...resultLogFields(cached) });
+    return json(cached);
+  }
 
   try {
     // Places API の取得言語は選択中のUI言語に追従（店舗名・住所を選択言語で表示）
     const lang = ({ ja: "ja", en: "en", ko: "ko", zh: "zh-TW" } as Record<UiLang, string>)[uiLang] || "en";
     const found = await findPlace(body.name, body.area, env.GOOGLE_PLACES_API_KEY, lang);
-    if (!found) return json({ error: "not_found" }, 404);
+    if (!found) { sendLog({ status: "not_found" }); return json({ error: "not_found" }, 404); }
 
     const details = normalizeDetails(await getDetails(found.id, env.GOOGLE_PLACES_API_KEY, lang));
     const weights = weightsFor(details.primaryType);
@@ -196,10 +200,42 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
       prediction,
     };
     await setCached(env.CACHE, cacheKey, result);
+    sendLog({ status: "ok", ...resultLogFields(result) });
     return json(result);
   } catch {
+    sendLog({ status: "upstream_error" });
     return json({ error: "upstream_error" }, 502);
   }
+}
+
+// スプレッドシート用に結果から要点だけ抽出
+function resultLogFields(r: any): Record<string, unknown> {
+  return {
+    resultName: r?.name ?? "",
+    resultAddress: r?.address ?? "",
+    score: r?.profile?.total ?? "",
+    scoreRank: gradeOf(r?.profile?.total),
+    verified: r?.verified == null ? "" : (r.verified ? "1" : "0"),
+    photos: r?.photosCount ?? "",
+    reviews: r?.reviewCount ?? "",
+    rating: r?.rating ?? "",
+    rankingRank: r?.ranking?.rank ?? "",
+    rankingTotal: r?.ranking?.total ?? "",
+    bizLat: r?.location?.lat ?? "",
+    bizLng: r?.location?.lng ?? "",
+    weakest: r?.profile?.categories
+      ? [...r.profile.categories].sort((a: any, b: any) => a.score / a.max - b.score / b.max)[0]?.label ?? ""
+      : "",
+  };
+}
+
+function gradeOf(total: number | undefined | null): string {
+  if (typeof total !== "number") return "";
+  if (total >= 90) return "S";
+  if (total >= 75) return "A";
+  if (total >= 60) return "B";
+  if (total >= 45) return "C";
+  return "D";
 }
 
 /**

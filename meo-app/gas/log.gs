@@ -20,21 +20,39 @@ const SHEET_NAME = "診断ログ";
 
 // 列定義（見出し・データキー・列幅）
 const COLUMNS = [
-  { header: "受信日時（JST）",      key: "receivedAt", width: 155 },
-  { header: "事業名",               key: "name",       width: 220 },
-  { header: "エリア／住所",         key: "area",       width: 220 },
-  { header: "競合比較",             key: "compare",    width:  75 },
-  { header: "UI言語",               key: "uiLang",     width:  70 },
-  { header: "IPアドレス",           key: "ip",         width: 130 },
-  { header: "国",                   key: "country",    width:  55 },
-  { header: "地域（都道府県/州）",  key: "region",     width: 130 },
-  { header: "市区町村",             key: "city",       width: 130 },
-  { header: "郵便番号",             key: "postalCode", width:  85 },
-  { header: "緯度",                 key: "lat",        width:  85 },
-  { header: "経度",                 key: "lng",        width:  85 },
-  { header: "タイムゾーン",         key: "timezone",   width: 140 },
-  { header: "UserAgent",            key: "userAgent",  width: 300 },
-  { header: "参照元URL",            key: "referer",    width: 220 },
+  // --- 受信メタ ---
+  { header: "受信日時（JST）",      key: "receivedAt",   width: 155 },
+  { header: "ステータス",           key: "status",       width:  90 },
+  // --- 入力 ---
+  { header: "事業名（入力）",       key: "name",         width: 200 },
+  { header: "エリア／住所（入力）", key: "area",         width: 200 },
+  { header: "競合比較",             key: "compare",      width:  75 },
+  { header: "UI言語",               key: "uiLang",       width:  70 },
+  // --- 診断結果 ---
+  { header: "店舗名（Google）",     key: "resultName",   width: 200 },
+  { header: "住所（Google）",       key: "resultAddress",width: 220 },
+  { header: "整備スコア",           key: "score",        width:  90 },
+  { header: "ランク",               key: "scoreRank",    width:  70 },
+  { header: "オーナー確認",         key: "verified",     width:  90 },
+  { header: "写真枚数",             key: "photos",       width:  80 },
+  { header: "クチコミ件数",         key: "reviews",      width: 100 },
+  { header: "評価",                 key: "rating",       width:  70 },
+  { header: "エリア内順位",         key: "rankingRank",  width:  95 },
+  { header: "エリア母集団",         key: "rankingTotal", width:  95 },
+  { header: "最弱カテゴリ",         key: "weakest",      width: 140 },
+  { header: "店舗緯度",             key: "bizLat",       width:  90 },
+  { header: "店舗経度",             key: "bizLng",       width:  90 },
+  // --- 接続元 ---
+  { header: "IPアドレス",           key: "ip",           width: 130 },
+  { header: "国",                   key: "country",      width:  55 },
+  { header: "地域（都道府県/州）",  key: "region",       width: 130 },
+  { header: "市区町村",             key: "city",         width: 130 },
+  { header: "郵便番号",             key: "postalCode",   width:  85 },
+  { header: "接続元緯度",           key: "lat",          width:  85 },
+  { header: "接続元経度",           key: "lng",          width:  85 },
+  { header: "タイムゾーン",         key: "timezone",     width: 140 },
+  { header: "UserAgent",            key: "userAgent",    width: 300 },
+  { header: "参照元URL",            key: "referer",      width: 220 },
 ];
 
 /* =========================================================
@@ -71,11 +89,18 @@ function setUpSheet() {
   // 列幅
   COLUMNS.forEach(function (c, i) { sh.setColumnWidth(i + 1, c.width); });
 
-  // 数値列の書式（緯度・経度）
-  const latCol = COLUMNS.findIndex(function (c) { return c.key === "lat"; }) + 1;
-  const lngCol = COLUMNS.findIndex(function (c) { return c.key === "lng"; }) + 1;
-  sh.getRange(2, latCol, sh.getMaxRows() - 1, 1).setNumberFormat("0.0000");
-  sh.getRange(2, lngCol, sh.getMaxRows() - 1, 1).setNumberFormat("0.0000");
+  // 数値列の書式
+  const setFmt = function (key, fmt) {
+    const col = COLUMNS.findIndex(function (c) { return c.key === key; }) + 1;
+    if (col > 0) sh.getRange(2, col, sh.getMaxRows() - 1, 1).setNumberFormat(fmt);
+  };
+  ["lat", "lng", "bizLat", "bizLng"].forEach(function (k) { setFmt(k, "0.0000"); });
+  setFmt("score", "0");
+  setFmt("photos", "0");
+  setFmt("reviews", "0");
+  setFmt("rating", "0.0");
+  setFmt("rankingRank", "0");
+  setFmt("rankingTotal", "0");
 
   // 全体のフォント・折り返し
   sh.getRange(1, 1, sh.getMaxRows(), headers.length)
@@ -100,15 +125,17 @@ function doPost(e) {
 
     const receivedAt = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss");
 
+    // 数値として扱う列
+    const NUM_KEYS = { lat:1, lng:1, bizLat:1, bizLng:1, score:1, photos:1, reviews:1, rating:1, rankingRank:1, rankingTotal:1 };
+
     // COLUMNSの順番どおりに値を組み立てる
     const row = COLUMNS.map(function (c) {
-      switch (c.key) {
-        case "receivedAt": return receivedAt;
-        case "compare":    return data.compare ? "ON" : "OFF";
-        case "lat":
-        case "lng":        return data[c.key] === "" || data[c.key] == null ? "" : Number(data[c.key]);
-        default:           return data[c.key] == null ? "" : String(data[c.key]);
-      }
+      if (c.key === "receivedAt") return receivedAt;
+      if (c.key === "compare")    return data.compare ? "ON" : "OFF";
+      const v = data[c.key];
+      if (v === "" || v == null) return "";
+      if (NUM_KEYS[c.key]) return Number(v);
+      return String(v);
     });
 
     sh.appendRow(row);
