@@ -1,7 +1,7 @@
 import { verifyTurnstile } from "../lib/turnstile";
 import { checkRateLimit } from "../lib/ratelimit";
 import { getCached, setCached } from "../lib/cache";
-import { findPlace, getDetails, findCompetitors, normalizeDetails, normalizeLight } from "../lib/places";
+import { findPlace, getDetails, findCompetitors, normalizeDetails, normalizeLight, radiusFromArea } from "../lib/places";
 import { scoreProfile, rankAmong, prominenceLight, daysSinceLatestPost, REC_PHOTOS } from "../lib/scoring";
 import { weightsFor } from "../lib/weights";
 import { fetchEnriched, fetchReviewActivity } from "../lib/outscraper";
@@ -79,7 +79,8 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
   // v30: uiLang をキャッシュキーに追加（言語別に結果をキャッシュ）
   // v31: 多言語拡張（ko/zh-TW）。Places lang を uiLang から導出。旧キャッシュ無効化
-  const cacheKey = `diag:v33:${body.name}|${body.area}|${body.compare ? 1 : 0}|${uiLang}`;
+  // v34: 競合検索を「ターゲット座標中心＋半径絞り込み＋最大60件」に刷新。旧キャッシュ無効化
+  const cacheKey = `diag:v34:${body.name}|${body.area}|${body.compare ? 1 : 0}|${uiLang}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) {
     sendLog({ status: "cached", ...resultLogFields(cached) });
@@ -130,9 +131,27 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
 
     let ranking = null;
     if (body.compare) {
-      const raw = await findCompetitors(details.primaryType, body.area, env.GOOGLE_PLACES_API_KEY, lang);
-      const comps = raw.filter((c: any) => c.id !== details.placeId).map(normalizeLight);
-      ranking = rankAmong(details, comps);
+      const radiusMeters = radiusFromArea(body.area);
+      const center = details.location
+        ? { latitude: details.location.latitude, longitude: details.location.longitude }
+        : undefined;
+      const raw = await findCompetitors(details.primaryType, body.area, env.GOOGLE_PLACES_API_KEY, lang, center, radiusMeters);
+      // 対象自身を除外し、重複placeIdは1件に集約
+      const seen = new Set<string>();
+      const dedup: any[] = [];
+      for (const c of raw) {
+        if (!c?.id || c.id === details.placeId) continue;
+        if (seen.has(c.id)) continue;
+        seen.add(c.id);
+        dedup.push(c);
+      }
+      const comps = dedup.map(normalizeLight);
+      const base = rankAmong(details, comps);
+      // 同一チェーン（表示名の正規化一致）の件数
+      const norm = (s: string) => (s || "").toLowerCase().replace(/\s+/g, "").replace(/[（）()【】\[\]・\-‐‑–—_～〜\/／]/g, "");
+      const targetKey = norm(details.displayName);
+      const sameBrandCount = comps.filter(c => norm(c.displayName) === targetKey).length;
+      ranking = { ...base, radiusKm: Math.round(radiusMeters / 1000), sameBrandCount };
     }
 
     // 今後の見通し（予測）：現状データからの目安。店ごとに弱点・数値が変わる具体予測にする

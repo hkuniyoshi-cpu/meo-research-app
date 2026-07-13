@@ -48,23 +48,64 @@ export async function getDetails(placeId: string, apiKey: string, lang: string =
   return resp.json();
 }
 
-/** 同カテゴリ近隣の競合を Text Search で取得（軽量フィールドのみ）。 */
+/**
+ * 同カテゴリ近隣の競合を Text Search で取得（軽量フィールドのみ）。
+ * center が指定されると locationRestriction で円形絞り込み（ターゲット店舗の商圏で公平比較）。
+ * pageToken を辿って最大 3 ページ（60件）取得。
+ */
 export async function findCompetitors(
-  primaryType: string | undefined, area: string, apiKey: string, lang: string = "ja", fetchFn: FetchFn = fetch
+  primaryType: string | undefined,
+  area: string,
+  apiKey: string,
+  lang: string = "ja",
+  center?: { latitude: number; longitude: number },
+  radiusMeters: number = 5000,
+  fetchFn: FetchFn = fetch
 ): Promise<any[]> {
   const q = `${primaryType ?? (lang === "ja" ? "店舗" : "business")} ${area}`;
-  const resp = await fetchFn("https://places.googleapis.com/v1/places:searchText", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": SEARCH_MASK,
-    },
-    body: JSON.stringify({ textQuery: q, languageCode: lang, maxResultCount: 20 }),
-  });
-  if (!resp.ok) throw new Error(`competitors search failed: ${resp.status}`);
-  const data: any = await resp.json();
-  return data.places ?? [];
+  const results: any[] = [];
+  let pageToken: string | undefined = undefined;
+  const MAX_PAGES = 3;
+  const SEARCH_MASK_WITH_TOKEN = SEARCH_MASK + ",nextPageToken";
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const body: Record<string, unknown> = { textQuery: q, languageCode: lang, maxResultCount: 20 };
+    if (center) body.locationRestriction = { circle: { center, radius: Math.min(50000, Math.max(500, radiusMeters)) } };
+    if (pageToken) body.pageToken = pageToken;
+
+    const resp = await fetchFn("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": SEARCH_MASK_WITH_TOKEN,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      if (page === 0) throw new Error(`competitors search failed: ${resp.status}`);
+      break; // 2ページ目以降の失敗はそこで打ち切って手持ちを返す
+    }
+    const data: any = await resp.json();
+    if (Array.isArray(data.places)) results.push(...data.places);
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
+  }
+  return results;
+}
+
+/** 入力エリア文字列の粒度から検索半径(メートル)を推定。 */
+export function radiusFromArea(area: string): number {
+  const s = (area || "").trim();
+  if (!s) return 5000;
+  // 都道府県レベル：〜25km（沖縄県・東京都・大阪府など）
+  if (/(都|道|府|県)$/.test(s) || /(都|道|府|県)[^\s、,]{0,4}$/.test(s) === false && /(都|道|府|県)/.test(s) && s.length <= 5) return 25000;
+  if (/(都|道|府|県)/.test(s) && !/(市|区|町|村)/.test(s)) return 25000;
+  // 市区町村レベル：〜8km
+  if (/(市|区|町|村)$/.test(s) || (/(市|区|町|村)/.test(s) && !/[0-9０-９]/.test(s) && !/(丁目|番地|号|通り|駅)/.test(s))) return 8000;
+  // 丁目・番地・駅名など詳細レベル：〜4km
+  if (/(丁目|番地|号|通り|駅|大字|字)/.test(s) || /[0-9０-９]/.test(s)) return 4000;
+  return 5000;
 }
 
 /** Places詳細応答 → PlaceData。 */

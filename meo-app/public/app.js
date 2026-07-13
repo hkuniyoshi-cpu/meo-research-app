@@ -83,7 +83,7 @@ const T = {
     per100: "/ 100",
     rank_suffix: (v) => `${v.l}ランク`,
     health_head: "MEO健康度",
-    bench_simple: (v) => `🏆 近隣同業 ${v.total}店中 <b>${v.rank}位</b>`,
+    bench_simple: (v) => `🏆 半径${v.radius}km ・ ${v.total}店中 <b>${v.rank}位</b>`,
     verdict_head: "診断総評",
     balance_head: "対策バランス",
     balance_note: (v) => `特に「${v.weak}」の対策が不足しています。ここを強化すると全体の底上げが期待できます。`,
@@ -136,7 +136,8 @@ const T = {
     sim_opt: (v) => `${v.cat}を改善`,
 
     /* ランキング */
-    ranking_head: (v) => `検索評価（想定）— 近隣${v.total}件中 <span class="bench-rank">${v.rank}位</span>`,
+    ranking_head: (v) => `検索評価（想定）— 半径${v.radius}km・${v.total}件中 <span class="bench-rank">${v.rank}位</span>`,
+    same_brand_note: (v) => `※ 同一系列名の店舗が${v.n}件含まれています（順位はそれらを含めた相対値）`,
     ranking_note_full: "※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した「近隣同業内での知名度の相対値」を示します。各競合は「整備度を調査」ボタンで、TOPに戻らず整備スコアを調べて比較できます。<br>※順位はGoogleマップの検索で取得した近隣店舗をもとに算出します。Googleの検索結果は時間帯・更新状況で変動するため、対象に含まれる店舗の顔ぶれや件数が毎回わずかに変わり、順位が数ランク前後する場合があります（おおよその立ち位置の目安としてご覧ください）。",
     ranking_head_plain: "検索評価（想定）",
     ranking_note_plain: "※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した知名度の相対値です。",
@@ -267,7 +268,7 @@ const T = {
     per100: "/ 100",
     rank_suffix: (v) => `Rank ${v.l}`,
     health_head: "MEO health",
-    bench_simple: (v) => `🏆 <b>#${v.rank}</b> out of ${v.total} nearby peers`,
+    bench_simple: (v) => `🏆 within ${v.radius}km · <b>#${v.rank}</b> of ${v.total}`,
     verdict_head: "Overall assessment",
     balance_head: "Balance of measures",
     balance_note: (v) => `In particular, work on "${v.weak}" is lacking. Strengthening it should lift your whole profile.`,
@@ -320,7 +321,8 @@ const T = {
     sim_opt: (v) => `Improve ${v.cat}`,
 
     /* ranking */
-    ranking_head: (v) => `Search rating (estimated) — <span class="bench-rank">#${v.rank}</span> of ${v.total} nearby`,
+    ranking_head: (v) => `Search rating (estimated) — within ${v.radius}km · <span class="bench-rank">#${v.rank}</span> of ${v.total}`,
+    same_brand_note: (v) => `* ${v.n} store(s) with the same brand name are included (rank is relative among all of them)`,
     ranking_note_full: "* This is a separate metric from the completeness score (/100). It shows a \"relative prominence value among nearby peers\" calculated from review count, rating, and more. Use the \"Check completeness\" button on each competitor to look up their completeness score and compare without leaving this page.<br>* Rankings are based on the nearby businesses returned by Google Maps search. Google's results vary by time and updates, so the set and number of businesses included can change slightly each run and your rank may shift by a few places — please treat it as an approximate standing.",
     ranking_head_plain: "Search rating (estimated)",
     ranking_note_plain: "* This is a separate metric from the completeness score (/100). It's a relative prominence value calculated from review count, rating, and more.",
@@ -451,7 +453,7 @@ const T = {
     per100: "/ 100",
     rank_suffix: (v) => `${v.l} 등급`,
     health_head: "MEO 건강도",
-    bench_simple: (v) => `🏆 주변 동종 업종 ${v.total}곳 중 <b>${v.rank}위</b>`,
+    bench_simple: (v) => `🏆 반경 ${v.radius}km · ${v.total}곳 중 <b>${v.rank}위</b>`,
     verdict_head: "진단 총평",
     balance_head: "대책 밸런스",
     balance_note: (v) => `특히 「${v.weak}」에 대한 대책이 부족합니다. 이곳을 강화하면 전체 향상을 기대할 수 있습니다.`,
@@ -504,7 +506,8 @@ const T = {
     sim_opt: (v) => `${v.cat} 개선`,
 
     /* ranking */
-    ranking_head: (v) => `검색 평가(예상) — 주변 ${v.total}곳 중 <span class="bench-rank">${v.rank}위</span>`,
+    ranking_head: (v) => `검색 평가(예상) — 반경 ${v.radius}km · ${v.total}곳 중 <span class="bench-rank">${v.rank}위</span>`,
+    same_brand_note: (v) => `※ 동일 브랜드명 매장이 ${v.n}곳 포함되어 있습니다(순위는 그들을 포함한 상대값)`,
     ranking_note_full: "※완성도 점수(/100)와는 별개의 지표입니다. 리뷰 수・평점 등으로 산출한 「주변 동종 업종 내 인지도의 상대값」을 나타냅니다. 각 경쟁사는 「완성도 조사」 버튼으로 TOP으로 돌아가지 않고 완성도 점수를 조사해 비교할 수 있습니다.<br>※순위는 구글 지도 검색으로 가져온 주변 매장을 기준으로 산출합니다. 구글 검색 결과는 시간대・갱신 상황에 따라 변동하므로, 포함되는 매장의 구성・건수가 매번 조금씩 달라져 순위가 몇 단계 전후할 수 있습니다(대략적인 위치의 기준으로 봐 주세요).",
     ranking_head_plain: "검색 평가(예상)",
     ranking_note_plain: "※완성도 점수(/100)와는 별개의 지표입니다. 리뷰 수・평점 등으로 산출한 인지도의 상대값입니다.",
@@ -635,7 +638,7 @@ const T = {
     per100: "/ 100",
     rank_suffix: (v) => `${v.l} 級`,
     health_head: "MEO 健康度",
-    bench_simple: (v) => `🏆 周邊同業 ${v.total} 家中 <b>第 ${v.rank} 名</b>`,
+    bench_simple: (v) => `🏆 半徑 ${v.radius}km · ${v.total} 家中 <b>第 ${v.rank} 名</b>`,
     verdict_head: "診斷總評",
     balance_head: "對策平衡",
     balance_note: (v) => `特別是「${v.weak}」的對策不足。強化此處可望帶動整體提升。`,
@@ -688,7 +691,8 @@ const T = {
     sim_opt: (v) => `改善${v.cat}`,
 
     /* ranking */
-    ranking_head: (v) => `搜尋評價（預估）— 周邊 ${v.total} 家中第 <span class="bench-rank">${v.rank}</span> 名`,
+    ranking_head: (v) => `搜尋評價（預估）— 半徑 ${v.radius}km · ${v.total} 家中第 <span class="bench-rank">${v.rank}</span> 名`,
+    same_brand_note: (v) => `※ 已包含同品牌名稱店舖 ${v.n} 家（排名為包含它們的相對值）`,
     ranking_note_full: "※這是與完善度評分（/100）不同的指標。它顯示依評論數・評分等推算的「周邊同業內知名度相對值」。各競爭對手可透過「調查完善度」按鈕，在不返回首頁的情況下查詢其完善度評分並進行比較。<br>※排名是依據從 Google 地圖搜尋取得的周邊店家計算。Google 搜尋結果會因時段・更新狀況而變動，納入比較的店家組成與數量每次可能略有不同，排名也可能前後數名（請視為大致的定位參考）。",
     ranking_head_plain: "搜尋評價（預估）",
     ranking_note_plain: "※這是與完善度評分（/100）不同的指標。為依評論數・評分等推算的知名度相對值。",
@@ -1267,7 +1271,7 @@ function renderResult(d) {
   const health = healthOf(d.profile.total);
   // 順位を主役にした分かりやすい表現（「上位90%」のような誤解を招く表記は使わない）
   let benchHTML = "";
-  if (d.ranking) benchHTML = `<div class="benchmark">${t("bench_simple", { total: d.ranking.total, rank: d.ranking.rank })}</div>`;
+  if (d.ranking) benchHTML = `<div class="benchmark">${t("bench_simple", { total: d.ranking.total, rank: d.ranking.rank, radius: d.ranking.radiusKm ?? 5 })}</div>`;
 
   const BADGE = { high: { t: t("badge_high"), cls: "pri-high" }, mid: { t: t("badge_mid"), cls: "pri-mid" }, info: { t: t("badge_info"), cls: "pri-info" } };
   // 言語切替時もアクションプランが切り替わるよう、現在の言語のtipsを使う（無ければ診断時の言語）
@@ -1336,9 +1340,13 @@ function renderResult(d) {
       ${shown.map(rankRow).join("")}
       ${tail ? `<div class="rank-sep">⋯</div>${rankRow(tail)}` : ""}
     </div>` : "";
+    const sameBrandHTML = d.ranking.sameBrandCount > 0
+      ? `<p class="same-brand-note">${t("same_brand_note", { n: d.ranking.sameBrandCount })}</p>`
+      : "";
     ranking = `
     <div class="glass">
-      <div class="g-head"><span class="g-ico">📊</span>${t("ranking_head", { total: d.ranking.total, rank: d.ranking.rank })}</div>
+      <div class="g-head"><span class="g-ico">📊</span>${t("ranking_head", { total: d.ranking.total, rank: d.ranking.rank, radius: d.ranking.radiusKm ?? 5 })}</div>
+      ${sameBrandHTML}
       <details class="note-details"><summary class="note-summary">${LANG === "ja" ? "※ 算出方法・注意事項" : LANG === "en" ? "* Notes" : LANG === "ko" ? "※ 주의 사항" : "※ 注意事項"}</summary><div class="note">${t("ranking_note_full")}</div></details>
       ${podium}
       ${list}

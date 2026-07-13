@@ -471,6 +471,10 @@ a.brand { text-decoration:none; display:inline-block; }
 .obj-ico { font-size:15px; flex:none; padding-top:1px; }
 
 /* 注意書き折りたたみ */
+.same-brand-note {
+  margin:6px 0 8px; padding:8px 12px; font-size:12px; line-height:1.55;
+  color:#8a6d3b; background:#fff8e1; border-left:3px solid #f0b429; border-radius:6px;
+}
 .note-details { margin:2px 0 10px; }
 .note-details-main { max-width:680px; margin:0 auto 18px; }
 .note-details > summary.note-summary {
