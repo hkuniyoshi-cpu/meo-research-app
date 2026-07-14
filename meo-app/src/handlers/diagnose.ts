@@ -131,27 +131,33 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
 
     let ranking = null;
     if (body.compare) {
-      const radiusMeters = radiusFromArea(body.area);
-      const center = details.location
-        ? { latitude: details.location.latitude, longitude: details.location.longitude }
-        : undefined;
-      const raw = await findCompetitors(details.primaryType, body.area, env.GOOGLE_PLACES_API_KEY, lang, center, radiusMeters);
-      // 対象自身を除外し、重複placeIdは1件に集約
-      const seen = new Set<string>();
-      const dedup: any[] = [];
-      for (const c of raw) {
-        if (!c?.id || c.id === details.placeId) continue;
-        if (seen.has(c.id)) continue;
-        seen.add(c.id);
-        dedup.push(c);
+      try {
+        const radiusMeters = radiusFromArea(body.area);
+        const center = details.location
+          ? { latitude: details.location.latitude, longitude: details.location.longitude }
+          : undefined;
+        const raw = await findCompetitors(details.primaryType, body.area, env.GOOGLE_PLACES_API_KEY, lang, center, radiusMeters);
+        if (raw.length > 0) {
+          // 対象自身を除外し、重複placeIdは1件に集約
+          const seen = new Set<string>();
+          const dedup: any[] = [];
+          for (const c of raw) {
+            if (!c?.id || c.id === details.placeId) continue;
+            if (seen.has(c.id)) continue;
+            seen.add(c.id);
+            dedup.push(c);
+          }
+          const comps = dedup.map(normalizeLight);
+          const base = rankAmong(details, comps);
+          // 同一チェーン（表示名の正規化一致）の件数
+          const norm = (s: string) => (s || "").toLowerCase().replace(/\s+/g, "").replace(/[（）()【】\[\]・\-‐‑–—_～〜\/／]/g, "");
+          const targetKey = norm(details.displayName);
+          const sameBrandCount = comps.filter(c => norm(c.displayName) === targetKey).length;
+          ranking = { ...base, radiusKm: Math.round(radiusMeters / 1000), sameBrandCount };
+        }
+      } catch {
+        // 競合取得失敗は診断全体を落とさない（ranking=nullで継続）
       }
-      const comps = dedup.map(normalizeLight);
-      const base = rankAmong(details, comps);
-      // 同一チェーン（表示名の正規化一致）の件数
-      const norm = (s: string) => (s || "").toLowerCase().replace(/\s+/g, "").replace(/[（）()【】\[\]・\-‐‑–—_～〜\/／]/g, "");
-      const targetKey = norm(details.displayName);
-      const sameBrandCount = comps.filter(c => norm(c.displayName) === targetKey).length;
-      ranking = { ...base, radiusKm: Math.round(radiusMeters / 1000), sameBrandCount };
     }
 
     // 今後の見通し（予測）：現状データからの目安。店ごとに弱点・数値が変わる具体予測にする

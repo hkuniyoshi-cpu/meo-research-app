@@ -63,35 +63,38 @@ export async function findCompetitors(
   fetchFn: FetchFn = fetch
 ): Promise<any[]> {
   const q = `${primaryType ?? (lang === "ja" ? "店舗" : "business")} ${area}`;
-  const results: any[] = [];
-  let pageToken: string | undefined = undefined;
-  const MAX_PAGES = 3;
-  const SEARCH_MASK_WITH_TOKEN = SEARCH_MASK + ",nextPageToken";
 
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const body: Record<string, unknown> = { textQuery: q, languageCode: lang, maxResultCount: 20 };
-    if (center) body.locationRestriction = { circle: { center, radius: Math.min(50000, Math.max(500, radiusMeters)) } };
-    if (pageToken) body.pageToken = pageToken;
-
-    const resp = await fetchFn("https://places.googleapis.com/v1/places:searchText", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": SEARCH_MASK_WITH_TOKEN,
-      },
-      body: JSON.stringify(body),
+  // 1回目：locationRestrictionあり（ターゲット中心の円形絞込）
+  // 失敗時は2回目：locationRestrictionなしで従来のエリア文字列だけの検索にフォールバック
+  const bodies: Record<string, unknown>[] = [];
+  if (center) {
+    bodies.push({
+      textQuery: q, languageCode: lang, maxResultCount: 20,
+      locationRestriction: { circle: { center, radius: Math.min(50000, Math.max(500, radiusMeters)) } },
     });
-    if (!resp.ok) {
-      if (page === 0) throw new Error(`competitors search failed: ${resp.status}`);
-      break; // 2ページ目以降の失敗はそこで打ち切って手持ちを返す
-    }
-    const data: any = await resp.json();
-    if (Array.isArray(data.places)) results.push(...data.places);
-    pageToken = data.nextPageToken;
-    if (!pageToken) break;
   }
-  return results;
+  bodies.push({ textQuery: q, languageCode: lang, maxResultCount: 20 });
+
+  for (const body of bodies) {
+    try {
+      const resp = await fetchFn("https://places.googleapis.com/v1/places:searchText", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": SEARCH_MASK,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok) continue; // 次のフォールバックを試す
+      const data: any = await resp.json();
+      const arr = Array.isArray(data.places) ? data.places : [];
+      if (arr.length > 0) return arr;
+    } catch {
+      // 次のフォールバックへ
+    }
+  }
+  return []; // 全滅でも空配列で返す（呼び出し側でranking=nullにするだけ）
 }
 
 /** 入力エリア文字列の粒度から検索半径(メートル)を推定。 */
