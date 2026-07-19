@@ -79,8 +79,8 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
   // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
   // v30: uiLang をキャッシュキーに追加（言語別に結果をキャッシュ）
   // v31: 多言語拡張（ko/zh-TW）。Places lang を uiLang から導出。旧キャッシュ無効化
-  // v34: 競合検索を「ターゲット座標中心＋半径絞り込み＋最大60件」に刷新。旧キャッシュ無効化
-  const cacheKey = `diag:v34:${body.name}|${body.area}|${body.compare ? 1 : 0}|${uiLang}`;
+  // v35: nameMismatch検出フィールド追加。旧キャッシュ無効化
+  const cacheKey = `diag:v35:${body.name}|${body.area}|${body.compare ? 1 : 0}|${uiLang}`;
   const cached = await getCached(env.CACHE, cacheKey);
   if (cached) {
     sendLog({ status: "cached", ...resultLogFields(cached) });
@@ -199,8 +199,12 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
       nextRank,
     };
 
+    const nameMismatch = !isNameLike(body.name, details.displayName);
+
     const result = {
       name: details.displayName,
+      inputName: body.name,
+      nameMismatch,
       area: body.area,
       address: trimAddress(details.formattedAddress) || body.area,
       investigatedAt: now.toISOString().slice(0, 10),
@@ -238,6 +242,7 @@ function resultLogFields(r: any): Record<string, unknown> {
   return {
     resultName: r?.name ?? "",
     resultAddress: r?.address ?? "",
+    nameMismatch: r?.nameMismatch ? "1" : "0",
     score: r?.profile?.total ?? "",
     scoreRank: gradeOf(r?.profile?.total),
     verified: r?.verified == null ? "" : (r.verified ? "1" : "0"),
@@ -261,6 +266,44 @@ function gradeOf(total: number | undefined | null): string {
   if (total >= 60) return "B";
   if (total >= 45) return "C";
   return "D";
+}
+
+/**
+ * 入力店舗名と Google Places 解決名が「同じ店を指していそうか」を判定。
+ * 表記ゆれ（大小・全角半角・カタカナ↔ひらがな・記号・空白）を吸収した上で
+ * どちらかがどちらかを内包 or バイグラム Jaccard 類似度 ≥ 0.25 を"一致"とみなす。
+ */
+export function isNameLike(input: string, resolved: string): boolean {
+  const norm = (s: string): string => {
+    if (!s) return "";
+    let x = s.normalize("NFKC").toLowerCase();
+    // 記号・空白の除去（区切り字・カッコ・句読点等）
+    x = x.replace(/[\s\-–—_・･(){}\[\]（）【】「」『』/／\\|,、。.．:：;；!！?？"'`~＝=＋+*]/g, "");
+    // カタカナ→ひらがな
+    x = x.replace(/[ァ-ヶ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+    return x;
+  };
+  const a = norm(input);
+  const b = norm(resolved);
+  if (!a || !b) return true; // データ不足時は警告しない
+  if (a === b) return true;
+  if (a.length >= 3 && b.includes(a)) return true;
+  if (b.length >= 3 && a.includes(b)) return true;
+
+  // バイグラム Jaccard 類似度
+  const bigrams = (s: string): Set<string> => {
+    const g = new Set<string>();
+    if (s.length < 2) { g.add(s); return g; }
+    for (let i = 0; i < s.length - 1; i++) g.add(s.substring(i, i + 2));
+    return g;
+  };
+  const A = bigrams(a);
+  const B = bigrams(b);
+  let inter = 0;
+  A.forEach((g) => { if (B.has(g)) inter++; });
+  const union = A.size + B.size - inter;
+  const jaccard = union > 0 ? inter / union : 0;
+  return jaccard >= 0.25;
 }
 
 /**

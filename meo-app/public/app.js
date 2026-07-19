@@ -84,6 +84,9 @@ const T = {
     rank_suffix: (v) => `${v.l}ランク`,
     health_head: "MEO健康度",
     bench_simple: (v) => `🏆 半径${v.radius}km ・ ${v.total}店中 <b>${v.rank}位</b>`,
+    name_mismatch_title: "入力名と一致する店舗が見つかりませんでした",
+    name_mismatch_body: (v) => `入力「<b>${v.input}</b>」ではGoogleマップ上で該当店舗が特定できず、最も近い候補「<b>${v.matched}</b>」を表示しています。<br>ご自身の店舗でない場合は、<b>Googleビジネスプロフィールに登録されている正式名称</b>で再度お試しください（カタカナ表記・スペース有無・「店」「本店」などの付加語もご確認ください）。`,
+    name_mismatch_retry: "入力し直す",
     verdict_head: "診断総評",
     balance_head: "対策バランス",
     balance_note: (v) => `特に「${v.weak}」の対策が不足しています。ここを強化すると全体の底上げが期待できます。`,
@@ -269,6 +272,9 @@ const T = {
     rank_suffix: (v) => `Rank ${v.l}`,
     health_head: "MEO health",
     bench_simple: (v) => `🏆 within ${v.radius}km · <b>#${v.rank}</b> of ${v.total}`,
+    name_mismatch_title: "No exact match found for your input",
+    name_mismatch_body: (v) => `Google Maps could not confirm "<b>${v.input}</b>" and is showing the closest candidate "<b>${v.matched}</b>" instead.<br>If this is not your business, try again using the <b>official name registered on your Google Business Profile</b> (check spelling, spacing, and suffixes like "branch" or "main store").`,
+    name_mismatch_retry: "Enter again",
     verdict_head: "Overall assessment",
     balance_head: "Balance of measures",
     balance_note: (v) => `In particular, work on "${v.weak}" is lacking. Strengthening it should lift your whole profile.`,
@@ -454,6 +460,9 @@ const T = {
     rank_suffix: (v) => `${v.l} 등급`,
     health_head: "MEO 건강도",
     bench_simple: (v) => `🏆 반경 ${v.radius}km · ${v.total}곳 중 <b>${v.rank}위</b>`,
+    name_mismatch_title: "입력하신 이름과 일치하는 매장을 찾을 수 없습니다",
+    name_mismatch_body: (v) => `Google 지도에서 "<b>${v.input}</b>"을(를) 특정하지 못해 가장 가까운 후보 "<b>${v.matched}</b>"을(를) 표시하고 있습니다.<br>본인의 매장이 아닌 경우 <b>Google 비즈니스 프로필에 등록된 정식 명칭</b>으로 다시 시도해 주세요.`,
+    name_mismatch_retry: "다시 입력",
     verdict_head: "진단 총평",
     balance_head: "대책 밸런스",
     balance_note: (v) => `특히 「${v.weak}」에 대한 대책이 부족합니다. 이곳을 강화하면 전체 향상을 기대할 수 있습니다.`,
@@ -639,6 +648,9 @@ const T = {
     rank_suffix: (v) => `${v.l} 級`,
     health_head: "MEO 健康度",
     bench_simple: (v) => `🏆 半徑 ${v.radius}km · ${v.total} 家中 <b>第 ${v.rank} 名</b>`,
+    name_mismatch_title: "找不到與輸入名稱完全相符的店舖",
+    name_mismatch_body: (v) => `Google 地圖無法確認「<b>${v.input}</b>」，改為顯示最相近的候選「<b>${v.matched}</b>」。<br>若非您的店舖，請以 <b>Google 商家檔案登記的正式名稱</b> 再試一次。`,
+    name_mismatch_retry: "重新輸入",
     verdict_head: "診斷總評",
     balance_head: "對策平衡",
     balance_note: (v) => `特別是「${v.weak}」的對策不足。強化此處可望帶動整體提升。`,
@@ -1359,7 +1371,18 @@ function renderResult(d) {
       ${rankRow({ name: d.name, index: d.prominence, rating: d.rating, reviews: d.reviewCount, you: true, rank: 1 })}</div>`;
   }
 
+  const mismatchHTML = d.nameMismatch
+    ? `<div class="name-mismatch">
+         <div class="nm-icon">⚠️</div>
+         <div class="nm-body">
+           <div class="nm-title">${t("name_mismatch_title")}</div>
+           <div class="nm-text">${t("name_mismatch_body", { input: esc(d.inputName || ""), matched: esc(d.name || "") })}</div>
+           <button class="nm-btn" onclick="goTop()">${t("name_mismatch_retry")}</button>
+         </div>
+       </div>` : "";
+
   $("result-view").innerHTML = `
+    ${mismatchHTML}
     <div class="report-hero">
       <div class="rh-deco rh-deco-l"></div>
       <div class="rh-deco rh-deco-r"></div>

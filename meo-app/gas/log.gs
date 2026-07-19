@@ -31,6 +31,7 @@ const COLUMNS = [
   // --- 診断結果 ---
   { header: "店舗名（Google）",     key: "resultName",   width: 200 },
   { header: "住所（Google）",       key: "resultAddress",width: 220 },
+  { header: "名称ミスマッチ",       key: "nameMismatch", width:  95 },
   { header: "整備スコア",           key: "score",        width:  90 },
   { header: "ランク",               key: "scoreRank",    width:  70 },
   { header: "オーナー確認",         key: "verified",     width:  90 },
