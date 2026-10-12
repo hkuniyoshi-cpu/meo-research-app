@@ -1311,6 +1311,20 @@ function competitorReportHTML(d) {
   </div>`;
 }
 
+// 表紙の主要数値：GOOD / NOT GOOD / BAD の件数と、エリア内順位（比較が無いときは評価とクチコミ件数）
+function coverKpisHTML(d) {
+  const n = { good: 0, warn: 0, bad: 0 };
+  (d.items || []).forEach(i => { if (n[i.status] != null) n[i.status]++; });
+  const cells = ["good", "warn", "bad"].map(st =>
+    `<div class="cv-kpi k-${st}"><b>${n[st]}</b><span><i aria-hidden="true">${ST_MARK[st]}</i>${ST_CODE[st]}<small>${esc(t("stl_" + st))}</small></span></div>`);
+  if (d.ranking) {
+    cells.push(`<div class="cv-kpi k-rank"><b>${t("kpi_rank", { rank: esc(d.ranking.rank) })}</b><span>${esc(t("kpi_rank_sub", { total: d.ranking.total }))}</span></div>`);
+  } else if (d.rating != null) {
+    cells.push(`<div class="cv-kpi k-rank"><b><small>★</small>${esc(d.rating)}</b><span>${esc(t("comp_reviews", { n: d.reviewCount || 0 }))}</span></div>`);
+  }
+  return `<div class="cv-kpis cv-n${cells.length}">${cells.join("")}</div>`;
+}
+
 /* ===== メイン描画 ===== */
 function renderResult(d) {
   const r = rankOf(d.profile.total);
@@ -1447,16 +1461,26 @@ function renderResult(d) {
 
   $("result-view").innerHTML = `
     ${mismatchHTML}
-    <div class="report-hero">
-      <div class="rh-deco rh-deco-l"></div>
-      <div class="rh-deco rh-deco-r"></div>
-      <div class="rh-eyebrow"><span class="rh-eye-line"></span><span class="rh-eye-text">MEO DIAGNOSTIC REPORT</span><span class="rh-eye-line"></span></div>
-      <h1 class="rh-title">${t("report_title")}</h1>
-      <div class="rh-card">
-        <div class="rh-name">${esc(d.name)}</div>
-        <div class="rh-addr">${esc(d.address || d.area)}</div>
-        ${d.investigatedAt ? `<div class="rh-date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(d.investigatedAt)} <span class="rh-date-sub">${t("rh_date_sub")}</span></div>` : ""}
+    <div class="cover">
+      <div class="cv-rings" aria-hidden="true"></div>
+      <div class="cv-grid">
+        <div class="cv-main">
+          <div class="cv-eyebrow"><span>MEO DIAGNOSTIC REPORT</span>${t("report_title")}</div>
+          <h1 class="cv-name">${esc(d.name)}</h1>
+          <div class="cv-meta">
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>${esc(d.address || d.area)}</span>
+            ${d.investigatedAt ? `<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(d.investigatedAt)} ${t("rh_date_sub")}</span>` : ""}
+          </div>
+          <p class="cv-verdict"><b>${t("verdict_head")}</b>${esc(verdictText(d))}</p>
+        </div>
+        <div class="cv-score">
+          <div class="cv-score-head">${t("score_head")}</div>
+          ${donutSVG(r.c)}
+          <div class="rankbadge" style="background:${r.c}">${t("rank_suffix", { l: r.l })}<small>${r.label}</small></div>
+          <div class="health" style="border-color:${health.c}aa"><span class="health-ico">${health.icon}${health.sky}</span>${t("health_head")}${LANG === "ja" ? "：" : ": "}<b style="color:${health.c}">${health.label}</b></div>
+        </div>
       </div>
+      ${coverKpisHTML(d)}
     </div>
     <details class="note-details note-details-main">
       <summary class="note-summary"><span class="obj-ico">🔍</span>${LANG === "ja" ? "この診断についての注意事項" : LANG === "en" ? "About this diagnostic" : LANG === "ko" ? "이 진단에 대한 주의 사항" : "關於此診斷的注意事項"}</summary>
@@ -1467,19 +1491,6 @@ function renderResult(d) {
     <div class="section-head sec-seibi">
       <span class="sec-num">1</span>
       <div class="sec-txt"><span class="sec-eyebrow">PART 1</span><b>${t("part1_t")}</b><small>${t("part1_s")}</small></div>
-    </div>
-
-    <div class="report-grid">
-      <div class="glass score-card">
-        <div class="g-head"><span class="g-ico">🎯</span>${t("score_head")}</div>
-        ${donutSVG(r.c)}
-        <div class="rankbadge" style="background:${r.c}">${t("rank_suffix", { l: r.l })}<small>${r.label}</small></div>
-        <div class="health" style="border-color:${health.c}55"><span class="health-ico">${health.icon}${health.sky}</span>${t("health_head")}${LANG === "ja" ? "：" : ": "}<b style="color:${health.c}">${health.label}</b></div>
-      </div>
-      <div class="glass">
-        <div class="g-head"><span class="g-ico">💬</span>${t("verdict_head")}</div>
-        <p class="verdict">${esc(verdictText(d))}</p>
-      </div>
     </div>
 
     <div class="glass items-card">
@@ -1578,7 +1589,7 @@ function renderResult(d) {
       e.target.classList.add("anim-in");
     });
   }, { threshold: 0.04 });
-  $("result-view").querySelectorAll(".glass, .section-head, .podium").forEach(el => {
+  $("result-view").querySelectorAll(".cover, .glass, .section-head, .podium").forEach(el => {
     const inView = el.getBoundingClientRect().top < window.innerHeight * 1.05;
     if (inView) el.style.animationDelay = Math.min(_animI++ * 0.06, 0.24) + "s";
     el.classList.add("anim-target");
