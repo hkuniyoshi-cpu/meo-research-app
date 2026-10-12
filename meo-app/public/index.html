@@ -36,7 +36,7 @@
 
   <link rel="icon" type="image/png" href="/logo.png" />
   <link rel="apple-touch-icon" href="/logo.png" />
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles.css?v=20261012" />
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCX2ORkfG26mltW2DUNz2s__fFOH6wA9Rc" async defer></script>
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
@@ -73,6 +73,10 @@
         <input id="f-name" class="field" data-i18n-ph="ph_name" placeholder="事業名（例：サンプル商店）" />
         <input id="f-area" class="field" data-i18n-ph="ph_area" placeholder="住所 / エリア（例：那覇市牧志）" />
         <label class="toggle"><input id="f-compare" type="checkbox" checked /> <span data-i18n="compare_opt">競合比較もする（任意）</span></label>
+        <div id="industry-wrap" class="industry-wrap">
+          <input id="f-industry" class="field" maxlength="40" autocomplete="off" data-i18n-ph="ph_industry" placeholder="業種（任意）例：音楽教室" />
+          <p class="field-hint" data-i18n="industry_hint">空欄なら、Googleに登録されているカテゴリで比較します。</p>
+        </div>
         <div class="cf-turnstile" data-sitekey="0x4AAAAAADnWDrv5_bsETVew" data-callback="onTurnstile"></div>
         <button id="go" class="btn"><span data-i18n="go_btn">無料でMEO診断する</span></button>
         <p id="err" class="err" hidden></p>
@@ -103,6 +107,7 @@
     Supervised &amp; Copyright © <a href="https://search-mania.net/" target="_blank" rel="noopener">SearchMania Inc.</a> All Rights Reserved.
   </footer>
 
-  <script src="/app.js"></script>
+  <script src="/items-i18n.js?v=20261012"></script>
+  <script src="/app.js?v=20261012"></script>
 </body>
 </html>

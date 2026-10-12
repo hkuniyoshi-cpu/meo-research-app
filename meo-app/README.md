@@ -28,13 +28,23 @@
 
 ## アーキテクチャ
 - `src/index.ts` — Worker エントリ（`POST /api/diagnose` 以外は静的アセット `public/`）
-- `src/handlers/diagnose.ts` — 診断オーケストレーション（Turnstile→レート制限→キャッシュ→Places→採点→もったいぶり）
+- `src/handlers/diagnose.ts` — 診断オーケストレーション（Turnstile→レート制限→店舗情報の取得→採点→項目別診断→競合比較）
 - `src/lib/scoring.ts` — 整備スコア / 知名度指数（純粋関数）
-- `src/lib/places.ts` — Places API クライアント＋正規化
+- `src/lib/items.ts` — 項目別診断（good / warn / bad の判定。文言はフロント側）
+- `src/lib/places.ts` — Places API クライアント＋正規化、競合検索（業種・比較範囲）
 - `src/lib/types.ts` — 共通型定義
 - `src/lib/{turnstile,ratelimit,cache,weights}.ts` — 補助
 - `public/index.html` — フロント（B+H 淡い青グラデ UI）
 - `public/app.js` — フロント JS（診断リクエスト・結果表示）
+- `public/items-i18n.js` — 項目別診断と競合比較まわりの文言（4言語）
+
+### キャッシュ（KV）
+保存するのは外部APIから取った素データだけで、診断結果は毎回そこから計算し直す。
+- `base:v1:` 店舗情報（Places Details＋Outscraper）
+- `area:v1:` 入力エリアを行政区画として解決した結果
+- `pool:v1:` 競合比較の母集団（業種×範囲）。同じエリア・同じ業種の診断で共有する
+
+保存する形を変えたら、該当キーの版数を上げる。
 - `public/styles.css` — フロント スタイル
 
 ## 注意

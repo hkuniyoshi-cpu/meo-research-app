@@ -59,8 +59,6 @@ const T = {
     rank_excellent: "卓越", rank_good: "良好", rank_almost: "あと一歩", rank_improve: "要改善", rank_action: "要対策",
     /* 健康度 */
     health_great: "絶好調", health_almost: "あと一歩", health_action: "要対策",
-    /* バッジ */
-    badge_high: "最優先", badge_mid: "推奨", badge_info: "ヒント",
 
     /* 総評 */
     verdict_90: "非常に良く整備されています。この高水準を維持しましょう。",
@@ -83,27 +81,12 @@ const T = {
     per100: "/ 100",
     rank_suffix: (v) => `${v.l}ランク`,
     health_head: "MEO健康度",
-    bench_simple: (v) => `🏆 半径${v.radius}km ・ ${v.total}店中 <b>${v.rank}位</b>`,
     name_mismatch_title: "入力名と一致する店舗が見つかりませんでした",
     name_mismatch_body: (v) => `入力「<b>${v.input}</b>」ではGoogleマップ上で該当店舗が特定できず、最も近い候補「<b>${v.matched}</b>」を表示しています。<br>ご自身の店舗でない場合は、<b>Googleビジネスプロフィールに登録されている正式名称</b>で再度お試しください（カタカナ表記・スペース有無・「店」「本店」などの付加語もご確認ください）。`,
     name_mismatch_retry: "入力し直す",
     verdict_head: "診断総評",
     balance_head: "対策バランス",
     balance_note: (v) => `特に「${v.weak}」の対策が不足しています。ここを強化すると全体の底上げが期待できます。`,
-    plan_head: "今後のアクションプラン",
-    plan_more: (v) => `＋ほか${v.n}項目の改善で、さらに上位が狙えます`,
-    plan_mail_cta: "整った詳細レポートをメールで受け取る",
-
-    /* チップ */
-    chip_verified: "✓ オーナー認証済み",
-    chip_unverified: "未認証の可能性",
-    chip_photos: (v) => `📷 写真 ${v.n}枚${v.ok ? " ✓" : `（推奨${v.rec}枚〜）`}`,
-    chip_reviews: (v) => `🔎 直近クチコミ 最新${v.days}日前${v.pace != null ? ` / 月${v.pace}件ペース` : ""}`,
-
-    /* 強み */
-    str_head: "あなたの店の強み",
-    str_owner: "オーナー認証済み", str_photos: "写真が充実", str_reviews: "クチコミが新しい",
-    str_note: "これらは維持しつつ、クチコミ・投稿で積極的にアピールすると効果的です。",
 
     /* 予測 */
     pred_head: "今後の見通し（予測）",
@@ -139,7 +122,6 @@ const T = {
     sim_opt: (v) => `${v.cat}を改善`,
 
     /* ランキング */
-    ranking_head: (v) => `検索評価（想定）— 半径${v.radius}km・${v.total}件中 <span class="bench-rank">${v.rank}位</span>`,
     same_brand_note: (v) => `※ 同一系列名の店舗が${v.n}件含まれています（順位はそれらを含めた相対値）`,
     ranking_note_full: "※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した「近隣同業内での知名度の相対値」を示します。各競合は「整備度を調査」ボタンで、TOPに戻らず整備スコアを調べて比較できます。<br>※順位はGoogleマップの検索で取得した近隣店舗をもとに算出します。Googleの検索結果は時間帯・更新状況で変動するため、対象に含まれる店舗の顔ぶれや件数が毎回わずかに変わり、順位が数ランク前後する場合があります（おおよその立ち位置の目安としてご覧ください）。",
     ranking_head_plain: "検索評価（想定）",
@@ -247,8 +229,6 @@ const T = {
     rank_excellent: "Excellent", rank_good: "Good", rank_almost: "Almost there", rank_improve: "Needs work", rank_action: "Action needed",
     /* health */
     health_great: "Excellent", health_almost: "Almost there", health_action: "Action needed",
-    /* badges */
-    badge_high: "Top priority", badge_mid: "Recommended", badge_info: "Tip",
 
     /* verdict */
     verdict_90: "Your profile is very well maintained. Keep up this high standard.",
@@ -271,27 +251,12 @@ const T = {
     per100: "/ 100",
     rank_suffix: (v) => `Rank ${v.l}`,
     health_head: "MEO health",
-    bench_simple: (v) => `🏆 within ${v.radius}km · <b>#${v.rank}</b> of ${v.total}`,
     name_mismatch_title: "No exact match found for your input",
     name_mismatch_body: (v) => `Google Maps could not confirm "<b>${v.input}</b>" and is showing the closest candidate "<b>${v.matched}</b>" instead.<br>If this is not your business, try again using the <b>official name registered on your Google Business Profile</b> (check spelling, spacing, and suffixes like "branch" or "main store").`,
     name_mismatch_retry: "Enter again",
     verdict_head: "Overall assessment",
     balance_head: "Balance of measures",
     balance_note: (v) => `In particular, work on "${v.weak}" is lacking. Strengthening it should lift your whole profile.`,
-    plan_head: "Your action plan",
-    plan_more: (v) => `+${v.n} more improvements could push you even higher`,
-    plan_mail_cta: "Get the full detailed report by email",
-
-    /* chips */
-    chip_verified: "✓ Owner-verified",
-    chip_unverified: "Possibly unverified",
-    chip_photos: (v) => `📷 ${v.n} photos${v.ok ? " ✓" : ` (${v.rec}+ recommended)`}`,
-    chip_reviews: (v) => `🔎 Latest review ${v.days} days ago${v.pace != null ? ` / ~${v.pace}/month` : ""}`,
-
-    /* strengths */
-    str_head: "Your business's strengths",
-    str_owner: "Owner-verified", str_photos: "Plenty of photos", str_reviews: "Fresh reviews",
-    str_note: "Maintain these, and promote them actively through reviews and posts for the best effect.",
 
     /* prediction */
     pred_head: "Outlook (forecast)",
@@ -327,7 +292,6 @@ const T = {
     sim_opt: (v) => `Improve ${v.cat}`,
 
     /* ranking */
-    ranking_head: (v) => `Search rating (estimated) — within ${v.radius}km · <span class="bench-rank">#${v.rank}</span> of ${v.total}`,
     same_brand_note: (v) => `* ${v.n} store(s) with the same brand name are included (rank is relative among all of them)`,
     ranking_note_full: "* This is a separate metric from the completeness score (/100). It shows a \"relative prominence value among nearby peers\" calculated from review count, rating, and more. Use the \"Check completeness\" button on each competitor to look up their completeness score and compare without leaving this page.<br>* Rankings are based on the nearby businesses returned by Google Maps search. Google's results vary by time and updates, so the set and number of businesses included can change slightly each run and your rank may shift by a few places — please treat it as an approximate standing.",
     ranking_head_plain: "Search rating (estimated)",
@@ -435,8 +399,6 @@ const T = {
     rank_excellent: "탁월", rank_good: "양호", rank_almost: "조금 더", rank_improve: "개선 필요", rank_action: "대책 필요",
     /* health */
     health_great: "최상", health_almost: "조금 더", health_action: "대책 필요",
-    /* badges */
-    badge_high: "최우선", badge_mid: "권장", badge_info: "팁",
 
     /* verdict */
     verdict_90: "매우 잘 정비되어 있습니다. 이 높은 수준을 유지하세요.",
@@ -459,27 +421,12 @@ const T = {
     per100: "/ 100",
     rank_suffix: (v) => `${v.l} 등급`,
     health_head: "MEO 건강도",
-    bench_simple: (v) => `🏆 반경 ${v.radius}km · ${v.total}곳 중 <b>${v.rank}위</b>`,
     name_mismatch_title: "입력하신 이름과 일치하는 매장을 찾을 수 없습니다",
     name_mismatch_body: (v) => `Google 지도에서 "<b>${v.input}</b>"을(를) 특정하지 못해 가장 가까운 후보 "<b>${v.matched}</b>"을(를) 표시하고 있습니다.<br>본인의 매장이 아닌 경우 <b>Google 비즈니스 프로필에 등록된 정식 명칭</b>으로 다시 시도해 주세요.`,
     name_mismatch_retry: "다시 입력",
     verdict_head: "진단 총평",
     balance_head: "대책 밸런스",
     balance_note: (v) => `특히 「${v.weak}」에 대한 대책이 부족합니다. 이곳을 강화하면 전체 향상을 기대할 수 있습니다.`,
-    plan_head: "향후 액션 플랜",
-    plan_more: (v) => `＋그 외 ${v.n}개 항목을 개선하면 더 상위를 노릴 수 있습니다`,
-    plan_mail_cta: "정리된 상세 리포트를 이메일로 받기",
-
-    /* chips */
-    chip_verified: "✓ 소유자 인증 완료",
-    chip_unverified: "미인증 가능성",
-    chip_photos: (v) => `📷 사진 ${v.n}장${v.ok ? " ✓" : `(권장 ${v.rec}장~)`}`,
-    chip_reviews: (v) => `🔎 최근 리뷰 최신 ${v.days}일 전${v.pace != null ? ` / 월 ${v.pace}건 페이스` : ""}`,
-
-    /* strengths */
-    str_head: "귀하 매장의 강점",
-    str_owner: "소유자 인증 완료", str_photos: "사진이 풍부", str_reviews: "리뷰가 최신",
-    str_note: "이를 유지하면서 리뷰・게시물로 적극적으로 어필하면 효과적입니다.",
 
     /* prediction */
     pred_head: "향후 전망(예측)",
@@ -515,7 +462,6 @@ const T = {
     sim_opt: (v) => `${v.cat} 개선`,
 
     /* ranking */
-    ranking_head: (v) => `검색 평가(예상) — 반경 ${v.radius}km · ${v.total}곳 중 <span class="bench-rank">${v.rank}위</span>`,
     same_brand_note: (v) => `※ 동일 브랜드명 매장이 ${v.n}곳 포함되어 있습니다(순위는 그들을 포함한 상대값)`,
     ranking_note_full: "※완성도 점수(/100)와는 별개의 지표입니다. 리뷰 수・평점 등으로 산출한 「주변 동종 업종 내 인지도의 상대값」을 나타냅니다. 각 경쟁사는 「완성도 조사」 버튼으로 TOP으로 돌아가지 않고 완성도 점수를 조사해 비교할 수 있습니다.<br>※순위는 구글 지도 검색으로 가져온 주변 매장을 기준으로 산출합니다. 구글 검색 결과는 시간대・갱신 상황에 따라 변동하므로, 포함되는 매장의 구성・건수가 매번 조금씩 달라져 순위가 몇 단계 전후할 수 있습니다(대략적인 위치의 기준으로 봐 주세요).",
     ranking_head_plain: "검색 평가(예상)",
@@ -623,8 +569,6 @@ const T = {
     rank_excellent: "卓越", rank_good: "良好", rank_almost: "差一步", rank_improve: "需改善", rank_action: "需對策",
     /* health */
     health_great: "極佳", health_almost: "差一步", health_action: "需對策",
-    /* badges */
-    badge_high: "最優先", badge_mid: "建議", badge_info: "提示",
 
     /* verdict */
     verdict_90: "您的檔案維護得非常完善。請維持這個高水準。",
@@ -647,27 +591,12 @@ const T = {
     per100: "/ 100",
     rank_suffix: (v) => `${v.l} 級`,
     health_head: "MEO 健康度",
-    bench_simple: (v) => `🏆 半徑 ${v.radius}km · ${v.total} 家中 <b>第 ${v.rank} 名</b>`,
     name_mismatch_title: "找不到與輸入名稱完全相符的店舖",
     name_mismatch_body: (v) => `Google 地圖無法確認「<b>${v.input}</b>」，改為顯示最相近的候選「<b>${v.matched}</b>」。<br>若非您的店舖，請以 <b>Google 商家檔案登記的正式名稱</b> 再試一次。`,
     name_mismatch_retry: "重新輸入",
     verdict_head: "診斷總評",
     balance_head: "對策平衡",
     balance_note: (v) => `特別是「${v.weak}」的對策不足。強化此處可望帶動整體提升。`,
-    plan_head: "後續行動方案",
-    plan_more: (v) => `＋再改善 ${v.n} 個項目，即可爭取更高排名`,
-    plan_mail_cta: "以電子郵件接收完整詳細報告",
-
-    /* chips */
-    chip_verified: "✓ 已通過擁有者驗證",
-    chip_unverified: "可能未驗證",
-    chip_photos: (v) => `📷 照片 ${v.n} 張${v.ok ? " ✓" : `（建議 ${v.rec} 張起）`}`,
-    chip_reviews: (v) => `🔎 最近評論 最新 ${v.days} 天前${v.pace != null ? ` / 每月約 ${v.pace} 則` : ""}`,
-
-    /* strengths */
-    str_head: "您商家的優勢",
-    str_owner: "已通過擁有者驗證", str_photos: "照片豐富", str_reviews: "評論新近",
-    str_note: "請維持這些優勢，並透過評論・貼文積極宣傳會更有效果。",
 
     /* prediction */
     pred_head: "後續展望（預測）",
@@ -703,7 +632,6 @@ const T = {
     sim_opt: (v) => `改善${v.cat}`,
 
     /* ranking */
-    ranking_head: (v) => `搜尋評價（預估）— 半徑 ${v.radius}km · ${v.total} 家中第 <span class="bench-rank">${v.rank}</span> 名`,
     same_brand_note: (v) => `※ 已包含同品牌名稱店舖 ${v.n} 家（排名為包含它們的相對值）`,
     ranking_note_full: "※這是與完善度評分（/100）不同的指標。它顯示依評論數・評分等推算的「周邊同業內知名度相對值」。各競爭對手可透過「調查完善度」按鈕，在不返回首頁的情況下查詢其完善度評分並進行比較。<br>※排名是依據從 Google 地圖搜尋取得的周邊店家計算。Google 搜尋結果會因時段・更新狀況而變動，納入比較的店家組成與數量每次可能略有不同，排名也可能前後數名（請視為大致的定位參考）。",
     ranking_head_plain: "搜尋評價（預估）",
@@ -771,6 +699,9 @@ const T = {
     img_filename: "MEO診斷",
   },
 };
+
+// 項目別診断・業種指定まわりの文言は items-i18n.js で定義し、ここで辞書に合流させる
+for (const L of Object.keys(window.MEO_I18N_EXTRA || {})) if (T[L]) Object.assign(T[L], window.MEO_I18N_EXTRA[L]);
 
 function t(key, vars) {
   let e = (T[LANG] && T[LANG][key] != null) ? T[LANG][key] : (T.ja[key] != null ? T.ja[key] : key);
@@ -843,6 +774,7 @@ $("go")?.addEventListener("click", async () => {
   const name = $("f-name").value.trim();
   const area = $("f-area").value.trim();
   const compare = $("f-compare").checked;
+  const industry = compare && $("f-industry") ? $("f-industry").value.trim() : "";
   $("err").hidden = true;
   if (!name || !area) { showErr(t("err_input")); return; }
 
@@ -853,7 +785,7 @@ $("go")?.addEventListener("click", async () => {
   try {
     const resp = await fetch("/api/diagnose", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, area, compare, turnstileToken, admin: ADMIN_KEY || undefined, uiLang: LANG }),
+      body: JSON.stringify({ name, area, compare, industry, turnstileToken, admin: ADMIN_KEY || undefined, uiLang: LANG }),
     });
     const data = await resp.json();
     if (!resp.ok) { loader.cancel(); backToInput(errMessage(data.error)); return; }
@@ -866,6 +798,14 @@ $("go")?.addEventListener("click", async () => {
     loader.cancel(); backToInput(t("err_comm"));
   }
 });
+
+// 業種の入力欄は「競合比較もする」がONのときだけ出す
+function syncIndustryField() {
+  const w = $("industry-wrap"), c = $("f-compare");
+  if (w && c) w.hidden = !c.checked;
+}
+$("f-compare")?.addEventListener("change", syncIndustryField);
+syncIndustryField();
 
 /* ===== リッチローディング（進捗バー＋待ち時間目安＋段階チェック） ===== */
 function startLoader() {
@@ -1048,9 +988,9 @@ function ctaVs() {
     </tbody></table></div>`;
 }
 // D. 末尾の強い相談セクション
-function ctaFinal() {
+function ctaFinal(d, url) {
   const lineHref = CTA.line || CTA.site; // LINE URL未設定時はサイトへフォールバック
-  const mailHref = `mailto:${CTA.email}?subject=${encodeURIComponent(t("fc_mail_subject"))}&body=${encodeURIComponent(buildMailBody())}`;
+  const mailHref = `mailto:${CTA.email}?subject=${encodeURIComponent(t("fc_mail_subject"))}&body=${encodeURIComponent(buildMailBody(d, url))}`;
   return `<div class="glass final-cta">
     <div class="fc-head">${t("fc_head")}</div>
     <p class="fc-sub">${t("fc_sub")}</p>
@@ -1063,13 +1003,11 @@ function ctaFinal() {
 }
 
 // メール本文（診断概要を自動挿入）
-function buildMailBody() {
-  const d = currentResult;
+function buildMailBody(d, url) {
   if (!d) return "";
   const r = rankOf(d.profile.total);
   const health = healthOf(d.profile.total);
   const weak = weakestCat(d);
-  const url = (currentShare && currentShare.url) || location.href;
 
   const L = LANG;
   const H = {
@@ -1109,10 +1047,18 @@ function buildMailBody() {
   const H2 = H[L] || H.ja;
 
   const num = (v) => (v == null ? "-" : v);
-  const verifiedTxt = d.chips && d.chips.verified ? "✓" : "-";
-  const photos = (d.chips && d.chips.photos != null) ? d.chips.photos : (d.enriched && d.enriched.photosCount) || "-";
-  const reviews = (d.chips && d.chips.reviews != null) ? d.chips.reviews : num(d.userRatingCount);
-  const rating  = (d.chips && d.chips.rating != null) ? d.chips.rating : num(d.rating);
+  const verifiedTxt = d.verified === true ? "✓" : "-";
+  const photos = num(d.photosCount);
+  const reviews = num(d.reviewCount);
+  const rating = num(d.rating);
+
+  // 項目別診断のうち、良好でない項目の名前
+  const labelsOf = (st) => (d.items || []).filter(i => i.status === st).map(i => (itemText(d, i) || {}).label).filter(Boolean);
+  const sep = L === "ja" || L === "zh" ? "、" : ", ";
+  const itemLines = [["bad", t("mail_bad")], ["warn", t("mail_warn")]]
+    .map(([st, head]) => [labelsOf(st), head])
+    .filter(([list]) => list.length)
+    .map(([list, head]) => `${head}: ${list.join(sep)}`);
 
   const rankLine = d.ranking
     ? `${H2.rankArea}: ${d.ranking.total}${H2.of} ${d.ranking.rank}${H2.pos}\n`
@@ -1137,6 +1083,7 @@ function buildMailBody() {
     `${H2.photos}: ${photos}`,
     `${H2.reviews}: ${reviews}`,
     `${H2.rating}: ${rating}`,
+    ...(itemLines.length ? ["", t("mail_items"), ...itemLines] : []),
     "",
     H2.url,
     url,
@@ -1147,23 +1094,120 @@ function buildMailBody() {
   ].filter(l => l !== null && l !== undefined).join("\n");
 }
 
-/* ===== レポート部品（本診断・競合診断で共用） ===== */
-function buildChips(d) {
-  const chips = [];
-  if (d.verified === true) chips.push(`<span class="chip ok">${t("chip_verified")}</span>`);
-  else if (d.verified === false) chips.push(`<span class="chip warn">${t("chip_unverified")}</span>`);
-  if (d.photosCount != null) {
-    const rec = d.recPhotos || 50;
-    const okP = d.photosCount >= rec;
-    chips.push(`<span class="chip ${okP ? "ok" : "warn"}">${t("chip_photos", { n: d.photosCount, ok: okP, rec })}</span>`);
-  }
-  if (d.reviewActivity && d.reviewActivity.latestDays != null) {
-    const a = d.reviewActivity;
-    const okR = a.latestDays <= 60;
-    chips.push(`<span class="chip ${okR ? "ok" : "warn"}">${t("chip_reviews", { days: a.latestDays, pace: a.monthlyPace != null ? a.monthlyPace : null })}</span>`);
-  }
-  return chips.length ? `<div class="chips">${chips.join("")}</div>` : "";
+/* ===== 項目別診断（タイル → タップで詳細） =====
+   判定（good / warn / bad）と実測値はサーバーが返す d.items。文言は items-i18n.js。 */
+const ST_MARK = { good: "✓", warn: "△", bad: "✕" };
+const ST_CODE = { good: "GOOD", warn: "NOT GOOD", bad: "BAD" };
+let itemSeq = 0;
+const itemReg = new Map(); // タイルID → { it, d, group }（group は本診断="main"、競合は店ごとに別）
+
+function itemText(d, it) {
+  const dict = (window.MEO_ITEMS && (window.MEO_ITEMS[LANG] || window.MEO_ITEMS.ja)) || {};
+  const def = dict[it.key];
+  if (!def) return null;
+  const biz = (d.bizByLang && (d.bizByLang[LANG] || d.bizByLang.ja)) || {};
+  const call = (x) => (typeof x === "function" ? x(it.v || {}, it.status, biz) : x);
+  return { label: def.label, val: call(def.val), now: call(def.now), why: def.why, how: call(def.how) };
 }
+function itemLegendHTML(items) {
+  const n = { good: 0, warn: 0, bad: 0 };
+  (items || []).forEach(i => { if (n[i.status] != null) n[i.status]++; });
+  return `<div class="it-legend">${["good", "warn", "bad"].map(st =>
+    `<span class="it-lg it-lg-${st}"><span class="it-mark" aria-hidden="true">${ST_MARK[st]}</span>${ST_CODE[st]}<small>${esc(t("stl_" + st))}</small><b>${n[st]}</b></span>`).join("")}</div>`;
+}
+function itemsGridHTML(d, group) {
+  const tiles = (d.items || []).map(it => {
+    const tx = itemText(d, it);
+    if (!tx) return "";
+    const id = "it" + (++itemSeq);
+    itemReg.set(id, { it, d, group });
+    return `<button type="button" class="it it-${it.status}" data-iid="${id}" aria-haspopup="dialog">
+      <span class="it-top"><span class="it-mark" aria-hidden="true">${ST_MARK[it.status]}</span><span class="it-label">${esc(tx.label)}</span></span>
+      <span class="it-val">${esc(tx.val)}</span>
+      <span class="it-st">${ST_CODE[it.status]}<span class="sr"> ${esc(t("stl_" + it.status))}</span></span>
+    </button>`;
+  }).join("");
+  return `<div class="it-grid">${tiles}</div>`;
+}
+// 比較範囲の言い方（「浦添市エリア」／「半径4km」）
+function scopeText(scope) {
+  if (scope && scope.kind === "area") return t("scope_area", { name: esc(scope.name) });
+  return t("scope_radius", { km: scope && scope.km != null ? scope.km : 5 });
+}
+// 良好でない項目から、先に手を付けたいものを最大3つ（要改善 → 弱いカテゴリの順）
+function priorityHTML(d) {
+  const ratio = Object.fromEntries(d.profile.categories.map(c => [c.key, c.score / c.max]));
+  const order = { bad: 0, warn: 1 };
+  const picks = [...itemReg.entries()]
+    .filter(([, r]) => r.group === "main" && r.it.status !== "good")
+    .sort((a, b) => order[a[1].it.status] - order[b[1].it.status] || (ratio[a[1].it.cat] ?? 1) - (ratio[b[1].it.cat] ?? 1))
+    .slice(0, 3);
+  const rows = picks.map(([id, r]) => {
+    const tx = itemText(d, r.it);
+    return `<button type="button" class="prio-row" data-iid="${id}" aria-haspopup="dialog">
+      <span class="pri ${r.it.status === "bad" ? "pri-high" : "pri-mid"}">${esc(t("stl_" + r.it.status))}</span>
+      <span class="prio-txt"><b>${esc(tx.label)}</b><small>${esc(tx.val)}</small></span>
+      <span class="prio-go">${esc(t("prio_open"))} ›</span>
+    </button>`;
+  }).join("");
+  return `<div class="glass prio">
+    <div class="g-head"><span class="g-ico">📝</span>${t("prio_head")}</div>
+    ${rows ? `<div class="prio-list">${rows}</div>` : `<p class="verdict">${t("prio_none")}</p>`}
+  </div>`;
+}
+// 詳細ダイアログ（同じグループ内で前後の項目へ移動できる）
+function openItem(id, focusTo) {
+  const rec = itemReg.get(id);
+  const tx = rec && itemText(rec.d, rec.it);
+  if (!tx) return;
+  let dlg = document.getElementById("item-dlg");
+  if (!dlg) {
+    dlg = document.createElement("dialog");
+    dlg.id = "item-dlg"; dlg.className = "item-dlg";
+    dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); }); // 背景クリックで閉じる
+    document.body.appendChild(dlg);
+  }
+  const st = rec.it.status;
+  const ids = [...itemReg.keys()].filter(k => itemReg.get(k).group === rec.group);
+  const pos = ids.indexOf(id);
+  const sec = (head, body) => `<section class="idl-sec"><h4>${esc(head)}</h4><p>${esc(body)}</p></section>`;
+  dlg.setAttribute("aria-label", tx.label);
+  dlg.innerHTML = `<div class="idl idl-${st}">
+    <div class="idl-head">
+      <span class="idl-badge"><span class="it-mark" aria-hidden="true">${ST_MARK[st]}</span>${ST_CODE[st]}<small>${esc(t("stl_" + st))}</small></span>
+      <span class="idl-cat">${esc(SHORT()[rec.it.cat] || "")}</span>
+      <button type="button" class="idl-x" data-act="close" aria-label="${esc(t("dlg_close"))}">×</button>
+    </div>
+    <h3 class="idl-title">${esc(tx.label)}</h3>
+    <p class="idl-val">${esc(tx.val)}</p>
+    ${sec(t("dlg_now"), tx.now)}
+    ${sec(t("dlg_why"), tx.why)}
+    ${sec(t(st === "good" ? "dlg_keep" : "dlg_how"), tx.how)}
+    ${st !== "good" && rec.group === "main" ? `<a class="idl-cta" href="${CTA.line || CTA.site}" target="_blank" rel="noopener">${esc(t("dlg_cta"))}</a>` : ""}
+    <div class="idl-nav">
+      <button type="button" data-act="go" data-dir="prev" data-to="${ids[pos - 1] || ""}" ${pos > 0 ? "" : "disabled"}>‹ ${esc(t("dlg_prev"))}</button>
+      <span>${pos + 1} / ${ids.length}</span>
+      <button type="button" data-act="go" data-dir="next" data-to="${ids[pos + 1] || ""}" ${pos < ids.length - 1 ? "" : "disabled"}>${esc(t("dlg_next"))} ›</button>
+    </div>
+  </div>`;
+  dlg.querySelectorAll("[data-act]").forEach(b => b.addEventListener("click", () => {
+    if (b.dataset.act === "close") dlg.close();
+    else if (b.dataset.to) openItem(b.dataset.to, b.dataset.dir);
+  }));
+  if (!dlg.open) dlg.showModal();
+  dlg.querySelector(".idl").scrollTop = 0;
+  if (focusTo) {
+    const again = dlg.querySelector(`[data-dir="${focusTo}"]:not(:disabled)`) || dlg.querySelector("[data-dir]:not(:disabled)") || dlg.querySelector(".idl-x");
+    if (again) again.focus();
+  }
+}
+// タイル・優先項目のクリックは結果ビューでまとめて受ける（再描画しても付け直し不要）
+$("result-view")?.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-iid]");
+  if (el) openItem(el.dataset.iid);
+});
+
+/* ===== レポート部品（本診断・競合診断で共用） ===== */
 function buildPred(d) {
   const pr = d.prediction;
   if (!pr) return "";
@@ -1217,20 +1261,6 @@ function buildRisk(d) {
       <div class="risk-warn">${t("risk_warn", { decline, diff: (base + gain) - (base - decline) })}</div>
     </div>`;
 }
-function buildStrong(d) {
-  const strong = [];
-  [...d.profile.categories].sort((a, b) => (b.score / b.max) - (a.score / a.max))
-    .forEach(c => { if (c.score / c.max >= 0.8) strong.push(SHORT()[c.key] || c.label); });
-  if (d.verified === true) strong.push(t("str_owner"));
-  if (d.photosCount != null && d.photosCount >= (d.recPhotos || 200)) strong.push(t("str_photos"));
-  if (d.reviewActivity && d.reviewActivity.latestDays != null && d.reviewActivity.latestDays <= 30) strong.push(t("str_reviews"));
-  return strong.length ? `
-    <div class="glass strengths-card">
-      <div class="g-head"><span class="g-ico">✨</span>${t("str_head")}</div>
-      <div class="str-tags">${strong.slice(0, 6).map(s => `<span class="str-tag">${esc(s)}</span>`).join("")}</div>
-      <div class="note">${t("str_note")}</div>
-    </div>` : "";
-}
 // 競合用：アニメに依存しない静的ドーナツ
 function donutSVGStatic(color, total) {
   const R = 54, C = 2 * Math.PI * R;
@@ -1247,13 +1277,13 @@ function donutSVGStatic(color, total) {
     <text x="70" y="98" text-anchor="middle" class="donut-sub">/ 100</text>
   </svg>`;
 }
-// 競合の「同等の調査結果」（アクションプラン・CTA・シェア等は出さない）
+// 競合の「同等の調査結果」（優先項目・CTA・シェア等は出さない）
+let compSeq = 0;
 function competitorReportHTML(d) {
   const r = rankOf(d.profile.total), health = healthOf(d.profile.total);
   return `<div class="comp-report">
     <div class="cr-head">${t("comp_report_head", { name: esc(d.name) })}</div>
     <div class="cr-sub">${esc(d.address || d.area)}</div>
-    ${buildChips(d)}
     <div class="report-grid">
       <div class="glass score-card">
         <div class="g-head"><span class="g-ico">🎯</span>${t("score_head")}</div>
@@ -1267,11 +1297,15 @@ function competitorReportHTML(d) {
       </div>
     </div>
     <div class="glass">
+      <div class="g-head"><span class="g-ico">📋</span>${t("items_head")}</div>
+      ${itemLegendHTML(d.items)}
+      ${itemsGridHTML(d, "comp" + (++compSeq))}
+    </div>
+    <div class="glass">
       <div class="g-head"><span class="g-ico">⚖️</span>${t("balance_head")}</div>
       ${radarSVG(d.profile.categories)}
       <div class="note">${t("balance_note", { weak: esc(SHORT()[weakestCat(d).key] || weakestCat(d).label) })}</div>
     </div>
-    ${buildStrong(d)}
     ${buildPred(d)}
     ${buildRisk(d)}
   </div>`;
@@ -1281,25 +1315,23 @@ function competitorReportHTML(d) {
 function renderResult(d) {
   const r = rankOf(d.profile.total);
   const health = healthOf(d.profile.total);
-  // 順位を主役にした分かりやすい表現（「上位90%」のような誤解を招く表記は使わない）
-  let benchHTML = "";
-  if (d.ranking) benchHTML = `<div class="benchmark">${t("bench_simple", { total: d.ranking.total, rank: d.ranking.rank, radius: d.ranking.radiusKm ?? 5 })}</div>`;
 
-  const BADGE = { high: { t: t("badge_high"), cls: "pri-high" }, mid: { t: t("badge_mid"), cls: "pri-mid" }, info: { t: t("badge_info"), cls: "pri-info" } };
-  // 言語切替時もアクションプランが切り替わるよう、現在の言語のtipsを使う（無ければ診断時の言語）
-  const tipsList = (d.tipsByLang && d.tipsByLang[LANG]) || d.tipsVisible || [];
-  const plan = tipsList.map((tip) => {
-    const b = BADGE[tip.level] || BADGE.mid;
-    return `<li><div class="tip-head"><span class="pri ${b.cls}">${b.t}</span><b>${esc(tip.title)}</b></div><div class="tip-detail">${esc(tip.detail)}</div></li>`;
-  }).join("");
-  const lockedPlan = d.tipsLockedCount > 0
-    ? `<li class="more">${t("plan_more", { n: d.tipsLockedCount })}</li>` : "";
+  // 再描画のたびに項目の登録を作り直す（開いたままの詳細は閉じる）
+  itemReg.clear(); itemSeq = 0; compSeq = 0;
+  const openDlg = document.getElementById("item-dlg");
+  if (openDlg && openDlg.open) openDlg.close();
+  // シェアデータ（入力した名称・業種で再現できるURL）。メール本文にも使うので先に作る
+  const shareParams = { name: d.name, area: d.area, compare: d._compare ? "1" : "0" };
+  if (d._compare && d.industry) shareParams.industry = d.industry;
+  const url = location.origin + "/?" + new URLSearchParams(shareParams).toString();
+  currentShare = { url, text: t("share_text", { name: d.name, total: d.profile.total, l: r.l }), title: t("share_title") };
 
-  // 実データ補足チップ・予測・リスク・強み（部品関数で生成＝競合診断と共用）
-  const chipsHTML = buildChips(d);
+  const itemsHTML = itemsGridHTML(d, "main");
+  const prioHTML = priorityHTML(d);
+
+  // 予測・リスク（部品関数で生成＝競合診断と共用）
   const predHTML = buildPred(d);
   const riskHTML = buildRisk(d);
-  const strongHTML = buildStrong(d);
 
   // 🎚 効果シミュレーター（改善項目をトグルで想定スコアが動く）
   const simCats = d.profile.categories.filter(c => c.score / c.max < 0.85);
@@ -1313,7 +1345,6 @@ function renderResult(d) {
       </div>
     </div>` : "";
 
-
   // ===== エリア内ランキング（表彰台＋順位リスト） =====
   const rankRow = (e) => `
     <div class="comp ${e.you ? "you" : ""}">
@@ -1324,11 +1355,24 @@ function renderResult(d) {
       ${(e.rating != null || e.reviews != null) ? `<div class="comp-meta">${e.rating != null ? `★${e.rating}` : ""}${e.reviews != null ? `${e.rating != null ? " ・ " : ""}${t("comp_reviews", { n: e.reviews })}` : ""}</div>` : ""}
       <div class="comp-bar"><i data-w="${Math.max(4, Math.min(100, e.index))}"></i></div>
     </div>`;
+  // 業種を指定して比べ直すフォーム（競合比較を行った診断でだけ出す）
+  const recmpHTML = `
+    <form class="recmp" id="recmp-form">
+      <label for="recmp-in">${t("recmp_label")}</label>
+      <div class="recmp-row">
+        <input id="recmp-in" class="field" maxlength="40" autocomplete="off" placeholder="${esc(t("recmp_ph"))}" value="${esc(d.industry || "")}">
+        <button type="submit" class="recmp-btn">${t("recmp_btn")}</button>
+      </div>
+      <p class="recmp-err" id="recmp-err" hidden></p>
+    </form>`;
+  const basis = d.rankingBasis;
   let ranking;
   if (d.ranking) {
-    const me = { name: d.name, index: d.prominence, rating: d.rating, reviews: d.reviewCount, you: true };
+    // 対象行は競合と同じデータ元（Places）の値で並べる。同点は対象を上に置く（サーバーの順位と一致させる）
+    const self = d.ranking.self || { rating: d.rating, reviews: d.reviewCount };
+    const me = { name: d.name, index: d.ranking.index, rating: self.rating, reviews: self.reviews, you: true };
     const comps = d.ranking.competitors.map(c => ({ name: c.name, index: c.index, rating: c.rating, reviews: c.reviews, you: false }));
-    const all = [me, ...comps].sort((a, b) => b.index - a.index).map((x, i) => ({ ...x, rank: i + 1 }));
+    const all = [me, ...comps].sort((a, b) => b.index - a.index || (b.you ? 1 : 0) - (a.you ? 1 : 0)).map((x, i) => ({ ...x, rank: i + 1 }));
     const medals = ["🥇", "🥈", "🥉"];
     const top3 = all.slice(0, 3);
     const order = top3.length === 3 ? [top3[1], top3[0], top3[2]] : top3.length === 2 ? [top3[1], top3[0]] : top3;
@@ -1352,17 +1396,37 @@ function renderResult(d) {
       ${shown.map(rankRow).join("")}
       ${tail ? `<div class="rank-sep">⋯</div>${rankRow(tail)}` : ""}
     </div>` : "";
-    const sameBrandHTML = d.ranking.sameBrandCount > 0
-      ? `<p class="same-brand-note">${t("same_brand_note", { n: d.ranking.sameBrandCount })}</p>`
-      : "";
+    const label = (d.ranking.basis && d.ranking.basis.label) || "";
+    const scope = scopeText(d.ranking.scope);
+    const notes = [
+      d.ranking.sameBrandCount > 0 ? t("same_brand_note", { n: d.ranking.sameBrandCount }) : "",
+      d.ranking.scope && d.ranking.scope.kind === "area" ? t("rank_area_note") : "",
+      d.ranking.capped ? t("rank_capped", { n: d.ranking.fetched || d.ranking.total }) : "",
+      d.ranking.few ? t("rank_few") : "",
+    ].filter(Boolean).map(x => `<p class="same-brand-note">${x}</p>`).join("");
     ranking = `
     <div class="glass">
-      <div class="g-head"><span class="g-ico">📊</span>${t("ranking_head", { total: d.ranking.total, rank: d.ranking.rank, radius: d.ranking.radiusKm ?? 5 })}</div>
-      ${sameBrandHTML}
+      <div class="g-head"><span class="g-ico">📊</span><span>${t("ranking_head", { total: d.ranking.total, rank: meRank, scope, label: esc(label) })}</span></div>
+      <p class="rank-basis">${t("rank_basis_" + (d.ranking.basis ? d.ranking.basis.mode : "gbp"), { label: esc(label), scope })}<br><span>${t("rank_basis_hint")}</span></p>
+      ${recmpHTML}
+      ${notes}
       <details class="note-details"><summary class="note-summary">${LANG === "ja" ? "※ 算出方法・注意事項" : LANG === "en" ? "* Notes" : LANG === "ko" ? "※ 주의 사항" : "※ 注意事項"}</summary><div class="note">${t("ranking_note_full")}</div></details>
       ${podium}
       ${list}
       <div id="comp-map" class="comp-map"></div>
+    </div>`;
+  } else if (d.rankingStatus && d.rankingStatus !== "off") {
+    // 競合比較を出せなかった理由を伝え、業種を指定して比べ直せるようにする
+    const st = d.rankingStatus;
+    const msg = st === "need_industry" ? `<b>${t("rank_need_t")}</b><br>${t("rank_need_d")}`
+      : st === "no_peers" ? t("rank_no_peers", { label: esc(basis ? basis.label : ""), scope: scopeText(basis && basis.scope) })
+      : st === "no_location" ? t("rank_no_location")
+      : t("rank_error");
+    ranking = `
+    <div class="glass">
+      <div class="g-head"><span class="g-ico">📊</span>${t("ranking_head_plain")}</div>
+      <p class="rank-msg">${msg}</p>
+      ${st === "no_location" ? "" : recmpHTML}
     </div>`;
   } else {
     ranking = `
@@ -1392,7 +1456,6 @@ function renderResult(d) {
         <div class="rh-name">${esc(d.name)}</div>
         <div class="rh-addr">${esc(d.address || d.area)}</div>
         ${d.investigatedAt ? `<div class="rh-date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(d.investigatedAt)} <span class="rh-date-sub">${t("rh_date_sub")}</span></div>` : ""}
-        ${chipsHTML}
       </div>
     </div>
     <details class="note-details note-details-main">
@@ -1403,20 +1466,7 @@ function renderResult(d) {
 
     <div class="section-head sec-seibi">
       <span class="sec-num">1</span>
-      <div class="sec-txt"><span class="sec-eyebrow">PART 1</span><b>${t("part2_t")}</b><small>${t("part2_s")}</small></div>
-    </div>
-
-    ${ranking}
-
-    <div id="compare-host"></div>
-
-    <div id="comp-reports"></div>
-
-    ${ctaGap(d)}
-
-    <div class="section-head sec-chimei">
-      <span class="sec-num">2</span>
-      <div class="sec-txt"><span class="sec-eyebrow">PART 2</span><b>${t("part1_t")}</b><small>${t("part1_s")}</small></div>
+      <div class="sec-txt"><span class="sec-eyebrow">PART 1</span><b>${t("part1_t")}</b><small>${t("part1_s")}</small></div>
     </div>
 
     <div class="report-grid">
@@ -1432,20 +1482,22 @@ function renderResult(d) {
       </div>
     </div>
 
+    <div class="glass items-card">
+      <div class="g-head"><span class="g-ico">📋</span>${t("items_head")}</div>
+      ${itemLegendHTML(d.items)}
+      <p class="it-sub">${t("items_sub")}</p>
+      ${itemsHTML}
+      <div class="note it-note">${t("items_note")}</div>
+    </div>
+
     <div class="report-grid">
+      ${prioHTML}
       <div class="glass">
         <div class="g-head"><span class="g-ico">⚖️</span>${t("balance_head")}</div>
         ${radarSVG(d.profile.categories)}
         <div class="note">${t("balance_note", { weak: esc(SHORT()[weakestCat(d).key] || weakestCat(d).label) })}</div>
       </div>
-      <div class="glass plan">
-        <div class="g-head"><span class="g-ico">📝</span>${t("plan_head")}</div>
-        <ul class="planlist">${plan}${lockedPlan}</ul>
-        ${d.tipsLockedCount > 0 ? `<div class="subtle-cta"><a href="#">${t("plan_mail_cta")}</a></div>` : ""}
-      </div>
     </div>
-
-    ${strongHTML}
 
     ${predHTML}
 
@@ -1453,9 +1505,22 @@ function renderResult(d) {
 
     ${simHTML}
 
+    <div class="section-head sec-chimei" id="sec-ranking">
+      <span class="sec-num">2</span>
+      <div class="sec-txt"><span class="sec-eyebrow">PART 2</span><b>${t("part2_t")}</b><small>${t("part2_s")}</small></div>
+    </div>
+
+    ${ranking}
+
+    <div id="compare-host"></div>
+
+    <div id="comp-reports"></div>
+
+    ${ctaGap(d)}
+
     ${ctaVs()}
 
-    ${ctaFinal()}
+    ${ctaFinal(d, url)}
 
     <div class="glass share">
       <div class="g-head"><span class="g-ico">📤</span>${t("share_head")}</div>
@@ -1493,9 +1558,6 @@ function renderResult(d) {
 
     <div class="foot">${t("foot_html")}</div>`;
 
-  // シェアデータ
-  const url = location.origin + "/?" + new URLSearchParams({ name: d.name, area: d.area, compare: d._compare ? "1" : "0" }).toString();
-  currentShare = { url, text: t("share_text", { name: d.name, total: d.profile.total, l: r.l }), title: t("share_title") };
   history.replaceState(null, "", url);
 
   // アニメ起動
@@ -1537,7 +1599,42 @@ function renderResult(d) {
   renderCompare();
   initCompMap(d);
 
+  // 業種を指定して比べ直す
+  const recmp = document.getElementById("recmp-form");
+  if (recmp) recmp.addEventListener("submit", (e) => {
+    e.preventDefault();
+    recompare(document.getElementById("recmp-in").value.trim(), recmp.querySelector(".recmp-btn"));
+  });
+
   currentResult = d;
+}
+
+/* 業種だけ変えて競合比較をやり直す（店舗情報はサーバー側のキャッシュを使うので速い） */
+async function recompare(industry, btn) {
+  const d = currentResult;
+  if (!d || btn.disabled) return;
+  const errEl = document.getElementById("recmp-err");
+  const fail = (msg) => {
+    btn.disabled = false; btn.classList.remove("loading"); btn.textContent = t("recmp_btn");
+    if (errEl) { errEl.textContent = msg; errEl.hidden = false; }
+  };
+  if (errEl) errEl.hidden = true;
+  btn.disabled = true; btn.classList.add("loading"); btn.textContent = t("recmp_loading");
+  try {
+    const token = await getFreshToken();
+    const resp = await fetch("/api/diagnose", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: d.inputName || d.name, area: d.area, compare: true, industry, turnstileToken: token, admin: ADMIN_KEY || undefined, uiLang: LANG }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { fail(errMessage(data.error)); return; }
+    data._compare = true;
+    renderResult(data);
+    const sec = document.getElementById("sec-ranking");
+    if (sec) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) {
+    fail(t("err_comm"));
+  }
 }
 
 /* 🗺 競合マップ（Google Maps） */
@@ -1783,7 +1880,8 @@ window.reSearch = () => backToTop(false); // 入力値を残して再調査
 window.goTop = () => backToTop(true);      // 入力をクリアしてTOPへ
 function backToTop(clear) {
   hide("result-view"); hide("loading-view"); show("input-view"); setHeaderTop(false);
-  if (clear) { $("f-name").value = ""; $("f-area").value = ""; $("f-compare").checked = true; }
+  if (clear) { $("f-name").value = ""; $("f-area").value = ""; $("f-compare").checked = true; if ($("f-industry")) $("f-industry").value = ""; }
+  syncIndustryField();
   $("err").hidden = true;
   resetTurnstile();
   if (location.search) history.replaceState(null, "", location.pathname); // 共有URLの再自動実行を防ぐ
@@ -1814,6 +1912,8 @@ function backToTop(clear) {
   $("f-name").value = name;
   $("f-area").value = area;
   if (p.get("compare") === "0") $("f-compare").checked = false;
+  if (p.get("industry") && $("f-industry")) $("f-industry").value = p.get("industry");
+  syncIndustryField();
   let tries = 0;
   const iv = setInterval(() => {
     if (turnstileToken) { clearInterval(iv); $("go").click(); }

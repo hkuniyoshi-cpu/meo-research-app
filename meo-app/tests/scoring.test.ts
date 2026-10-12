@@ -112,6 +112,10 @@ describe("scoreProfile with Enriched", () => {
       hasMenuLink: false,
       hasReservation: false,
       description: null,
+      known: { verified: true, photos: true },
+      placeId: null,
+      category: null,
+      subCategories: [],
       ...overrides,
     };
   }
@@ -218,5 +222,36 @@ describe("rankAmong", () => {
     expect(r.total).toBe(4);
     expect(r.rank).toBe(3); // A,B が上、C が下
     expect(r.competitors).toHaveLength(3);
+  });
+
+  it("同点は上位側に数える（自分より指数が高い店の数＋1）", () => {
+    const same = { rating: 4.5, userRatingCount: 100, photoCount: 10 };
+    const r = rankAmong(place(same), [
+      place({ displayName: "上", rating: 4.9, userRatingCount: 900, photoCount: 10 }),
+      place({ displayName: "同点", ...same }),
+      place({ displayName: "下", rating: 3.0, userRatingCount: 3, photoCount: 0 }),
+    ]);
+    expect(r.rank).toBe(2);
+    expect(r.total).toBe(4);
+  });
+});
+
+describe("scoreProfile のカテゴリ判定", () => {
+  const enriched = (o: Partial<Enriched>): Enriched => ({
+    posts: [], photosCount: 0, verified: false, reviewCount: null, rating: null, reviewsPerScore: {},
+    attributeFilled: 0, attributeTotal: 0, hasMenuLink: false, hasReservation: false, description: null,
+    known: { verified: true, photos: true }, placeId: null, category: null, subCategories: [], ...o,
+  });
+  const catScore = (p: PlaceData, e?: Enriched) => {
+    const c = scoreProfile(p, DEFAULT_WEIGHTS, NOW, e).categories.find(x => x.key === "category")!;
+    return c.score / c.max;
+  };
+  it("PlacesにprimaryTypeが無くても、GBPのメイン＋追加カテゴリがあれば満点", () => {
+    const p = place({ primaryType: undefined, types: ["point_of_interest"] });
+    expect(catScore(p, enriched({ category: "学習センター", subCategories: ["学校"] }))).toBeCloseTo(1);
+  });
+  it("GBPのメインカテゴリだけなら6割", () => {
+    const p = place({ primaryType: "school", types: ["school", "point_of_interest"] });
+    expect(catScore(p, enriched({ category: "学習センター", subCategories: [] }))).toBeCloseTo(0.6);
   });
 });

@@ -1,8 +1,11 @@
 import { verifyTurnstile } from "../lib/turnstile";
 import { checkRateLimit } from "../lib/ratelimit";
 import { getCached, setCached } from "../lib/cache";
-import { findPlace, getDetails, findCompetitors, normalizeDetails, normalizeLight, radiusFromArea } from "../lib/places";
+import { findPlace, getDetails, findCompetitors, findAreaScope, rectContains, normalizeDetails, normalizeLight, radiusFromArea, pickIndustry, cleanIndustry } from "../lib/places";
+import type { Region, Rect, Industry, LatLng } from "../lib/places";
 import { scoreProfile, rankAmong, prominenceLight, daysSinceLatestPost, REC_PHOTOS } from "../lib/scoring";
+import { buildItems } from "../lib/items";
+import type { PlaceData } from "../lib/types";
 import { weightsFor } from "../lib/weights";
 import { fetchEnriched, fetchReviewActivity } from "../lib/outscraper";
 import type { Enriched, ReviewActivity } from "../lib/outscraper";
@@ -18,9 +21,14 @@ export interface Env {
 }
 
 const RATE_LIMIT_PER_DAY = 20;
-const VISIBLE_TIPS = 3; // 無料版で見せる改善ポイント数（もったいぶり）
 
-interface Body { name: string; area: string; compare: boolean; turnstileToken: string; admin?: string; uiLang?: string; }
+interface Body { name: string; area: string; compare: boolean; turnstileToken: string; admin?: string; uiLang?: string; industry?: string; }
+
+/** 外部APIから取った素データ。競合比較の業種だけ変えて再計算できるよう、結果とは別にキャッシュする。 */
+interface BaseData { details: PlaceData; enriched: Enriched | null; activity: ReviewActivity | null; fetchedAt: number; }
+
+/** 競合比較を出せなかった理由。ok 以外は ranking=null。 */
+type RankingStatus = "ok" | "off" | "need_industry" | "no_location" | "no_peers" | "error";
 
 type UiLang = "ja" | "en" | "ko" | "zh";
 
@@ -76,43 +84,50 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
     if (ctx) ctx.waitUntil(p);
   };
 
-  // v18: クチコミ件数/評価を実店舗ページ値(Outscraper)で採用＋競合表示増。旧キャッシュ無効化
-  // v30: uiLang をキャッシュキーに追加（言語別に結果をキャッシュ）
-  // v31: 多言語拡張（ko/zh-TW）。Places lang を uiLang から導出。旧キャッシュ無効化
-  // v35: nameMismatch検出フィールド追加。旧キャッシュ無効化
-  const cacheKey = `diag:v35:${body.name}|${body.area}|${body.compare ? 1 : 0}|${uiLang}`;
-  const cached = await getCached(env.CACHE, cacheKey);
-  if (cached) {
-    sendLog({ status: "cached", ...resultLogFields(cached) });
-    return json(cached);
-  }
+  // 競合比較の業種キーワード（任意）。比較しない診断では使わない
+  const industryKw = body.compare ? cleanIndustry(body.industry) : "";
 
+  // キャッシュするのは外部APIから取った素データ（店舗情報 base / エリア area / 比較母集団 pool）だけ。
+  // 診断結果は毎回そこから計算し直す。結果ごと保存すると、後から母集団に加わった店が古い結果に反映されず、
+  // 同じエリアの店どうしで順位が食い違うため。
   try {
     // Places API の取得言語は選択中のUI言語に追従（店舗名・住所を選択言語で表示）
     const lang = ({ ja: "ja", en: "en", ko: "ko", zh: "zh-TW" } as Record<UiLang, string>)[uiLang] || "en";
-    const found = await findPlace(body.name, body.area, env.GOOGLE_PLACES_API_KEY, lang);
-    if (!found) { sendLog({ status: "not_found" }); return json({ error: "not_found" }, 404); }
 
-    const details = normalizeDetails(await getDetails(found.id, env.GOOGLE_PLACES_API_KEY, lang));
-    const weights = weightsFor(details.primaryType);
+    const baseKey = "base:v1:" + JSON.stringify([body.name, body.area, uiLang]);
+    let base = await getCached<BaseData>(env.CACHE, baseKey);
+    const baseCached = !!base;
+    if (!base) {
+      const found = await findPlace(body.name, body.area, env.GOOGLE_PLACES_API_KEY, lang);
+      if (!found) { sendLog({ status: "not_found" }); return json({ error: "not_found" }, 404); }
+      const fetched = normalizeDetails(await getDetails(found.id, env.GOOGLE_PLACES_API_KEY, lang));
 
-    // Outscraper enrichment（失敗時はnullにデグレード）
-    let enriched: Enriched | null = null;
-    let activity: ReviewActivity | null = null;
-    if (env.OUTSCRAPER_API_KEY) {
-      try {
-        // 出力前の再チェック：取得が不完全（実在店なのに写真もクチコミ分布も空）なら一度だけ取り直す
-        const incomplete = (x: Enriched | null) => !x || (x.photosCount === 0 && Object.keys(x.reviewsPerScore).length === 0);
-        enriched = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
-        if (incomplete(enriched)) {
-          const retry = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
-          if (!incomplete(retry)) enriched = retry;
+      // Outscraper enrichment（失敗時はnullにデグレード）
+      let en: Enriched | null = null;
+      let act: ReviewActivity | null = null;
+      if (env.OUTSCRAPER_API_KEY) {
+        try {
+          // 出力前の再チェック：取得が不完全（実在店なのに写真もクチコミ分布も空）なら一度だけ取り直す
+          const incomplete = (x: Enriched | null) => !x || (x.photosCount === 0 && Object.keys(x.reviewsPerScore).length === 0);
+          en = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
+          if (incomplete(en)) {
+            const retry = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
+            if (!incomplete(retry)) en = retry;
+          }
+          act = await fetchReviewActivity(body.name, body.area, env.OUTSCRAPER_API_KEY, 10);
+        } catch {
+          // 取れた分だけ使う
         }
-        activity = await fetchReviewActivity(body.name, body.area, env.OUTSCRAPER_API_KEY, 10);
-      } catch {
-        // 取れた分だけ使う
       }
+      // Outscraperが別の店を返していたら、その情報は使わない（他店のデータで採点しない）
+      if (en && en.placeId && en.placeId !== fetched.placeId) { en = null; act = null; }
+      base = { details: fetched, enriched: en, activity: act, fetchedAt: Date.now() };
+      await setCached(env.CACHE, baseKey, base);
     }
+    const { details, enriched, activity } = base;
+
+    // 競合はPlacesの値で指数を出すため、対象もPlaces由来の値で比べる（データ元をそろえる）
+    const rankTarget: PlaceData = { ...details };
 
     // 実店舗ページのクチコミ件数/評価を正として採用（Placesの曖昧マッチで件数がズレるのを防ぐ）
     if (enriched && enriched.reviewCount != null) {
@@ -120,43 +135,73 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
       if (enriched.rating != null) details.rating = enriched.rating;
     }
 
-    const profile = scoreProfile(details, weights, new Date(), enriched ?? undefined);
-    const now = new Date();
+    // 「◯日前」などの経過日数は取得時点が基準。再利用時も取得した日を調査日として扱い、判定がずれないようにする
+    const now = new Date(base.fetchedAt);
+    const weights = weightsFor(details.primaryType);
+    const profile = scoreProfile(details, weights, now, enriched ?? undefined);
 
-    // 改善ポイントは全言語分を生成して結果に持たせる（フロントで言語切替時にtipsも切り替わるように）
+    // 業種区分（項目の判定基準と、改善例の文言に使う）。例文は言語切替に備えて全言語分を持たせる
     const UI_LANGS: UiLang[] = ["ja", "en", "ko", "zh"];
-    const tipsAll: Record<string, Tip[]> = {};
-    for (const L of UI_LANGS) tipsAll[L] = buildTips(details, profile, enriched ?? undefined, now, activity, L);
-    const tips = tipsAll[uiLang];
+    const biz = bizProfile(details.primaryType, details.types, "ja");
+    const bizByLang = Object.fromEntries(UI_LANGS.map((L) => {
+      const b = bizProfile(details.primaryType, details.types, L);
+      return [L, { photos: b.photos, attrs: b.attrs, subcat: b.subcat }];
+    }));
+    const items = buildItems(details, enriched ?? undefined, activity, biz, now);
 
     let ranking = null;
+    let rankingStatus: RankingStatus = "off";
+    // 何を基準に比べたか（順位を出せなかった場合も、画面で理由を説明するために返す）
+    let rankingBasis: { mode: string; label: string; scope: RankScope } | null = null;
     if (body.compare) {
-      try {
-        const radiusMeters = radiusFromArea(body.area);
-        const center = details.location
-          ? { latitude: details.location.latitude, longitude: details.location.longitude }
-          : undefined;
-        const raw = await findCompetitors(details.primaryType, body.area, env.GOOGLE_PLACES_API_KEY, lang, center, radiusMeters);
-        if (raw.length > 0) {
-          // 対象自身を除外し、重複placeIdは1件に集約
-          const seen = new Set<string>();
-          const dedup: any[] = [];
-          for (const c of raw) {
-            if (!c?.id || c.id === details.placeId) continue;
-            if (seen.has(c.id)) continue;
-            seen.add(c.id);
-            dedup.push(c);
+      const industry = pickIndustry(industryKw, enriched?.category, details.primaryType, details.primaryTypeLabel);
+      if (!details.location) rankingStatus = "no_location";
+      else {
+        const center = { latitude: details.location.latitude, longitude: details.location.longitude };
+        const region = await resolveRegion(env, body.area, center, lang);
+        const scope: RankScope = region.kind === "area"
+          ? { kind: "area", name: region.name }
+          : { kind: "radius", km: Math.round(region.radiusMeters / 1000) };
+        if (industry) rankingBasis = { mode: industry.mode, label: industry.label, scope };
+        if (!industry) rankingStatus = "need_industry";
+        else {
+          try {
+            const pool = await competitorPool(env, industry, region, lang, rankTarget);
+            // 対象自身を除外（重複placeIdは pool 作成時に集約済み）
+            const comps = pool.places.filter(p => p.placeId !== details.placeId);
+            // 対象が母集団に入っているときは、その値で指数を出す（他の店の表に出る値と同じものを使い、互いの順位を一致させる）
+            const selfRank = pool.places.find(p => p.placeId === details.placeId) ?? rankTarget;
+            if (comps.length === 0) rankingStatus = "no_peers";
+            else {
+              const rank = rankAmong(selfRank, comps);
+              // 同一チェーン（表示名の正規化一致）の件数
+              const norm = (s: string) => (s || "").toLowerCase().replace(/\s+/g, "").replace(/[（）()【】\[\]・\-‐‑–—_～〜\/／]/g, "");
+              const targetKey = norm(details.displayName);
+              // 「◯◯整骨院」と「◯◯整骨院 浦添店」のように、片方がもう片方で始まる場合も同一系列とみなす（短すぎる名前は除く）
+              const sameBrand = (a: string, b: string) => {
+                if (a === b) return true;
+                const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+                return short.length >= 5 && long.startsWith(short);
+              };
+              const sameBrandCount = comps.filter(c => sameBrand(norm(c.displayName), targetKey)).length;
+              ranking = {
+                ...rank,
+                // 順位表の対象行に出す値（競合と同じPlaces由来）
+                self: { rating: selfRank.rating ?? null, reviews: selfRank.userRatingCount },
+                basis: { mode: industry.mode, label: industry.label },
+                scope,
+                sameBrandCount,
+                fetched: pool.fetched, // 検索で取得した件数（範囲外を含む）
+                capped: pool.capped,   // 取得上限で打ち切り＝範囲内の全店ではない
+                few: comps.length < 3,  // 同業が少なく順位としては参考値
+              };
+              rankingStatus = "ok";
+            }
+          } catch {
+            // 競合取得失敗は診断全体を落とさない。タイプ指定が通らない業種は、業種の指定を促す
+            rankingStatus = industry.mode === "type" ? "need_industry" : "error";
           }
-          const comps = dedup.map(normalizeLight);
-          const base = rankAmong(details, comps);
-          // 同一チェーン（表示名の正規化一致）の件数
-          const norm = (s: string) => (s || "").toLowerCase().replace(/\s+/g, "").replace(/[（）()【】\[\]・\-‐‑–—_～〜\/／]/g, "");
-          const targetKey = norm(details.displayName);
-          const sameBrandCount = comps.filter(c => norm(c.displayName) === targetKey).length;
-          ranking = { ...base, radiusKm: Math.round(radiusMeters / 1000), sameBrandCount };
         }
-      } catch {
-        // 競合取得失敗は診断全体を落とさない（ranking=nullで継続）
       }
     }
 
@@ -175,10 +220,11 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
     // 1つ上位の競合との「知名度差」→ 射程圏内までの目安
     let nextRank: { gap: number; rank: number; total: number } | null = null;
     if (ranking && ranking.rank > 1) {
-      const above = ranking.competitors
-        .filter((c) => c.index > ranking.index)
+      const self = ranking;
+      const above = self.competitors
+        .filter((c) => c.index > self.index)
         .sort((a, b) => a.index - b.index)[0];
-      if (above) nextRank = { gap: Math.max(1, Math.round(above.index - ranking.index)), rank: ranking.rank, total: ranking.total };
+      if (above) nextRank = { gap: Math.max(1, Math.round(above.index - self.index)), rank: self.rank, total: self.total };
     }
 
     // 次の節目クチコミ件数（50/100/300/500/1000…）までの月数
@@ -209,32 +255,107 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
       address: trimAddress(details.formattedAddress) || body.area,
       investigatedAt: now.toISOString().slice(0, 10),
       profile,
-      prominence: prominenceLight(details),
+      items,
+      biz: { kind: biz.kind, limitedAttrs: biz.limitedAttrs },
+      bizByLang,
+      prominence: ranking ? ranking.index : prominenceLight(rankTarget),
       rating: details.rating ?? null,
       reviewCount: details.userRatingCount,
       location: details.location ? { lat: details.location.latitude, lng: details.location.longitude } : null,
       ranking,
-      tipsVisible: tips.slice(0, VISIBLE_TIPS),
-      tipsByLang: Object.fromEntries(UI_LANGS.map((L) => [L, tipsAll[L].slice(0, VISIBLE_TIPS)])),
-      tipsLockedCount: Math.max(0, tips.length - VISIBLE_TIPS),
+      rankingStatus,
+      rankingBasis,
+      industry: industryKw,
       // Outscraper enriched fields (null when unavailable)
-      verified: enriched?.verified ?? null,
-      photosCount: enriched?.photosCount ?? null,
+      // 応答に値が無かった項目は null（未認証・0枚と断定しない）
+      verified: enriched && enriched.known.verified ? enriched.verified : null,
+      photosCount: enriched && enriched.known.photos ? enriched.photosCount : null,
       recPhotos: REC_PHOTOS,
       reviewActivity: activity,
       latestPostDays: enriched
         ? (enriched.posts.length ? Math.round(daysSinceLatestPost(enriched.posts, now)) : null)
         : null,
-      unverified: ["ビジネスの説明文", "価格帯", "クチコミへの返信状況"],
       prediction,
     };
-    await setCached(env.CACHE, cacheKey, result);
-    sendLog({ status: "ok", ...resultLogFields(result) });
+    sendLog({ status: baseCached ? "cached" : "ok", ...resultLogFields(result) });
     return json(result);
   } catch {
     sendLog({ status: "upstream_error" });
     return json({ error: "upstream_error" }, 502);
   }
+}
+
+/** 画面に出す比較範囲。area=入力エリアの範囲 / radius=対象中心の半径。 */
+type RankScope = { kind: "area"; name: string } | { kind: "radius"; km: number };
+
+/**
+ * 競合を探す範囲を決める。
+ * 入力エリアが県・市などの行政区画で、対象店がその中にあれば、そのエリアの範囲で比べる
+ * （同じエリアを指定した店どうしは同じ母集団になり、順位の整合が取れる）。
+ * 番地まで入力された場合や解決できない場合は、対象店を中心とする半径で比べる。
+ */
+async function resolveRegion(env: Env, area: string, center: LatLng, lang: string): Promise<Region> {
+  const radius: Region = { kind: "radius", center, radiusMeters: radiusFromArea(area) };
+  // 数字を含む入力は番地レベルとみなし、エリア解決のAPI呼び出しを省く
+  if (!area.trim() || /[0-9０-９]/.test(area)) return radius;
+  try {
+    const key = "area:v1:" + JSON.stringify([area.trim(), lang]);
+    let hit = await getCached<{ scope: { name: string; rect: Rect } | null }>(env.CACHE, key);
+    if (!hit) {
+      hit = { scope: await findAreaScope(area.trim(), env.GOOGLE_PLACES_API_KEY, lang) };
+      await setCached(env.CACHE, key, hit);
+    }
+    if (hit.scope && rectContains(hit.scope.rect, center)) return { kind: "area", name: hit.scope.name, rect: hit.scope.rect };
+  } catch {
+    // エリアを解決できなければ半径で比べる
+  }
+  return radius;
+}
+
+const POOL_TTL_SEC = 14 * 86400;
+
+/** 比較対象の母集団（業種×範囲）。同じ条件の診断で共有できるよう、結果とは別にキャッシュする。 */
+interface Pool { places: PlaceData[]; fetched: number; capped: boolean; createdAt: number; }
+
+async function competitorPool(env: Env, industry: Industry, region: Region, lang: string, target: PlaceData): Promise<Pool> {
+  const r5 = (x: number) => Math.round(x * 1e5) / 1e5;
+  const where = region.kind === "area"
+    ? ["a", r5(region.rect.low.latitude), r5(region.rect.low.longitude), r5(region.rect.high.latitude), r5(region.rect.high.longitude)]
+    : ["r", r5(region.center.latitude), r5(region.center.longitude), region.radiusMeters];
+  const key = "pool:v1:" + JSON.stringify([industry.mode, industry.keyword ?? industry.type, lang, where]);
+  let pool = await getCached<Pool>(env.CACHE, key);
+  let changed = false;
+  if (!pool) {
+    const search = await findCompetitors(industry, region, env.GOOGLE_PLACES_API_KEY, lang);
+    const seen = new Set<string>();
+    const places: PlaceData[] = [];
+    for (const c of search.places) {
+      if (!c?.id || seen.has(c.id)) continue;
+      seen.add(c.id);
+      places.push(normalizeLight(c));
+    }
+    pool = { places, fetched: search.fetched, capped: search.capped, createdAt: Date.now() };
+    changed = true;
+  }
+  // エリアで比べるときは、検索結果に出てこなかった診断済みの店も母集団に加える。
+  // 件数に上限がある検索では系列店どうしが互いの表に入らないことがあり、順位が食い違うため。
+  // ただし利用者が業種を指定した比較では加えない（その業種の店だと確認できず、他の人の比較に異業種が混ざるため）。
+  // KV には排他制御が無く、同時に追記すると片方が消えることがあるが、その店は次に診断されたとき改めて加わる。
+  if (region.kind === "area" && industry.mode !== "keyword" && !pool.places.some(p => p.placeId === target.placeId)) {
+    pool.places.push({
+      placeId: target.placeId, displayName: target.displayName, formattedAddress: "", types: [],
+      rating: target.rating, userRatingCount: target.userRatingCount, reviews: [],
+      photoCount: target.photoCount, hasVideo: false, hasRegularHours: false, hasSpecialHours: false,
+      attributeCount: 0, hasReservationLink: false, hasMenuLink: false, location: target.location,
+    });
+    changed = true;
+  }
+  // 追記しても有効期限は延ばさない（最初に取得した時点から14日で取り直す）
+  if (changed) {
+    const ageSec = Math.floor((Date.now() - pool.createdAt) / 1000);
+    await setCached(env.CACHE, key, pool, Math.max(60, POOL_TTL_SEC - ageSec));
+  }
+  return pool;
 }
 
 // スプレッドシート用に結果から要点だけ抽出
@@ -251,6 +372,9 @@ function resultLogFields(r: any): Record<string, unknown> {
     rating: r?.rating ?? "",
     rankingRank: r?.ranking?.rank ?? "",
     rankingTotal: r?.ranking?.total ?? "",
+    rankingStatus: r?.rankingStatus ?? "",
+    rankIndustry: r?.ranking?.basis?.label ?? "",
+    industryInput: r?.industry ?? "",
     bizLat: r?.location?.lat ?? "",
     bizLng: r?.location?.lng ?? "",
     weakest: r?.profile?.categories
@@ -372,216 +496,6 @@ export function bizProfile(primaryType: string | undefined, types: string[], uiL
     for (const { re, p } of BIZ_RULES) if (source.some(t => re.test(t))) return resolveBiz(p, uiLang);
   }
   return resolveBiz(BIZ_DEFAULT_L, uiLang);
-}
-
-/**
- * 実データで「確実に判定できる」欠落・不足のみから改善ポイントを生成し、弱いカテゴリ順に並べる。
- * enrichedが渡された場合はリアルデータ（投稿頻度・返信率・写真数・属性充実度等）も活用する。
- */
-interface Tip { title: string; detail: string; level: "high" | "mid" | "info"; }
-
-// buildTips 内で使う言語別テンプレート。{x} はプレースホルダ。
-const TIP_T: Record<UiLang, Record<string, string | ((v: Record<string, string | number>) => string)>> = {
-  ja: {
-    website_t: "Webサイト/予約リンクを登録",
-    website_d: "公式サイト・SNS・ネット予約のリンクが未登録です。登録すると情報の信頼性が上がり、来店前のユーザーを取りこぼしません。",
-    phone_t: "電話番号を登録",
-    phone_d: "電話番号が未登録です。問い合わせ・予約の導線として必ず登録しましょう。",
-    subcat_t: "副カテゴリを追加",
-    subcat_d: (v) => `主カテゴリだけになっています。提供サービスに合う副カテゴリ（${v.subcat}）を追加すると、関連キーワードでの露出が広がります。`,
-    revcount_t: "クチコミ件数を増やす",
-    revcount_d: (v) => `現在${v.count}件。来店時の一声やレジ横のQR・カードでレビュー依頼を仕組み化しましょう。件数は上位表示の主要因です。`,
-    rating_t: "平均評価を引き上げる",
-    rating_d: (v) => `現在★${v.rating}。低評価の要因（提供時間・接客・清潔感など）を洗い出し、運用改善と丁寧な返信で評価を底上げしましょう。`,
-    hours_t: "営業時間を登録",
-    hours_d: "営業時間が未設定です。曜日ごとの営業時間・定休日・祝日対応・特別営業を登録しましょう。",
-    photos_t: "写真を増やす",
-    photos_d: (v) => `現在${v.count}枚。${v.photos}など、推奨${v.rec}枚以上を目安に高画質写真を追加・定期更新しましょう。写真量は閲覧数とクリック率に直結します。`,
-    photos_light_d: (v) => `現在${v.count}枚。${v.photos}などの写真を追加しましょう。`,
-    attrs_full_t: "属性を充実させる",
-    attrs_full_d: (v) => `${v.attrs}など、業種に該当する属性があれば登録しましょう。${v.svc ? "サービス業はそもそも設定できる属性が少なめですが、" : ""}埋めるほど『条件で絞り込む』検索にヒットしやすくなります。`,
-    attrs_full_open_d: (v) => `${v.attrs}など、未設定の属性を追加しましょう。『条件で絞り込む』検索にヒットしやすくなります。`,
-    attrs_light_t: "属性を登録",
-    attrs_light_d: (v) => `${v.attrs}など、業種に該当する属性を登録しましょう。`,
-    lowrev_t: "低評価への対応",
-    lowrev_d: (v) => `★1〜2の割合がやや高めです（${v.pct}%）。共通する不満点を特定し、運用改善＋誠実な返信で印象を回復しましょう。`,
-    recency_t: "クチコミの新着ペース回復",
-    recency_d: (v) => `最新クチコミが${v.days}日前です。定期的なレビュー依頼で新着クチコミを絶やさないように。新着性も鮮度シグナルになります。`,
-    ok_t: "整備度は良好です",
-    ok_d: "確認できる基本項目に大きな欠落はありません。下のレーダー・各指標で現状を確認しつつ、下記の習慣化で上位を狙いましょう。",
-    maintain_t: "今の強みを維持・さらに伸ばす",
-    maintain_d: "クチコミへの返信と最新情報の定期投稿を継続し、写真を増やし続けることで、さらに上位表示と来店率の向上が狙えます。",
-  },
-  en: {
-    website_t: "Add a website / booking link",
-    website_d: "No links to an official site, social media, or online booking are registered. Adding them boosts the credibility of your information and keeps you from losing customers before they visit.",
-    phone_t: "Add a phone number",
-    phone_d: "No phone number is registered. Be sure to add one as a path for inquiries and bookings.",
-    subcat_t: "Add secondary categories",
-    subcat_d: (v) => `You only have a primary category. Adding secondary categories that fit your services (${v.subcat}) broadens your exposure for related keywords.`,
-    revcount_t: "Get more reviews",
-    revcount_d: (v) => `Currently ${v.count} reviews. Systematize review requests with a quick word at checkout or a QR code/card by the register. Review count is a major ranking factor.`,
-    rating_t: "Raise your average rating",
-    rating_d: (v) => `Currently ★${v.rating}. Identify the causes of low ratings (wait times, service, cleanliness, etc.) and lift your score through operational improvements and thoughtful replies.`,
-    hours_t: "Add business hours",
-    hours_d: "Business hours are not set. Register your hours by day of the week, regular closing days, holiday hours, and special hours.",
-    photos_t: "Add more photos",
-    photos_d: (v) => `Currently ${v.count} photos. Add high-quality photos of ${v.photos} and more, aiming for at least the recommended ${v.rec}, and refresh them regularly. Photo volume directly drives views and click-through rate.`,
-    photos_light_d: (v) => `Currently ${v.count} photos. Add photos of ${v.photos} and similar.`,
-    attrs_full_t: "Fill out your attributes",
-    attrs_full_d: (v) => `Register any attributes that apply to your business, such as ${v.attrs}. ${v.svc ? "Service businesses have relatively few attributes available to begin with, but " : ""}the more you fill in, the easier it is to appear in filtered searches.`,
-    attrs_full_open_d: (v) => `Add any unset attributes, such as ${v.attrs}. This makes it easier to appear in filtered searches.`,
-    attrs_light_t: "Register attributes",
-    attrs_light_d: (v) => `Register attributes that apply to your business, such as ${v.attrs}.`,
-    lowrev_t: "Address low ratings",
-    lowrev_d: (v) => `The share of 1–2 star reviews is somewhat high (${v.pct}%). Pinpoint the common complaints and recover your image through operational improvements and sincere replies.`,
-    recency_t: "Restore your fresh-review pace",
-    recency_d: (v) => `Your latest review is ${v.days} days old. Keep new reviews coming with regular review requests. Recency is also a freshness signal.`,
-    ok_t: "Your profile is well maintained",
-    ok_d: "There are no major gaps in the basics we can check. Review your current state with the radar and metrics below, and aim higher by making the habits below routine.",
-    maintain_t: "Keep and build on your strengths",
-    maintain_d: "Keep replying to reviews and posting updates regularly, and keep adding photos, to push for even higher rankings and visit rates.",
-  },
-  ko: {
-    website_t: "웹사이트/예약 링크 등록",
-    website_d: "공식 사이트・SNS・온라인 예약 링크가 등록되어 있지 않습니다. 등록하면 정보의 신뢰도가 올라가고 방문 전 고객을 놓치지 않습니다.",
-    phone_t: "전화번호 등록",
-    phone_d: "전화번호가 등록되어 있지 않습니다. 문의・예약의 연결 통로로 반드시 등록하세요.",
-    subcat_t: "보조 카테고리 추가",
-    subcat_d: (v) => `주 카테고리만 설정되어 있습니다. 제공 서비스에 맞는 보조 카테고리(${v.subcat})를 추가하면 관련 키워드에서의 노출이 넓어집니다.`,
-    revcount_t: "리뷰 수 늘리기",
-    revcount_d: (v) => `현재 ${v.count}건. 방문 시 한마디나 계산대 옆 QR・카드로 리뷰 요청을 시스템화하세요. 리뷰 수는 상위 노출의 주요 요인입니다.`,
-    rating_t: "평균 평점 끌어올리기",
-    rating_d: (v) => `현재 ★${v.rating}. 낮은 평점의 원인(제공 시간・접객・청결도 등)을 파악하고, 운영 개선과 정성스러운 답글로 평점을 높이세요.`,
-    hours_t: "영업시간 등록",
-    hours_d: "영업시간이 설정되어 있지 않습니다. 요일별 영업시간・정기 휴무일・공휴일 대응・특별 영업을 등록하세요.",
-    photos_t: "사진 늘리기",
-    photos_d: (v) => `현재 ${v.count}장. ${v.photos} 등, 권장 ${v.rec}장 이상을 기준으로 고화질 사진을 추가・정기적으로 갱신하세요. 사진 수는 조회수와 클릭률에 직결됩니다.`,
-    photos_light_d: (v) => `현재 ${v.count}장. ${v.photos} 등의 사진을 추가하세요.`,
-    attrs_full_t: "부가정보(속성) 충실화",
-    attrs_full_d: (v) => `${v.attrs} 등, 업종에 해당하는 속성이 있으면 등록하세요. ${v.svc ? "서비스업은 애초에 설정 가능한 속성이 적은 편이지만, " : ""}채울수록 '조건으로 좁히는' 검색에 노출되기 쉬워집니다.`,
-    attrs_full_open_d: (v) => `${v.attrs} 등, 미설정 속성을 추가하세요. '조건으로 좁히는' 검색에 노출되기 쉬워집니다.`,
-    attrs_light_t: "부가정보(속성) 등록",
-    attrs_light_d: (v) => `${v.attrs} 등, 업종에 해당하는 속성을 등록하세요.`,
-    lowrev_t: "낮은 평점 대응",
-    lowrev_d: (v) => `★1~2의 비율이 다소 높습니다(${v.pct}%). 공통된 불만 사항을 파악하고, 운영 개선과 진정성 있는 답글로 인상을 회복하세요.`,
-    recency_t: "리뷰 신규 등록 속도 회복",
-    recency_d: (v) => `최신 리뷰가 ${v.days}일 전입니다. 정기적인 리뷰 요청으로 새 리뷰가 끊기지 않게 하세요. 신선도도 평가 신호가 됩니다.`,
-    ok_t: "프로필 완성도가 양호합니다",
-    ok_d: "확인 가능한 기본 항목에 큰 누락은 없습니다. 아래 레이더・각 지표로 현황을 확인하면서, 아래 습관화로 상위를 노리세요.",
-    maintain_t: "현재 강점을 유지・더욱 강화",
-    maintain_d: "리뷰 답글과 최신 정보의 정기 게시를 이어가고 사진을 계속 늘리면, 더 높은 상위 노출과 방문율 향상을 기대할 수 있습니다.",
-  },
-  zh: {
-    website_t: "登錄網站/預約連結",
-    website_d: "尚未登錄官方網站・社群・線上預約連結。登錄後可提升資訊可信度，避免在顧客造訪前流失。",
-    phone_t: "登錄電話號碼",
-    phone_d: "尚未登錄電話號碼。請務必登錄，作為洽詢・預約的聯絡管道。",
-    subcat_t: "新增次要類別",
-    subcat_d: (v) => `目前僅設定主要類別。新增符合服務內容的次要類別（${v.subcat}）可擴大相關關鍵字的曝光。`,
-    revcount_t: "增加評論數量",
-    revcount_d: (v) => `目前 ${v.count} 則。可透過結帳時的一句話或櫃台旁的 QR・名片，將邀請評論制度化。評論數量是排名的主要因素。`,
-    rating_t: "提升平均評分",
-    rating_d: (v) => `目前 ★${v.rating}。請找出低評分的原因（出餐時間・服務・清潔度等），透過營運改善與用心回覆來提升評分。`,
-    hours_t: "登錄營業時間",
-    hours_d: "尚未設定營業時間。請登錄各星期的營業時間・公休日・國定假日營業・特殊營業時間。",
-    photos_t: "增加照片",
-    photos_d: (v) => `目前 ${v.count} 張。請以建議的 ${v.rec} 張以上為目標，新增 ${v.photos} 等高畫質照片並定期更新。照片數量直接影響瀏覽數與點擊率。`,
-    photos_light_d: (v) => `目前 ${v.count} 張。請新增 ${v.photos} 等照片。`,
-    attrs_full_t: "充實屬性資訊",
-    attrs_full_d: (v) => `若有符合行業的屬性，例如 ${v.attrs} 等，請加以登錄。${v.svc ? "服務業本身可設定的屬性較少，但 " : ""}填得越完整，越容易出現在「依條件篩選」的搜尋結果中。`,
-    attrs_full_open_d: (v) => `請新增尚未設定的屬性，例如 ${v.attrs} 等。如此更容易出現在「依條件篩選」的搜尋結果中。`,
-    attrs_light_t: "登錄屬性資訊",
-    attrs_light_d: (v) => `請登錄符合行業的屬性，例如 ${v.attrs} 等。`,
-    lowrev_t: "處理低評分",
-    lowrev_d: (v) => `★1~2 的比例略高（${v.pct}%）。請找出共通的不滿點，透過營運改善與誠懇回覆來挽回印象。`,
-    recency_t: "恢復新評論的累積速度",
-    recency_d: (v) => `最新評論為 ${v.days} 天前。請透過定期邀請評論，讓新評論不間斷。新近度也是新鮮度的訊號。`,
-    ok_t: "檔案完善度良好",
-    ok_d: "可確認的基本項目沒有重大缺漏。請透過下方的雷達圖・各項指標確認現況，並將下列習慣化以爭取更高排名。",
-    maintain_t: "維持並進一步強化現有優勢",
-    maintain_d: "持續回覆評論並定期發布最新資訊，並不斷增加照片，即可爭取更高的排名與來客率。",
-  },
-};
-
-function buildTips(
-  p: ReturnType<typeof normalizeDetails>,
-  profile: ReturnType<typeof scoreProfile>,
-  e?: Enriched,
-  now: Date = new Date(),
-  activity?: ReviewActivity | null,
-  uiLang: UiLang = "ja",
-): Tip[] {
-  const T = TIP_T[uiLang];
-  const tt = (k: string): string => T[k] as string;
-  const td = (k: string, v: Record<string, string | number> = {}): string => {
-    const e2 = T[k];
-    return typeof e2 === "function" ? e2(v) : (e2 as string);
-  };
-  const ratio = (key: string) => {
-    const c = profile.categories.find(x => x.key === key);
-    return c ? c.score / c.max : 1;
-  };
-  const items: { r: number; title: string; detail: string }[] = [];
-  const bp = bizProfile(p.primaryType, p.types, uiLang);
-  // 公式Places属性(信頼可)とOutscraper(補助)の多い方＝取りこぼしに強い属性件数
-  const reliableAttr = Math.max(p.attributeCount, e ? e.attributeFilled : 0);
-
-  // ---- 基本情報 ----
-  if (!p.websiteUri) items.push({ r: ratio("nap"), title: tt("website_t"), detail: tt("website_d") });
-  if (!p.nationalPhoneNumber) items.push({ r: ratio("nap"), title: tt("phone_t"), detail: tt("phone_d") });
-
-  if (p.types.filter(t => t !== p.primaryType).length === 0)
-    items.push({ r: ratio("category"), title: tt("subcat_t"), detail: td("subcat_d", { subcat: bp.subcat }) });
-
-  if (p.userRatingCount < 30)
-    items.push({ r: ratio("reviews"), title: tt("revcount_t"), detail: td("revcount_d", { count: p.userRatingCount }) });
-  if (p.rating != null && p.rating < 4.0)
-    items.push({ r: ratio("reviews"), title: tt("rating_t"), detail: td("rating_d", { rating: p.rating.toFixed(1) }) });
-
-  // 宿泊業は「営業時間」概念が薄く、Placesでも取得しづらいため誤検知を避けて出さない
-  if (!p.hasRegularHours && bp.kind !== "lodging") items.push({ r: ratio("hours"), title: tt("hours_t"), detail: tt("hours_d") });
-
-  if (e) {
-    // 「最新情報の投稿◯日前」はデータ更新の遅延でズレるため“表には出さない”。
-    // 鮮度(postFresh)は scoring.ts で「最新性」スコアに反映済み（裏側の評価として保持）。
-
-    if (e.photosCount < REC_PHOTOS)
-      items.push({ r: ratio("photos"), title: tt("photos_t"), detail: td("photos_d", { count: e.photosCount, photos: bp.photos, rec: REC_PHOTOS }) });
-
-    // 公式属性＋補助の信頼件数で判定（3件未満のみ提案）。宿泊業は不可測項目が多いため出さない。
-    if (reliableAttr < 3 && bp.kind !== "lodging")
-      items.push({ r: ratio("extras"), title: tt("attrs_full_t"), detail: bp.limitedAttrs
-        ? td("attrs_full_d", { attrs: bp.attrs, svc: (bp.kind === "professional" || bp.kind === "education") ? 1 : 0 })
-        : td("attrs_full_open_d", { attrs: bp.attrs }) });
-
-    const rpsValues = Object.values(e.reviewsPerScore);
-    const rpsTotal = rpsValues.reduce((a, b) => a + b, 0);
-    const low = (e.reviewsPerScore["1"] ?? 0) + (e.reviewsPerScore["2"] ?? 0);
-    if (rpsTotal > 0 && low / rpsTotal > 0.2)
-      items.push({ r: ratio("reviews"), title: tt("lowrev_t"), detail: td("lowrev_d", { pct: Math.round((low / rpsTotal) * 100) }) });
-  } else {
-    if (p.photoCount < 10)
-      items.push({ r: ratio("photos"), title: tt("photos_t"), detail: td("photos_light_d", { count: p.photoCount, photos: bp.photos }) });
-    if (!bp.limitedAttrs && bp.kind !== "lodging" && reliableAttr < 3)
-      items.push({ r: ratio("extras"), title: tt("attrs_light_t"), detail: td("attrs_light_d", { attrs: bp.attrs }) });
-  }
-
-  if (activity && activity.latestDays != null && activity.latestDays > 60)
-    items.push({ r: ratio("reviews"), title: tt("recency_t"), detail: td("recency_d", { days: activity.latestDays }) });
-
-  // 弱いカテゴリ由来を先頭へ、ratioで優先度を決定
-  items.sort((a, b) => a.r - b.r);
-  const level = (r: number): Tip["level"] => (r < 0.5 ? "high" : r < 0.8 ? "mid" : "info");
-  const out: Tip[] = items.map(i => ({ title: i.title, detail: i.detail, level: level(i.r) }));
-
-  // 良好な店でも中身が薄くならないよう、維持・強化の提案を補足
-  if (out.length === 0)
-    out.push({ title: tt("ok_t"), level: "info", detail: tt("ok_d") });
-  if (out.length < 3)
-    out.push({ title: tt("maintain_t"), level: "info", detail: tt("maintain_d") });
-
-  return out;
 }
 
 function json(data: unknown, status = 200): Response {

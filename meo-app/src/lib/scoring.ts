@@ -35,7 +35,8 @@ export function scoreProfile(p: PlaceData, w: IndustryWeights, now: Date, e?: En
   if (e) {
     const napItems = [
       !!p.displayName, !!p.formattedAddress, !!p.nationalPhoneNumber,
-      !!p.websiteUri, p.businessStatus === "OPERATIONAL", e.verified,
+      !!p.websiteUri, p.businessStatus === "OPERATIONAL",
+      ...(e.known.verified ? [e.verified] : []), // 認証状況が不明なら採点対象から外す
     ];
     nap = napItems.filter(Boolean).length / napItems.length;
   } else {
@@ -46,8 +47,11 @@ export function scoreProfile(p: PlaceData, w: IndustryWeights, now: Date, e?: En
     nap = napItems.filter(Boolean).length / napItems.length;
   }
 
-  // primaryType未設定時は types の全要素が "!= undefined" で真になり副カテゴリ加点(0.4)が入る（意図的）
-  const category = (p.primaryType ? 0.6 : 0) + (p.types.filter(t => t !== p.primaryType).length > 0 ? 0.4 : 0);
+  // GBPの実カテゴリが取れたときはそれで判定する（Placesの primaryType は未設定でもGBP側は設定済みのことがある）。
+  // 取れないときは従来どおり Places のタイプで代用する。
+  const category = e && e.category
+    ? 0.6 + (e.subCategories.length > 0 ? 0.4 : 0)
+    : (p.primaryType ? 0.6 : 0) + (p.types.filter(t => t !== p.primaryType).length > 0 ? 0.4 : 0);
 
   let reviewsComp: number;
   if (e) {
@@ -68,7 +72,7 @@ export function scoreProfile(p: PlaceData, w: IndustryWeights, now: Date, e?: En
   }
 
   let photos: number;
-  if (e) {
+  if (e && e.known.photos) {
     photos = Math.min(1, e.photosCount / REC_PHOTOS);
   } else {
     photos = clamp01(0.8 * Math.min(p.photoCount, 10) / 10 + (p.hasVideo ? 0.2 : 0));
@@ -129,8 +133,8 @@ export function rankAmong(target: PlaceData, competitors: PlaceData[]): RankResu
     name: c.displayName, rating: c.rating, reviews: c.userRatingCount, index: prominenceLight(c),
     location: c.location ? { lat: c.location.latitude, lng: c.location.longitude } : undefined,
   }));
-  const all = [targetIndex, ...comps.map(c => c.index)].sort((a, b) => b - a);
-  const rank = all.indexOf(targetIndex) + 1;
+  // 同点は上位側に数える（指数は整数に丸めているため同点が起こりうる）
+  const rank = comps.filter(c => c.index > targetIndex).length + 1;
   comps.sort((a, b) => b.index - a.index);
-  return { index: targetIndex, rank, total: all.length, competitors: comps };
+  return { index: targetIndex, rank, total: comps.length + 1, competitors: comps };
 }

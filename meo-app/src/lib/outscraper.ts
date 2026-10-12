@@ -13,6 +13,18 @@ export interface Enriched {
   hasMenuLink: boolean;
   hasReservation: boolean;
   description: string | null;            // Outscraperのdescription（多くnull・採点には使わない）
+  /** 応答に値が入っていたか。false の項目は「不明」であり、未認証・0枚と断定しない。 */
+  known: { verified: boolean; photos: boolean };
+  placeId: string | null;                // 取得した店の place_id（Placesの対象と同じ店かの照合に使う）
+  category: string | null;               // GBPのメインカテゴリ名（例：接骨院）
+  subCategories: string[];               // GBPの追加カテゴリ名（メインを除く）
+}
+
+/** "接骨院, カイロプラクティック, 整体" のようなカテゴリ列を配列にする。 */
+function splitCategories(v: unknown): string[] {
+  if (Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean);
+  if (typeof v !== "string") return [];
+  return v.split(/[,、]/).map(x => x.trim()).filter(Boolean);
 }
 
 function pickPlace(data: any): any | null {
@@ -39,6 +51,7 @@ export async function fetchEnriched(name: string, area: string, apiKey: string, 
       for (const v of Object.values(cat as Record<string, unknown>)) { total++; if (v === true) filled++; }
     }
   }
+  const category = [p.type, p.category].map(x => (typeof x === "string" ? x.trim() : "")).find(Boolean) || null;
   return {
     posts: (p.posts ?? []).filter((x: any) => x && typeof x.timestamp === "number").map((x: any) => ({ timestamp: x.timestamp })),
     photosCount: typeof p.photos_count === "number" ? p.photos_count : 0,
@@ -51,6 +64,10 @@ export async function fetchEnriched(name: string, area: string, apiKey: string, 
     hasMenuLink: !!p.menu_link,
     hasReservation: (Array.isArray(p.reservation_links) && p.reservation_links.length > 0) || !!p.booking_appointment_link,
     description: p.description ?? null,
+    known: { verified: typeof p.verified === "boolean", photos: typeof p.photos_count === "number" },
+    placeId: typeof p.place_id === "string" && p.place_id ? p.place_id : null,
+    category,
+    subCategories: splitCategories(p.subtypes).filter(x => x !== category),
   };
 }
 
