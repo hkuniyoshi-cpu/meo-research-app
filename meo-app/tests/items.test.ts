@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildItems, classifySite, ITEM_KEYS } from "../src/lib/items";
 import type { PlaceData, DiagItem } from "../src/lib/types";
 import type { Enriched } from "../src/lib/outscraper";
+import type { SiteCheck } from "../src/lib/sitecheck";
 
 const NOW = new Date("2026-10-12T00:00:00Z");
 const nowTs = Math.floor(NOW.getTime() / 1000);
@@ -21,6 +22,7 @@ function enriched(o: Partial<Enriched> = {}): Enriched {
   };
 }
 const FOOD = { kind: "food", limitedAttrs: false };
+const SITE_OK: SiteCheck = { ok: true, pages: 1, name: true, phone: "match", address: "match", schema: "local", schemaType: "Restaurant" };
 const byKey = (items: DiagItem[]) => Object.fromEntries(items.map(i => [i.key, i]));
 
 describe("classifySite", () => {
@@ -44,7 +46,7 @@ describe("buildItems", () => {
       verified: true, photosCount: 400, category: "居酒屋", subCategories: ["和食店"],
       reviewsPerScore: { "5": 300, "1": 5 }, posts: [{ timestamp: nowTs - 5 * 86400 }], hasReservation: true,
     });
-    const items = buildItems(p, e, { latestDays: 3, monthlyPace: 8, sample: 10 }, FOOD, NOW);
+    const items = buildItems(p, e, { latestDays: 3, monthlyPace: 8, sample: 10 }, FOOD, NOW, SITE_OK);
     expect(items.every(i => i.status === "good")).toBe(true);
     const m = byKey(items);
     expect(m.main_category.v.label).toBe("居酒屋"); // GBPの実カテゴリを優先
@@ -199,5 +201,33 @@ describe("達成率と判定のずれが起きない（境界値）", () => {
   });
   it("投稿を確認できないときの目標は30日以内", () => {
     expect(all({}, { posts: [] }).posts.gap).toMatchObject({ kind: "post", target: 30 });
+  });
+});
+
+describe("サイトの店舗情報・構造化データ", () => {
+  const p = place({ websiteUri: "https://example.com", nationalPhoneNumber: "098-123-4567" });
+  const get = (sc: SiteCheck | null | undefined, pp = p) => byKey(buildItems(pp, undefined, null, FOOD, NOW, sc));
+  it("住所が町名までしか一致しない・電話が別番号なら warn、不足数を目標までの差として出す", () => {
+    const m = get({ ...SITE_OK, address: "partial", phone: "other", schema: "other", schemaType: "Organization" });
+    expect(m.site_nap).toMatchObject({ status: "warn", rate: 0.5, gap: { kind: "sitenap", need: 2, target: 3 } });
+    expect(m.site_schema).toMatchObject({ status: "warn", v: { kind: "other", type: "Organization" } });
+  });
+  it("何も見つからなければ bad。Google側に電話が無いときは電話を判定に入れない", () => {
+    expect(get({ ...SITE_OK, name: false, address: "none", phone: "none", schema: "none", schemaType: "" }).site_nap.status).toBe("bad");
+    const m = get({ ...SITE_OK, phone: "na" }, place({ websiteUri: "https://example.com" }));
+    expect(m.site_nap).toMatchObject({ status: "good", v: { max: 2 } });
+  });
+  it("読み込めない・読み取れないサイトは判定しない（構造化データだけ読めたときはそれを判定）", () => {
+    const fail = get({ ...SITE_OK, ok: false, fail: "fetchfail" });
+    expect(fail.site_nap).toMatchObject({ status: "na", v: { reason: "sitefail" } });
+    expect(fail.site_schema).toMatchObject({ status: "na", v: { reason: "sitefail" } });
+    const js = get({ ...SITE_OK, ok: false, fail: "jsonly", schema: "local" });
+    expect(js.site_nap).toMatchObject({ status: "na", v: { reason: "jsonly" } });
+    expect(js.site_schema.status).toBe("good");
+    expect(get(undefined).site_nap).toMatchObject({ status: "na", v: { reason: "nodata" } });
+  });
+  it("SNS・ポータルのURLやサイト未設定なら判定しない", () => {
+    expect(get(null, place({ websiteUri: "https://instagram.com/x" })).site_nap.v.reason).toBe("notown");
+    expect(get(null, place()).site_schema.v.reason).toBe("nosite");
   });
 });

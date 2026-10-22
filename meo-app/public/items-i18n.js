@@ -34,6 +34,29 @@
       how: (v, st) => pick(st, "このままで問題ありません。",
         "サイトがすでにhttpsに対応しているなら、プロフィールのURLを https:// に変更しましょう。未対応の場合は、サーバー側でSSL（https）を有効にします。"),
     },
+    site_nap: {
+      label: "サイトの店名・住所・電話",
+      val: (v, st) => pick(st, "Googleと一致", "一部不一致", "見当たらない"),
+      now: (v) => [
+        `登録サイト（トップページ${v.pages > 1 ? `と関連ページ${v.pages - 1}件` : ""}）を確認しました。`,
+        v.name ? "店名：掲載あり。" : "店名：見当たりません。",
+        v.addr === "na" ? "" : v.addr === "match" ? "住所：Googleの登録と番地まで一致。" : v.addr === "partial" ? "住所：町名や郵便番号は載っていますが、番地まで一致する表記が見当たりません。" : "住所：Googleの登録と同じ住所が見当たりません。",
+        v.phone === "match" ? "電話：一致。" : v.phone === "other" ? "電話：Googleの登録とは別の番号が載っています。" : v.phone === "none" ? "電話：番号が見当たりません。" : "",
+      ].join(""),
+      why: "Googleは、サイトとプロフィールの店名・住所・電話番号がそろっているかを、お店の情報が正しいかどうかの手がかりにしています。表記がばらばらだと、同じお店だと判断されにくくなります。",
+      how: (v, st) => pick(st, "サイトを更新するときも、Googleの登録内容と同じ表記を保ちましょう。",
+        "サイトのページ下部や「アクセス」「会社概要」ページに、Googleの登録と同じ店名・住所（番地まで）・電話番号を文字で載せましょう。画像の中の文字は読み取られにくいため、テキストで書くのが基本です。複数店舗の場合は、その店舗専用のページ（住所・電話が載ったページ）のURLをGoogleに登録するのがおすすめです。"),
+    },
+    site_schema: {
+      label: "店舗情報タグ（構造化データ）",
+      val: (v, st) => pick(st, `設定済み（${v.type}）`, v.kind === "incomplete" ? "住所・電話が不足" : "店舗用でない", "未設定"),
+      now: (v, st) => pick(st, `サイトに店舗情報の構造化データ（${v.type}）があり、住所と電話番号が入っています。`,
+        v.kind === "incomplete" ? `店舗情報の構造化データ（${v.type}）はありますが、住所か電話番号が入っていません。` : `構造化データ（${v.type}）はありますが、店舗の情報（LocalBusiness）としては書かれていません。`,
+        "サイトに店舗情報の構造化データが見つかりませんでした。"),
+      why: "構造化データは、検索エンジンやAIに店名・住所・電話・営業時間を正確に伝えるため、ページに埋め込む決まった形式の情報です。Googleがお店の情報を正しく読み取る助けになります。",
+      how: (v, st) => pick(st, "営業時間や住所が変わったときは、構造化データも一緒に更新しましょう。",
+        "サイトに schema.org の LocalBusiness（業種に合う種類があればそれ。例：歯科は Dentist）の構造化データを入れ、店名・住所・電話番号・営業時間を記載しましょう。WordPressならSEO用のプラグインで設定できることが多いです。"),
+    },
     verified: {
       label: "オーナー確認",
       val: (v, st) => pick(st, "確認済み", "未確認の可能性"),
@@ -167,6 +190,29 @@
       how: (v, st) => pick(st, "No action needed.",
         "If your site already supports https, change the profile URL to https://. If not, enable SSL (https) on your server."),
     },
+    site_nap: {
+      label: "Name, address & phone on your site",
+      val: (v, st) => pick(st, "Matches Google", "Partly differs", "Not found"),
+      now: (v) => [
+        `We checked your website (home page${v.pages > 1 ? ` and ${v.pages - 1} related page(s)` : ""}). `,
+        v.name ? "Name: found. " : "Name: not found. ",
+        v.addr === "na" ? "" : v.addr === "match" ? "Address: matches Google down to the street number. " : v.addr === "partial" ? "Address: the area or postal code is there, but not the same street number. " : "Address: the address registered on Google was not found. ",
+        v.phone === "match" ? "Phone: matches." : v.phone === "other" ? "Phone: a different number from Google is listed." : v.phone === "none" ? "Phone: no number found." : "",
+      ].join(""),
+      why: "Google uses whether your site and profile show the same name, address and phone number as a sign that your business information is accurate. Inconsistent details make it harder to recognize them as the same business.",
+      how: (v, st) => pick(st, "Keep the same wording as your Google profile whenever you update the site.",
+        "Put the same name, full address (with street number) and phone number as your Google profile in text on your site, e.g. in the footer or on an Access / About page. Text inside images is hard to read, so write it as plain text. If you have several locations, register the URL of this location’s own page (with its address and phone) on Google."),
+    },
+    site_schema: {
+      label: "Business info tags (structured data)",
+      val: (v, st) => pick(st, `Set (${v.type})`, v.kind === "incomplete" ? "Missing address/phone" : "Not for a local business", "Not set"),
+      now: (v, st) => pick(st, `Your site has business structured data (${v.type}) including the address and phone number.`,
+        v.kind === "incomplete" ? `Your site has business structured data (${v.type}), but it lacks the address or phone number.` : `Your site has structured data (${v.type}), but not as local business information (LocalBusiness).`,
+        "No business structured data was found on your site."),
+      why: "Structured data is information embedded in a page in a standard format so search engines and AI can read your name, address, phone and hours accurately. It helps Google understand your business correctly.",
+      how: (v, st) => pick(st, "When your hours or address change, update the structured data too.",
+        "Add schema.org LocalBusiness structured data (or a more specific type, e.g. Dentist) with your name, address, phone and hours. On WordPress, an SEO plugin can often do this."),
+    },
     verified: {
       label: "Owner verification",
       val: (v, st) => pick(st, "Verified", "Possibly unverified"),
@@ -298,6 +344,29 @@
       why: "http 그대로면 브라우저에 '주의 요함'이 표시될 수 있어 방문자가 이탈하기 쉽습니다.",
       how: (v, st) => pick(st, "이대로 문제없습니다.",
         "사이트가 이미 https를 지원한다면 프로필의 URL을 https://로 바꾸세요. 지원하지 않는다면 서버에서 SSL(https)을 활성화하세요."),
+    },
+    site_nap: {
+      label: "사이트의 상호·주소·전화",
+      val: (v, st) => pick(st, "Google과 일치", "일부 불일치", "찾을 수 없음"),
+      now: (v) => [
+        `등록된 사이트(메인 페이지${v.pages > 1 ? `와 관련 페이지 ${v.pages - 1}개` : ""})를 확인했습니다. `,
+        v.name ? "상호: 게재되어 있음. " : "상호: 찾을 수 없음. ",
+        v.addr === "na" ? "" : v.addr === "match" ? "주소: Google 등록 내용과 번지까지 일치. " : v.addr === "partial" ? "주소: 동네 이름이나 우편번호는 있지만 번지까지 일치하는 표기가 없습니다. " : "주소: Google에 등록된 주소를 찾을 수 없습니다. ",
+        v.phone === "match" ? "전화: 일치." : v.phone === "other" ? "전화: Google 등록과 다른 번호가 게재되어 있습니다." : v.phone === "none" ? "전화: 번호를 찾을 수 없습니다." : "",
+      ].join(""),
+      why: "Google은 사이트와 프로필의 상호·주소·전화번호가 일치하는지를 매장 정보가 정확한지 판단하는 단서로 삼습니다. 표기가 제각각이면 같은 매장으로 인식되기 어렵습니다.",
+      how: (v, st) => pick(st, "사이트를 수정할 때도 Google 등록 내용과 같은 표기를 유지하세요.",
+        "사이트 하단이나 '오시는 길'·'회사 소개' 페이지에 Google 등록과 같은 상호·주소(번지까지)·전화번호를 텍스트로 게재하세요. 이미지 속 글자는 읽히기 어려우므로 텍스트로 쓰는 것이 기본입니다. 여러 매장이 있다면 해당 매장 전용 페이지(주소·전화가 있는 페이지)의 URL을 Google에 등록하는 것이 좋습니다."),
+    },
+    site_schema: {
+      label: "매장 정보 태그(구조화 데이터)",
+      val: (v, st) => pick(st, `설정됨(${v.type})`, v.kind === "incomplete" ? "주소·전화 부족" : "매장용이 아님", "미설정"),
+      now: (v, st) => pick(st, `사이트에 매장 정보 구조화 데이터(${v.type})가 있으며 주소와 전화번호가 들어 있습니다.`,
+        v.kind === "incomplete" ? `매장 정보 구조화 데이터(${v.type})는 있지만 주소나 전화번호가 들어 있지 않습니다.` : `구조화 데이터(${v.type})는 있지만 매장 정보(LocalBusiness)로 작성되어 있지 않습니다.`,
+        "사이트에서 매장 정보 구조화 데이터를 찾을 수 없었습니다."),
+      why: "구조화 데이터는 검색엔진과 AI에 상호·주소·전화·영업시간을 정확히 전달하기 위해 페이지에 넣는 정해진 형식의 정보입니다. Google이 매장 정보를 올바르게 읽는 데 도움이 됩니다.",
+      how: (v, st) => pick(st, "영업시간이나 주소가 바뀌면 구조화 데이터도 함께 수정하세요.",
+        "사이트에 schema.org의 LocalBusiness(업종에 맞는 유형이 있으면 그것, 예: 치과는 Dentist) 구조화 데이터를 넣고 상호·주소·전화번호·영업시간을 기재하세요. WordPress라면 SEO 플러그인으로 설정할 수 있는 경우가 많습니다."),
     },
     verified: {
       label: "소유자 확인",
@@ -431,6 +500,29 @@
       how: (v, st) => pick(st, "維持現狀即可。",
         "若網站已支援 https，請將檔案中的網址改為 https://。若尚未支援，請在伺服器啟用 SSL（https）。"),
     },
+    site_nap: {
+      label: "網站上的店名・地址・電話",
+      val: (v, st) => pick(st, "與Google一致", "部分不一致", "找不到"),
+      now: (v) => [
+        `已確認登錄的網站（首頁${v.pages > 1 ? `及相關頁面 ${v.pages - 1} 頁` : ""}）。`,
+        v.name ? "店名：有刊登。" : "店名：找不到。",
+        v.addr === "na" ? "" : v.addr === "match" ? "地址：與Google登錄一致（含門牌號碼）。" : v.addr === "partial" ? "地址：有町名或郵遞區號，但找不到門牌號碼一致的寫法。" : "地址：找不到與Google登錄相同的地址。",
+        v.phone === "match" ? "電話：一致。" : v.phone === "other" ? "電話：刊登的是與Google登錄不同的號碼。" : v.phone === "none" ? "電話：找不到號碼。" : "",
+      ].join(""),
+      why: "Google會以網站與商家檔案的店名・地址・電話是否一致，作為判斷店家資訊是否正確的線索。寫法不一致時，較難被判斷為同一家店。",
+      how: (v, st) => pick(st, "更新網站時，也請維持與Google登錄內容相同的寫法。",
+        "請在網站底部或「交通方式」「公司簡介」頁面，以文字刊登與Google登錄相同的店名・地址（含門牌號碼）・電話號碼。圖片中的文字不易被讀取，基本上請以文字撰寫。若有多家分店，建議在Google登錄該分店專屬頁面（有地址・電話的頁面）的網址。"),
+    },
+    site_schema: {
+      label: "店家資訊標記（結構化資料）",
+      val: (v, st) => pick(st, `已設定（${v.type}）`, v.kind === "incomplete" ? "缺少地址・電話" : "非店家用", "未設定"),
+      now: (v, st) => pick(st, `網站有店家資訊的結構化資料（${v.type}），並包含地址與電話號碼。`,
+        v.kind === "incomplete" ? `網站有店家資訊的結構化資料（${v.type}），但缺少地址或電話號碼。` : `網站有結構化資料（${v.type}），但並非以店家資訊（LocalBusiness）撰寫。`,
+        "在網站上找不到店家資訊的結構化資料。"),
+      why: "結構化資料是嵌入頁面的固定格式資訊，用來向搜尋引擎與AI正確傳達店名・地址・電話・營業時間，有助於Google正確讀取店家資訊。",
+      how: (v, st) => pick(st, "營業時間或地址變更時，請一併更新結構化資料。",
+        "請在網站加入 schema.org 的 LocalBusiness（若有符合業種的類型就用該類型，例如牙醫為 Dentist）結構化資料，並填入店名・地址・電話號碼・營業時間。若使用WordPress，多半可透過SEO外掛設定。"),
+    },
     verified: {
       label: "擁有者驗證",
       val: (v, st) => pick(st, "已驗證", "可能未驗證"),
@@ -562,6 +654,12 @@
       "na_how_noreviews": "まず「クチコミ件数」の項目を参考に、クチコミを集めるところから始めましょう。",
       "na_how_few": "クチコミが増えると判定されるようになります。",
       "na_how_lodging": "対応は不要です。",
+      "na_val_sitefail": "サイトを読み込めず",
+      "na_now_sitefail": "サイトを読み込めなかったため（アクセス制限や一時的なエラーなど）、この項目は判定していません。",
+      "na_how_sitefail": "時間をおいて診断し直すと判定される場合があります。サイトが表示されない状態なら、まず公開状況を確認しましょう。",
+      "na_val_jsonly": "自動では読み取れず",
+      "na_now_jsonly": "サイトの内容がプログラムで後から表示される作りのため、自動では読み取れませんでした。",
+      "na_how_jsonly": "Googleの登録と同じ店名・住所・電話番号を、ページ下部などに文字で載せておくと確実です。",
       "na_how_notapplicable": "対応は不要です。ネット予約やメニューのページがある場合は、登録しておくと便利です。",
       "mail_na": "判定なし"
     },
@@ -588,6 +686,12 @@
       "na_how_noreviews": "Start by collecting reviews, following the “Number of reviews” item.",
       "na_how_few": "It will be assessed once you have more reviews.",
       "na_how_lodging": "No action needed.",
+      "na_val_sitefail": "Couldn't load the site",
+      "na_now_sitefail": "We couldn't load your website (access restrictions or a temporary error), so this item was not assessed.",
+      "na_how_sitefail": "Running the check again later may assess it. If the site doesn't load at all, check that it's online first.",
+      "na_val_jsonly": "Couldn't read automatically",
+      "na_now_jsonly": "Your site's content is drawn by scripts after loading, so we couldn't read it automatically.",
+      "na_how_jsonly": "Putting the same name, address and phone as your Google profile in plain text (e.g. in the footer) makes it reliable.",
       "na_how_notapplicable": "No action needed. If you have an online booking or menu page, adding it is still useful.",
       "mail_na": "Not assessed"
     },
@@ -614,6 +718,12 @@
       "na_how_noreviews": "먼저 '리뷰 수' 항목을 참고해 리뷰를 모으는 것부터 시작하세요.",
       "na_how_few": "리뷰가 늘어나면 판정됩니다.",
       "na_how_lodging": "별도 대응은 필요 없습니다.",
+      "na_val_sitefail": "사이트를 불러오지 못함",
+      "na_now_sitefail": "사이트를 불러오지 못해(접근 제한이나 일시적인 오류 등) 이 항목은 판정하지 않았습니다.",
+      "na_how_sitefail": "잠시 후 다시 진단하면 판정될 수 있습니다. 사이트가 열리지 않는다면 먼저 공개 상태를 확인하세요.",
+      "na_val_jsonly": "자동으로 읽을 수 없음",
+      "na_now_jsonly": "사이트 내용이 프로그램으로 나중에 표시되는 구조라 자동으로 읽을 수 없었습니다.",
+      "na_how_jsonly": "Google 등록과 같은 상호·주소·전화번호를 페이지 하단 등에 텍스트로 게재해 두면 확실합니다.",
       "na_how_notapplicable": "별도 대응은 필요 없습니다. 온라인 예약이나 메뉴 페이지가 있다면 등록해 두면 편리합니다.",
       "mail_na": "판정 없음"
     },
@@ -640,6 +750,12 @@
       "na_how_noreviews": "請先參考「評論數量」項目，從累積評論開始。",
       "na_how_few": "評論增加後就會進行判定。",
       "na_how_lodging": "不需要處理。",
+      "na_val_sitefail": "無法讀取網站",
+      "na_now_sitefail": "因無法讀取網站（存取限制或暫時性錯誤等），此項目未判定。",
+      "na_how_sitefail": "稍後重新診斷可能就會判定。若網站無法開啟，請先確認公開狀態。",
+      "na_val_jsonly": "無法自動讀取",
+      "na_now_jsonly": "網站內容是由程式在載入後才顯示，因此無法自動讀取。",
+      "na_how_jsonly": "以文字在頁面底部等處刊登與Google登錄相同的店名・地址・電話號碼，最為確實。",
       "na_how_notapplicable": "不需要處理。若有線上預約或菜單頁面，登錄起來會更方便。",
       "mail_na": "未判定"
     }
@@ -842,6 +958,7 @@
       "gap_photos": "あと{n}枚で目標（{t}枚）です。",
       "gap_post": "最新情報を投稿すると達成です（目標：{t}日以内に1件）。",
       "gap_attrs": "あと{n}件で目標（{t}件）です。",
+      "gap_sitenap": "店名・住所・電話のうち、あと{n}つをGoogleの登録とそろえると達成です。",
       "gap_subcat": "追加カテゴリを{n}件登録すると達成です。"
     },
     "en": {
@@ -860,6 +977,7 @@
       "gap_photos": "{n} more photos to reach the goal ({t}).",
       "gap_post": "Post an update to reach the goal (one within {t} days).",
       "gap_attrs": "{n} more to reach the goal ({t}).",
+      "gap_sitenap": "Match {n} more of name / address / phone with your Google profile to reach the goal.",
       "gap_subcat": "Add {n} additional category to reach the goal."
     },
     "ko": {
@@ -878,6 +996,7 @@
       "gap_photos": "{n}장 더 있으면 목표({t}장)입니다.",
       "gap_post": "최신 소식을 게시하면 달성입니다(목표: {t}일 이내 1건).",
       "gap_attrs": "{n}개 더 있으면 목표({t}개)입니다.",
+      "gap_sitenap": "상호·주소·전화 중 {n}개를 더 Google 등록과 맞추면 달성입니다.",
       "gap_subcat": "추가 카테고리를 {n}개 등록하면 달성입니다."
     },
     "zh": {
@@ -896,6 +1015,7 @@
       "gap_photos": "再 {n} 張即達目標（{t} 張）。",
       "gap_post": "發布最新消息即可達成（目標：{t} 天內 1 則）。",
       "gap_attrs": "再 {n} 項即達目標（{t} 項）。",
+      "gap_sitenap": "店名・地址・電話中，再讓 {n} 項與Google登錄一致即可達成。",
       "gap_subcat": "再登錄 {n} 個次要類別即可達成。"
     }
   };

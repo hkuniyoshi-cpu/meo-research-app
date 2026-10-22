@@ -60,7 +60,7 @@ export interface DiagItem {
 
 /** 次の目標までの不足分。文言はフロントの辞書が kind ごとに持つ。 */
 export interface ItemGap {
-  kind: "setup" | "count" | "rating" | "fresh" | "lowpct" | "photos" | "post" | "attrs" | "subcat";
+  kind: "setup" | "sitenap" | "count" | "rating" | "fresh" | "lowpct" | "photos" | "post" | "attrs" | "subcat";
   need: number;   // あといくつ（件・枚・★・ポイントなど）
   target: number; // 目標の値
 }

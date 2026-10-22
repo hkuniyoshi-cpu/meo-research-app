@@ -415,6 +415,69 @@ describe("handleDiagnose", () => {
     expect(ttl).toBe(14 * 86400); // 投稿が取れたので通常の保存期間
   });
 
+  it("Outscraperには店舗ID（place_id）で問い合わせる。入力した地域が所在地とずれていても投稿まで取れる", async () => {
+    const base = routeFetch({ outscraper: { place_id: "PID1" } });
+    const queries: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: any, init?: any) => {
+      const u = String(url);
+      if (u.includes("search-v3")) {
+        const q = decodeURIComponent(/query=([^&]*)/.exec(u)![1]);
+        queries.push(q);
+        // 店名＋地域の問い合わせでは、投稿の入っていない簡易データが返る（実際に起きた事例）
+        if (q !== "PID1") return ok({ data: [[{ name: "テスト店", place_id: "PID1", photos_count: 30, verified: true, reviews_per_score: { "5": 50 }, posts: null }]], status: "Success" });
+      }
+      return base(url, init);
+    }));
+    const data: any = await (await handleDiagnose(makeReq({ name: "テスト店", area: "八重瀬", compare: false, turnstileToken: "t" }), makeEnv())).json();
+    expect(queries).toEqual(["PID1"]);
+    expect(data.items.find((i: any) => i.key === "posts")).toMatchObject({ status: "good", v: { has: true } });
+  });
+
+  it("別の店（チェーンの別店舗など）のクチコミは使わない", async () => {
+    const base = routeFetch({ outscraper: { place_id: "PID1" } });
+    vi.stubGlobal("fetch", vi.fn(async (url: any, init?: any) => {
+      const u = String(url);
+      if (u.includes("reviews-v3")) return ok({ data: [{ place_id: "OTHER", reviews_data: [{ review_timestamp: Math.floor(Date.now() / 1000) - 86400 }] }], status: "Success" });
+      return base(url, init);
+    }));
+    const data: any = await (await handleDiagnose(makeReq({ name: "テスト店", area: "那覇市", compare: false, turnstileToken: "t" }), makeEnv())).json();
+    expect(data.items.find((i: any) => i.key === "review_fresh")).toMatchObject({ status: "na", v: { reason: "nodata" } });
+  });
+
+  it("投稿の取れた応答を、あとの投稿なしの応答で上書きしない", async () => {
+    const base = routeFetch({ outscraper: { place_id: "PID1" } });
+    vi.stubGlobal("fetch", vi.fn(async (url: any, init?: any) => {
+      const u = String(url);
+      if (u.includes("search-v3")) {
+        const q = decodeURIComponent(/query=([^&]*)/.exec(u)![1]);
+        // 店舗IDの応答は投稿だけ（写真・分布なし＝不完全）、店名の応答は写真ありで投稿なし
+        if (q === "PID1") return ok({ data: [[{ name: "テスト店", place_id: "PID1", posts: [{ timestamp: Math.floor(Date.now() / 1000) }] }]], status: "Success" });
+        return ok({ data: [[{ name: "テスト店", place_id: "PID1", photos_count: 30, verified: true, reviews_per_score: { "5": 50 }, posts: null }]], status: "Success" });
+      }
+      return base(url, init);
+    }));
+    const data: any = await (await handleDiagnose(makeReq({ name: "テスト店", area: "那覇市", compare: false, turnstileToken: "t" }), makeEnv())).json();
+    expect(data.photosCount).toBe(30);
+    expect(data.items.find((i: any) => i.key === "posts")).toMatchObject({ status: "good", v: { has: true } });
+  });
+
+  it("店舗IDでの問い合わせが失敗したら、店名＋地域で取り直す", async () => {
+    const base = routeFetch({ outscraper: { place_id: "PID1" } });
+    const queries: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: any, init?: any) => {
+      const u = String(url);
+      if (u.includes("search-v3")) {
+        const q = decodeURIComponent(/query=([^&]*)/.exec(u)![1]);
+        queries.push(q);
+        if (q === "PID1") throw new Error("timeout");
+      }
+      return base(url, init);
+    }));
+    const data: any = await (await handleDiagnose(makeReq({ name: "テスト店", area: "那覇市", compare: false, turnstileToken: "t" }), makeEnv())).json();
+    expect(queries).toEqual(["PID1", "テスト店 那覇市"]);
+    expect(data.photosCount).toBe(30);
+  });
+
   it("取り直しても投稿が無ければ、店舗データは短時間（6時間）だけ保存する", async () => {
     const env = makeEnv();
     vi.stubGlobal("fetch", routeFetch({ outscraper: { posts: [] } }));
@@ -449,7 +512,7 @@ describe("handleDiagnose", () => {
     expect(b.f.mock.calls.some((c: any) => String(c[0]).includes("reviews-v3"))).toBe(true);
   });
 
-  it("2回続けて投稿が空なら投稿なしと確定し、以後は取り直さず通常どおり保存する", async () => {
+  it("2回続けて投稿が空なら投稿なしと確定し、以後は取り直さない（投稿の開始に気づけるよう保存は3日）", async () => {
     const env = makeEnv();
     const searchCalls = (f: any) => f.mock.calls.filter((c: any) => String(c[0]).includes("search-v3")).length;
     const diag = async (area: string) => {
@@ -460,8 +523,8 @@ describe("handleDiagnose", () => {
       return { calls: searchCalls(f), ttl };
     };
     expect(await diag("那覇市")).toEqual({ calls: 2, ttl: 6 * 3600 });   // 1回目：取り直す・短時間保存
-    expect(await diag("那覇")).toEqual({ calls: 2, ttl: 14 * 86400 });   // 2回目も空：投稿なしと確定
-    expect(await diag("沖縄県那覇市")).toEqual({ calls: 1, ttl: 14 * 86400 }); // 確定後は取り直さない
+    expect(await diag("那覇")).toEqual({ calls: 2, ttl: 3 * 86400 });   // 2回目も空：投稿なしと確定
+    expect(await diag("沖縄県那覇市")).toEqual({ calls: 1, ttl: 3 * 86400 }); // 確定後は取り直さない
   });
 
   it("Outscraperの応答に写真数・認証が無いときは、結果でも null（0枚・未認証と断定しない）", async () => {

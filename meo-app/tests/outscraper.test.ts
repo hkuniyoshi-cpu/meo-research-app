@@ -13,7 +13,7 @@ describe("fetchEnriched", () => {
       menu_link: "https://m", reservation_links: ["https://r"],
     };
     const f = vi.fn().mockResolvedValue(ok({ data: [[place]], status: "Success" }));
-    const e = await fetchEnriched("店", "那覇", "K", f as any);
+    const e = await fetchEnriched("店 那覇", "K", f as any);
     expect(e).not.toBeNull();
     expect(e!.photosCount).toBe(2682);
     expect(e!.verified).toBe(true);
@@ -31,13 +31,13 @@ describe("fetchEnriched", () => {
       subtypes: "接骨院, カイロプラクティック, 整体", photos_count: 3,
     };
     const f = vi.fn().mockResolvedValue(ok({ data: [[place]], status: "Success" }));
-    const e = await fetchEnriched("店", "那覇", "K", f as any);
+    const e = await fetchEnriched("店 那覇", "K", f as any);
     expect(e!.placeId).toBe("PID9");
     expect(e!.category).toBe("接骨院");
     expect(e!.subCategories).toEqual(["カイロプラクティック", "整体"]);
   });
   it("該当なしでnull", async () => {
     const f = vi.fn().mockResolvedValue(ok({ data: [], status: "Success" }));
-    expect(await fetchEnriched("無", "無", "K", f as any)).toBeNull();
+    expect(await fetchEnriched("無 無", "K", f as any)).toBeNull();
   });
 });

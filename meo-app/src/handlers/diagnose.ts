@@ -4,7 +4,9 @@ import { getCached, setCached } from "../lib/cache";
 import { findPlace, getDetails, findCompetitors, findAreaScope, rectContains, normalizeDetails, normalizeLight, radiusFromArea, pickIndustry, cleanIndustry } from "../lib/places";
 import type { Region, Rect, Industry, LatLng } from "../lib/places";
 import { scoreProfile, rankAmong, prominenceLight, daysSinceLatestPost, REC_PHOTOS } from "../lib/scoring";
-import { buildItems } from "../lib/items";
+import { buildItems, classifySite } from "../lib/items";
+import { checkSite } from "../lib/sitecheck";
+import type { SiteCheck } from "../lib/sitecheck";
 import type { PlaceData } from "../lib/types";
 import { weightsFor } from "../lib/weights";
 import { fetchEnriched, fetchReviewActivity } from "../lib/outscraper";
@@ -95,45 +97,60 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
     const lang = ({ ja: "ja", en: "en", ko: "ko", zh: "zh-TW" } as Record<UiLang, string>)[uiLang] || "en";
 
     // v2: 投稿が欠けた応答を14日間保存していた不具合の修正に伴い、旧データを破棄
-    const baseKey = "base:v2:" + JSON.stringify([body.name, body.area, uiLang]);
+    // v3: Outscraperへの問い合わせを place_id 優先に変更（地域が所在地とずれると投稿が欠けていた）。旧データを破棄
+    const baseKey = "base:v3:" + JSON.stringify([body.name, body.area, uiLang]);
     let base = await getCached<BaseData>(env.CACHE, baseKey);
     const baseCached = !!base;
+    // サイトの読み取りは外部API（Outscraper）の取得と並行して進める
+    let sitePromise: Promise<SiteCheck | null> | null = null;
     if (!base) {
       const found = await findPlace(body.name, body.area, env.GOOGLE_PLACES_API_KEY, lang);
       if (!found) { sendLog({ status: "not_found" }); return json({ error: "not_found" }, 404); }
       const fetched = normalizeDetails(await getDetails(found.id, env.GOOGLE_PLACES_API_KEY, lang));
+      sitePromise = siteCheckCached(env, fetched, body.name, uiLang);
 
       // Outscraper enrichment（失敗時はnullにデグレード）
-      let en: Enriched | null = null;
+      let en = null as Enriched | null; // 下の関数の中で書き換えるため、null に絞り込ませない
       let act: ReviewActivity | null = null;
       // 投稿が無いことを確認済みの店（2回続けて空だった店）には、投稿の取り直しをしない
       const noPostsKey = "noposts:v1:" + fetched.placeId;
       const noPostsConfirmed = !!(await getCached(env.CACHE, noPostsKey));
+      // 取得が不完全（実在店なのに写真もクチコミ分布も空）
+      const incomplete = (x: Enriched | null) => !x || (x.photosCount === 0 && Object.keys(x.reviewsPerScore).length === 0);
       if (env.OUTSCRAPER_API_KEY) {
-        try {
-          // 出力前の再チェック：取得が不完全（実在店なのに写真もクチコミ分布も空）なら一度だけ取り直す
-          const incomplete = (x: Enriched | null) => !x || (x.photosCount === 0 && Object.keys(x.reviewsPerScore).length === 0);
-          en = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
-          if (incomplete(en)) {
-            const retry = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
-            if (!incomplete(retry)) en = retry;
-          } else if (en && en.posts.length === 0 && !noPostsConfirmed) {
-            // 投稿だけ欠けた応答が一時的に返ることがある（写真・認証は取れているのに投稿が空）。一度だけ取り直す
-            try {
-              const retry = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
-              // 対象の店と照合（place_id が無い応答は初回と同じく照合できないものとして採用）
-              if (retry && retry.posts.length > 0 && (!retry.placeId || retry.placeId === fetched.placeId)) en = retry;
-            } catch {
-              // 取り直しに失敗しても、クチコミの取得へ進む
-            }
+        // 問い合わせ方は2通り。place_id（店のページを直接読む・投稿まで取れる）を先に、だめなら「店名 地域」
+        const queries = [fetched.placeId, `${body.name} ${body.area}`].filter(Boolean);
+        // 対象の店と照合（place_id が無い応答は照合できないものとして採用）。別の店のデータは使わない
+        const sameStore = (id: string | null | undefined) => !id || id === fetched.placeId;
+        const tried = new Set<number>();
+        // 2つの応答をまとめる：情報のそろった方を土台にし、投稿はどちらかで取れていれば使う
+        const merge = (a: Enriched | null, b: Enriched): Enriched => {
+          const main = !a || (incomplete(a) && !incomplete(b)) ? b : a;
+          const other = main === b ? a : b;
+          return main.posts.length === 0 && other && other.posts.length > 0 ? { ...main, posts: other.posts } : main;
+        };
+        const ask = async (i: number) => {
+          tried.add(i);
+          try {
+            const x = await fetchEnriched(queries[i], env.OUTSCRAPER_API_KEY);
+            if (x && sameStore(x.placeId)) en = merge(en, x);
+          } catch {
+            // 次の問い合わせ方で取り直す
           }
-        } catch {
-          // 取れた分だけ使う
-        }
-        try {
-          act = await fetchReviewActivity(body.name, body.area, env.OUTSCRAPER_API_KEY, 10);
-        } catch {
-          // 取れた分だけ使う
+        };
+        for (let i = 0; i < queries.length && incomplete(en); i++) await ask(i);
+        // 投稿だけ欠けた応答が返ることがある（写真・認証は取れているのに投稿が空）。まだ試していない問い合わせ方で一度だけ取り直す
+        const untried = queries.findIndex((_, i) => !tried.has(i));
+        if (en && en.posts.length === 0 && !noPostsConfirmed && untried >= 0) await ask(untried);
+        for (const q of queries) {
+          try {
+            const a = await fetchReviewActivity(q, env.OUTSCRAPER_API_KEY, 10);
+            if (!sameStore(a.placeId)) continue; // 別の店（同じチェーンの別店舗など）のクチコミは使わない
+            act = a;
+            if (a.sample > 0 || fetched.userRatingCount === 0) break;
+          } catch {
+            // 次の問い合わせ方で取り直す
+          }
         }
       }
       // Outscraperが別の店を返していたら、その情報は使わない（他店のデータで採点しない）
@@ -142,10 +159,14 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
       // 投稿が取れなかったとき：初めてなら一時的な欠けの可能性があるので短時間だけ保存し、次の診断で取り直す。
       // 2回続けて空なら「投稿が無い店」と確定し、以後は通常どおり保存する（毎回の取り直しで費用が膨らまないように）
       let ttl: number | undefined;
-      if (en && en.posts.length === 0) {
-        if (noPostsConfirmed) ttl = undefined;
+      // 取得が不完全なときは投稿の有無を判断できないので、「投稿なし」の記録はせず短時間だけ保存する
+      if (en && incomplete(en)) ttl = 6 * 3600;
+      else if (en && en.posts.length === 0) {
+        // 投稿なしと確定した店も、投稿を始めたら数日で反映されるよう保存期間は短め（3日）にする
+        if (noPostsConfirmed) ttl = 3 * 86400;
         else if (await getCached(env.CACHE, "noposts-seen:v1:" + fetched.placeId)) {
-          await setCached(env.CACHE, noPostsKey, { at: Date.now() });
+          await setCached(env.CACHE, noPostsKey, { at: Date.now() }, 7 * 86400);
+          ttl = 3 * 86400;
         } else {
           await setCached(env.CACHE, "noposts-seen:v1:" + fetched.placeId, { at: Date.now() }, 2 * 86400);
           ttl = 6 * 3600;
@@ -176,7 +197,8 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
       const b = bizProfile(details.primaryType, details.types, L);
       return [L, { photos: b.photos, attrs: b.attrs, subcat: b.subcat }];
     }));
-    const items = buildItems(details, enriched ?? undefined, activity, biz, now);
+    const site = await (sitePromise ?? siteCheckCached(env, details, body.name, uiLang));
+    const items = buildItems(details, enriched ?? undefined, activity, biz, now, site);
 
     let ranking = null;
     let rankingStatus: RankingStatus = "off";
@@ -311,6 +333,26 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
   } catch {
     sendLog({ status: "upstream_error" });
     return json({ error: "upstream_error" }, 502);
+  }
+}
+
+/**
+ * 登録サイトの読み取り結果（店名・住所・電話の一致／構造化データ）。自社サイトでなければ null。
+ * 結果は3日、読めなかったときは6時間だけ保存する（毎回サイトを読みに行かない）。失敗しても診断は止めない。
+ */
+async function siteCheckCached(env: Env, d: PlaceData, inputName: string, uiLang: string): Promise<SiteCheck | null> {
+  try {
+    if (!d.websiteUri || classifySite(d.websiteUri).kind !== "own") return null;
+    // 住所は表示言語で返るため、言語ごとに分けて保存する
+    // 店名の照合には入力した店名も使うため、入力ごとに分けて保存する
+    const key = "site:v1:" + JSON.stringify([d.placeId, uiLang, d.websiteUri.slice(0, 300), inputName.slice(0, 60)]);
+    const hit = await getCached<SiteCheck>(env.CACHE, key);
+    if (hit) return hit;
+    const r = await checkSite({ url: d.websiteUri, names: [d.displayName, inputName], address: d.formattedAddress, phone: d.nationalPhoneNumber });
+    await setCached(env.CACHE, key, r, r.ok ? 3 * 86400 : 6 * 3600);
+    return r;
+  } catch {
+    return null;
   }
 }
 

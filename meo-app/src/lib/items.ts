@@ -1,11 +1,13 @@
 import type { PlaceData, DiagItem, ItemStatus, ItemGap } from "./types";
 import type { Enriched, ReviewActivity } from "./outscraper";
 import { REC_PHOTOS, daysSinceLatestPost } from "./scoring";
+import type { SiteCheck } from "./sitecheck";
 
 /** 公式サイトではなく、SNS・ポータル・リンクまとめのURLかどうかを判定するホスト一覧。 */
 const NON_OWN_HOSTS = [
   "instagram.com", "facebook.com", "fb.com", "twitter.com", "x.com", "tiktok.com", "youtube.com", "youtu.be",
   "line.me", "lin.ee", "page.line.me", "ameblo.jp", "note.com", "linktr.ee", "lit.link",
+  "instabio.cc", "bio.link", "beacons.ai", "linkin.bio", "potofu.me", "profu.link", "linkfly.to", "solo.to", "taplink.cc", "lnk.bio",
   "hotpepper.jp", "tabelog.com", "gnavi.co.jp", "retty.me", "ekiten.jp", "epark.jp",
   "jalan.net", "booking.com", "airbnb.jp", "airbnb.com", "tripadvisor.jp", "tripadvisor.com",
 ];
@@ -27,12 +29,13 @@ export function classifySite(uri: string | undefined): { kind: "none" | "own" | 
 const BOOKING_KINDS = new Set(["food", "beauty", "medical", "lodging", "fitness", "entertainment"]);
 
 /**
- * 項目別診断を作る。どの事業所でも同じ16項目を同じ順番で返す。
+ * 項目別診断を作る。どの事業所でも同じ18項目を同じ順番で返す。
  * 取得したデータから判定できない項目、その業種には当てはまらない項目は status="na"（判定なし）にし、
  * 理由を v.reason に入れる（推測で良し悪しを付けない）。しきい値は採点（scoring.ts）と同じ考え方に合わせている。
  *
  * reason：nodata=データを取得できなかった / nosite=サイト未設定 / notown=自社サイトではない（SNS・ポータル） / noreviews=クチコミが無い /
- *         few=件数が少なく割合を出せない / lodging=宿泊業には当てはまらない / notapplicable=この業種では導線にならない
+ *         few=件数が少なく割合を出せない / lodging=宿泊業には当てはまらない / notapplicable=この業種では導線にならない /
+ *         sitefail=サイトを読み込めなかった / jsonly=サイトの中身がプログラムで後から表示され、読み取れなかった
  */
 export function buildItems(
   p: PlaceData,
@@ -40,6 +43,7 @@ export function buildItems(
   activity: ReviewActivity | null | undefined,
   biz: { kind: string; limitedAttrs: boolean },
   now: Date,
+  sc?: SiteCheck | null,
 ): DiagItem[] {
   const out: DiagItem[] = [];
   const add = (key: string, cat: DiagItem["cat"], status: ItemStatus, v: DiagItem["v"] = {}) => out.push({ key, cat, status, v, rate: null, gap: null });
@@ -52,6 +56,32 @@ export function buildItems(
   add("website", "nap", site.kind === "own" ? "good" : site.kind === "other" ? "warn" : "bad", { host: site.host });
   if (site.kind === "own") add("https", "nap", site.https ? "good" : "warn");
   else na("https", "nap", site.kind === "other" ? "notown" : "nosite"); // SNS・ポータルのURLは店側でhttpsを選べない
+  // サイトの中身（店名・住所・電話の一致／店舗情報の構造化データ）。読めなかったときは推測で判定しない
+  if (site.kind !== "own") {
+    na("site_nap", "nap", site.kind === "other" ? "notown" : "nosite");
+    na("site_schema", "nap", site.kind === "other" ? "notown" : "nosite");
+  } else if (!sc || !sc.ok) {
+    const reason = !sc ? "nodata" : sc.fail === "jsonly" ? "jsonly" : "sitefail";
+    na("site_nap", "nap", reason);
+    // プログラムで表示するサイトでも、構造化データは埋め込まれていれば読める
+    if (sc && sc.fail === "jsonly" && sc.schema !== "none") addSchema(sc);
+    else na("site_schema", "nap", reason);
+  } else {
+    // Google側に電話・照合できる住所が無いときは、その項目を判定に入れない
+    const parts = [sc.name ? 1 : 0];
+    if (sc.address !== "na") parts.push(sc.address === "match" ? 1 : sc.address === "partial" ? 0.5 : 0);
+    if (sc.phone !== "na") parts.push(sc.phone === "match" ? 1 : 0);
+    const score = parts.reduce((a, b) => a + b, 0);
+    // 読めなかった関連ページがあるときは、見つからない情報がそこに載っている可能性があるので、そろっていない限り判定しない
+    if (sc.unread && score < parts.length) na("site_nap", "nap", "sitefail");
+    else add("site_nap", "nap", score === parts.length ? "good" : score === 0 ? "bad" : "warn",
+      { name: sc.name, addr: sc.address, phone: sc.phone, pages: sc.pages, score, max: parts.length, miss: parts.filter((x) => x < 1).length });
+    if (sc.unread && sc.schema !== "local") na("site_schema", "nap", "sitefail");
+    else addSchema(sc);
+  }
+  function addSchema(c: SiteCheck) {
+    add("site_schema", "nap", c.schema === "local" ? "good" : c.schema === "none" ? "bad" : "warn", { kind: c.schema, type: c.schemaType });
+  }
   if (e && e.known.verified) add("verified", "nap", e.verified ? "good" : "bad");
   else na("verified", "nap", "nodata");
   if (p.businessStatus) {
@@ -146,6 +176,10 @@ function measure(it: DiagItem): DiagItem {
   let rate: number | null = binary;
   let g: ItemGap | null = it.status === "good" ? null : { kind: "setup", need: 1, target: 1 };
   switch (it.key) {
+    case "site_nap":
+      rate = clamp01(v.score / v.max);
+      g = gap("sitenap", v.miss, v.max);
+      break;
     case "sub_category":
       rate = clamp01(v.n / TARGETS.subcats);
       g = gap("subcat", TARGETS.subcats - v.n, TARGETS.subcats);
@@ -197,7 +231,7 @@ function measure(it: DiagItem): DiagItem {
 
 /** 項目の並び（どの事業所でも同じ）。テストと画面の確認用。 */
 export const ITEM_KEYS = [
-  "phone", "website", "https", "verified", "status",
+  "phone", "website", "https", "site_nap", "site_schema", "verified", "status",
   "main_category", "sub_category",
   "review_count", "rating", "review_fresh", "low_ratings",
   "photos", "hours", "posts", "attributes", "booking",

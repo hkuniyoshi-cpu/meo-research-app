@@ -35,10 +35,13 @@ function pickPlace(data: any): any | null {
 
 /**
  * search-v3 で店舗のリッチ情報（投稿・写真数・属性・認証・口コミ分布）を取得。失敗時は例外を投げる。
+ * query は Google の place_id（推奨）か「店名 地域」。
+ * ※「店名 地域」の地域が実際の所在地とずれていると、同じ店でも投稿の入っていない簡易データが返ることがある。
+ *   place_id で問い合わせると店のページそのものを読むため、投稿まで取れる。
  * ※ owner返信(reviews-v3)は取りこぼしが多く不安定なため取得しない（要確認扱い）。
  */
-export async function fetchEnriched(name: string, area: string, apiKey: string, fetchFn: FetchFn = fetch): Promise<Enriched | null> {
-  const url = `${BASE}/maps/search-v3?query=${encodeURIComponent(`${name} ${area}`)}&limit=1&language=ja&region=JP&async=false`;
+export async function fetchEnriched(query: string, apiKey: string, fetchFn: FetchFn = fetch): Promise<Enriched | null> {
+  const url = `${BASE}/maps/search-v3?query=${encodeURIComponent(query)}&limit=1&language=ja&region=JP&async=false`;
   const r = await fetchFn(url, { headers: { "X-API-KEY": apiKey } });
   if (!r.ok) throw new Error(`outscraper search failed: ${r.status}`);
   const j: any = await r.json();
@@ -75,14 +78,15 @@ export interface ReviewActivity {
   latestDays: number | null;   // 最新クチコミからの日数
   monthlyPace: number | null;  // 直近サンプルから推定した月間獲得ペース
   sample: number;              // 取得したクチコミ件数
+  placeId?: string | null;     // 取得した店の place_id（対象の店と同じか照合する）
 }
 
 /**
  * reviews-v3（新着順）から「クチコミの日付」だけを使い、新着性・獲得ペースを算出。
  * ※owner返信は不安定なため使わない。日付(review_timestamp)は安定して取得できる。
  */
-export async function fetchReviewActivity(name: string, area: string, apiKey: string, limit = 10, fetchFn: FetchFn = fetch): Promise<ReviewActivity> {
-  const url = `${BASE}/maps/reviews-v3?query=${encodeURIComponent(`${name} ${area}`)}&reviewsLimit=${limit}&language=ja&region=JP&async=false&sort=newest`;
+export async function fetchReviewActivity(query: string, apiKey: string, limit = 10, fetchFn: FetchFn = fetch): Promise<ReviewActivity> {
+  const url = `${BASE}/maps/reviews-v3?query=${encodeURIComponent(query)}&reviewsLimit=${limit}&language=ja&region=JP&async=false&sort=newest`;
   const r = await fetchFn(url, { headers: { "X-API-KEY": apiKey } });
   if (!r.ok) throw new Error(`outscraper reviews failed: ${r.status}`);
   const j: any = await r.json();
@@ -92,7 +96,8 @@ export async function fetchReviewActivity(name: string, area: string, apiKey: st
     .map(x => (typeof x?.review_timestamp === "number" ? x.review_timestamp : Date.parse(x?.review_datetime_utc ?? "") / 1000))
     .filter(t => Number.isFinite(t) && t > 0)
     .sort((a, b) => b - a);
-  if (ts.length === 0) return { latestDays: null, monthlyPace: null, sample: 0 };
+  const placeId = typeof p?.place_id === "string" && p.place_id ? p.place_id : null;
+  if (ts.length === 0) return { latestDays: null, monthlyPace: null, sample: 0, placeId };
   const nowSec = Date.now() / 1000;
   const latestDays = Math.max(0, Math.round((nowSec - ts[0]) / 86400));
   let monthlyPace: number | null = null;
@@ -100,5 +105,5 @@ export async function fetchReviewActivity(name: string, area: string, apiKey: st
     const spanDays = (ts[0] - ts[ts.length - 1]) / 86400;
     monthlyPace = spanDays > 0 ? Math.round((ts.length - 1) / (spanDays / 30)) : ts.length;
   }
-  return { latestDays, monthlyPace, sample: ts.length };
+  return { latestDays, monthlyPace, sample: ts.length, placeId };
 }
