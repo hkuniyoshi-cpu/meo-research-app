@@ -37,13 +37,13 @@ const T = {
     lang_label: "EN",
 
     /* ローディング */
-    load_steps: ["店舗をGoogleマップで特定中…", "基本情報（NAP）を照合中…", "写真・口コミ・属性を解析中…", "近隣の競合を取得・比較中…", "整備スコア＆知名度を算出中…", "レポートを生成中…"],
+    load_steps: ["店舗をGoogleマップで特定中…", "基本情報（店名・住所・電話）を確認中…", "写真・口コミ・お店の特徴を確認中…", "近隣の競合を取得・比較中…", "整備スコア＆知名度を算出中…", "レポートを生成中…"],
     load_done: "完了！",
     load_almost: "もうすぐ完了…",
     load_eta: (v) => `残り 約${v.sec}秒`,
 
     /* カテゴリ短縮ラベル */
-    cat_nap: "基本情報", cat_category: "カテゴリ", cat_reviews: "口コミ", cat_photos: "写真", cat_hours: "最新性", cat_extras: "付加情報",
+    cat_nap: "基本情報", cat_category: "業種の登録", cat_reviews: "口コミ", cat_photos: "写真", cat_hours: "最新情報", cat_extras: "お店の特徴",
 
     /* エラー */
     err_input: "事業名と住所/エリアを入力してください",
@@ -71,8 +71,8 @@ const T = {
     /* レポート */
     report_title: "診断結果レポート",
     report_sub: (v) => `${v.name} ／ ${v.addr}`,
-    report_date: (v) => `📅 調査日 ${v.date}（最新調査サイクルの結果）`,
-    rh_date_sub: "（最新調査サイクル）",
+    report_date: (v) => `📅 調査日 ${v.date}`,
+    rh_date_sub: "時点",
     freshness_note: "※「直近クチコミ」など最新の動きは、データ更新の都合で数日〜数週間前の状態を表示する場合があります（Googleの各種レポートと同様）。最新の実状況はGoogleマップでご確認ください。",
     obj_note: "この診断結果は、検索履歴・現在地・ログイン状態など個人に紐づく要素を除いた、第三者視点での客観的なデータです。自分のスマホでGoogleマップを開くと、閲覧履歴や現在地の影響で自店が実際より上位に表示されることがあります。この診断ではその「ゆがみ」を取り除いてご確認いただけます。",
     part1_t: "整備度", part1_s: "あなたのGoogleプロフィールの「完成度」を採点します",
@@ -80,7 +80,7 @@ const T = {
     score_head: "総合スコア（整備度）",
     per100: "/ 100",
     rank_suffix: (v) => `${v.l}ランク`,
-    health_head: "MEO健康度",
+    health_head: "Googleマップ健康度",
     name_mismatch_title: "入力名と一致する店舗が見つかりませんでした",
     name_mismatch_body: (v) => `入力「<b>${v.input}</b>」ではGoogleマップ上で該当店舗が特定できず、最も近い候補「<b>${v.matched}</b>」を表示しています。<br>ご自身の店舗でない場合は、<b>Googleビジネスプロフィールに登録されている正式名称</b>で再度お試しください（カタカナ表記・スペース有無・「店」「本店」などの付加語もご確認ください）。`,
     name_mismatch_retry: "入力し直す",
@@ -96,7 +96,7 @@ const T = {
     pred_score_plain: (v) => `<b>整備スコアの伸びしろ：+${v.gain}点</b>（${v.cur}点 → <b>${v.pot}点</b>）まで引き上げられる見込みです。`,
     pred_score_top_keep: (v) => `<b>整備度は上位水準</b>：現在${v.cur}点。この水準を維持すれば優位を保ちやすい状態です。`,
     pred_score_top_lift: (v) => `<b>整備度は上位水準（土台は万全）</b>：現在${v.cur}点。あとはクチコミ・評価を伸ばして知名度（順位）を上げるのが次の一手です。`,
-    pred_rank: (v) => `<b>順位アップの射程：あと知名度${v.gap}ポイント</b><br>現在 近隣同業${v.total}店中${v.rank}位。1つ上の店との知名度差は${v.gap}pt${v.pace ? `。月${v.pace}件のクチコミ獲得を続ければ射程圏内です。` : "。クチコミと最新情報の強化で詰められます。"}`,
+    pred_rank: (v) => `<b>順位を1つ上げるまで：知名度あと${v.gap}ポイント</b><br>現在 近くの同業${v.total}店中${v.rank}位。1つ上のお店との知名度の差は${v.gap}ポイント${v.pace ? `。月${v.pace}件のクチコミ獲得を続ければ射程圏内です。` : "。クチコミと最新情報の強化で詰められます。"}`,
     pred_review6m: (v) => `<b>クチコミの将来予測</b>：現在${v.now}件・月${v.pace}件ペース → <b>半年後 約${v.in6m}件</b>${v.milestone && v.months != null ? `。この調子なら<b>約${v.months}ヶ月で${v.milestone}件の大台</b>に到達します。` : "。"}`,
     pred_review_goal: (v) => `<b>クチコミの目標設定</b>：現在${v.now}件。次の節目は<b>${v.milestone}件</b>。月◯件の獲得計画を立てると到達時期が見えてきます。`,
 
@@ -107,10 +107,10 @@ const T = {
     risk_x: ["現在", "3ヶ月後", "6ヶ月後", "12ヶ月後"],
     risk_pts: (v) => `${v.n}点`,
     risk_item_hours_t: "最新情報の投稿をやめる",
-    risk_item_hours_d: (v) => `「最新性」が約${v.n}点低下。情報が古いと判断され、表示機会が減っていきます。`,
+    risk_item_hours_d: (v) => `「最新情報」が約${v.n}点低下。情報が古いと判断され、表示機会が減っていきます。`,
     risk_item_rev_t: "クチコミ獲得を止める",
     risk_item_rev_d: (v) => `鮮度の低下で口コミ評価が約${v.n}点目減り。新しいクチコミを集める競合に追い抜かれやすくなります。`,
-    risk_item_misc_t: "写真・営業時間・付加情報を放置する",
+    risk_item_misc_t: "写真・営業時間・お店の特徴を放置する",
     risk_item_misc_d: "情報の信頼性が下がり、来店判断の材料が減って機会損失につながります。",
     risk_item_join: "と…",
     risk_warn: (v) => `このまま放置すると <b>12ヶ月で最大 −${v.decline}点</b>。改善した場合との差は <b>${v.diff}点</b> にも広がります。<b>早く動くほど有利</b>です。`,
@@ -122,10 +122,10 @@ const T = {
     sim_opt: (v) => `${v.cat}を改善`,
 
     /* ランキング */
-    same_brand_note: (v) => `※ 同一系列名の店舗が${v.n}件含まれています（順位はそれらを含めた相対値）`,
-    ranking_note_full: "※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した「近隣同業内での知名度の相対値」を示します。各競合は「整備度を調査」ボタンで、TOPに戻らず整備スコアを調べて比較できます。<br>※順位はGoogleマップの検索で取得した近隣店舗をもとに算出します。Googleの検索結果は時間帯・更新状況で変動するため、対象に含まれる店舗の顔ぶれや件数が毎回わずかに変わり、順位が数ランク前後する場合があります（おおよその立ち位置の目安としてご覧ください）。",
+    same_brand_note: (v) => `※ 同じ系列（チェーン）のお店が${v.n}件含まれています（順位はそれらも含めて比べた結果です）`,
+    ranking_note_full: "※整備スコア（100点満点）とは別の数字です。口コミの数や評価などから、近くの同業店と比べたときの知名度を表しています。各競合は「整備度を調査」ボタンで、TOPに戻らず整備スコアを調べて比較できます。<br>※順位はGoogleマップの検索で取得した近隣店舗をもとに算出します。Googleの検索結果は時間帯・更新状況で変動するため、対象に含まれる店舗の顔ぶれや件数が毎回わずかに変わり、順位が数ランク前後する場合があります（おおよその立ち位置の目安としてご覧ください）。",
     ranking_head_plain: "検索評価（想定）",
-    ranking_note_plain: "※整備スコア(/100)とは別の指標です。口コミ数・評価などから算出した知名度の相対値です。",
+    ranking_note_plain: "※整備スコア（100点満点）とは別の数字です。口コミの数や評価などから、近くの同業店と比べたときの知名度を表しています。",
     comp_you_badge: "調査対象",
     comp_diag_btn: "🔍 この店舗を調査",
     comp_report_head: (v) => `📋 ${v.name} の調査結果`,
@@ -140,14 +140,14 @@ const T = {
 
     /* CTA */
     cta_high_head: "今が動きどきです。",
-    cta_high_sub: (v) => `現在 <b>${v.t}点</b>。検索で「見つけてもらう機会」を逃しているサインです。正しいMEO対策で巻き返せます。`,
+    cta_high_sub: (v) => `現在 <b>${v.t}点</b>。検索で「見つけてもらう機会」を逃しているサインです。Googleマップの正しい対策（MEO対策）で巻き返せます。`,
     cta_mid_head: "あと一歩で上位圏。",
     cta_mid_sub: (v) => `<b>${v.t}点</b>は惜しい水準。プロの仕上げで、競合との差がはっきりつきます。`,
     cta_low_head: "この強みを、独走に。",
     cta_low_sub: (v) => `<b>${v.t}点</b>は上位水準。維持・拡大には継続的な運用が鍵。さらに上を狙えます。`,
     cta_btn: "この結果を無料でプロに相談する",
-    cta_by: "MEO/SEOのプロ集団 <b>SearchMania</b> が、最短ルートをご提案します",
-    cta_gap: (v) => `近隣同業${v.total}店中 <b>${v.rank}位</b>。${v.gap ? `1つ上の店との知名度差は <b>${v.gap}pt</b>。` : ""}この差は<b>正しいMEO対策で詰められます</b>。`,
+    cta_by: "Googleマップ・検索対策のプロ <b>SearchMania</b> が、いちばんの近道をご提案します",
+    cta_gap: (v) => `近くの同業${v.total}店中 <b>${v.rank}位</b>。${v.gap ? `1つ上のお店との知名度の差は <b>${v.gap}ポイント</b>。` : ""}この差は<b>Googleマップの正しい対策で縮められます</b>。`,
     cta_gap_link: "差を埋める方法を相談する →",
     vs_head: "自分で対策 vs プロに任せる",
     vs_self: "自分で", vs_pro: "SearchMania",
@@ -1369,7 +1369,7 @@ function mountCityWhenVisible() {
   if (!host) return;
   const seq = citySeq;
   // 3D部品は結果の表示と同時に読み込みを始める（CDNからの初回取得に数秒かかるため）
-  const loading = import("/chart3d.js?v=20261026");
+  const loading = import("/chart3d.js?v=20261027");
   loading.catch(() => {});
   cityWatch = new IntersectionObserver(async (es) => {
     if (!es.some(e => e.isIntersecting)) return;
