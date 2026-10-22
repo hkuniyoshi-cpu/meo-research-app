@@ -185,6 +185,7 @@ function routeFetch(opts: { details?: any; outscraper?: any; competitors?: any[]
       posts: [{ body: "x", timestamp: Math.floor(Date.now() / 1000) }],
       about: { "a": { "x": true } },
       menu_link: "m", reservation_links: ["r"],
+      ...("posts" in (opts.outscraper ?? {}) ? { posts: opts.outscraper.posts } : {}),
     }]], status: "Success" });
     if (u.includes("reviews-v3")) return ok({ data: [{ reviews_data: [{ owner_answer: "thanks", review_rating: 5 }] }], status: "Success" });
     throw new Error("unexpected url " + u);
@@ -391,6 +392,74 @@ describe("handleDiagnose", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("投稿だけ欠けた応答が来たら一度取り直し、取れた投稿で判定する", async () => {
+    const base = routeFetch();
+    let searchCalls = 0;
+    vi.stubGlobal("fetch", vi.fn(async (url: any, init?: any) => {
+      const u = String(url);
+      if (u.includes("search-v3") && ++searchCalls === 1) {
+        // 1回目：写真・認証はあるのに投稿が空
+        return ok({ data: [[{ name: "テスト店", photos_count: 30, verified: true, reviews_per_score: { "5": 50 }, posts: null }]], status: "Success" });
+      }
+      return base(url, init);
+    }));
+    const env = makeEnv();
+    const data: any = await (await handleDiagnose(makeReq({ name: "テスト店", area: "那覇市", compare: false, turnstileToken: "t" }), env)).json();
+    expect(searchCalls).toBe(2);
+    expect(data.items.find((i: any) => i.key === "posts")).toMatchObject({ status: "good", v: { has: true } });
+    const ttl = [...(env.CACHE as any)._ttl.entries()].find(([k]: [string, number]) => k.startsWith("base:"))![1];
+    expect(ttl).toBe(14 * 86400); // 投稿が取れたので通常の保存期間
+  });
+
+  it("取り直しても投稿が無ければ、店舗データは短時間（6時間）だけ保存する", async () => {
+    const env = makeEnv();
+    vi.stubGlobal("fetch", routeFetch({ outscraper: { posts: [] } }));
+    await handleDiagnose(makeReq({ name: "テスト店", area: "那覇市", compare: false, turnstileToken: "t" }), env);
+    const ttl = [...(env.CACHE as any)._ttl.entries()].find(([k]: [string, number]) => k.startsWith("base:"))![1];
+    expect(ttl).toBe(6 * 3600);
+  });
+
+  it("取り直しが別の店を返したら使わない／取り直しが失敗してもクチコミは取得する", async () => {
+    const base = routeFetch();
+    const run = async (second: "other" | "throw") => {
+      let n = 0;
+      const f = vi.fn(async (url: any, init?: any) => {
+        const u = String(url);
+        if (u.includes("search-v3")) {
+          n++;
+          if (n === 1) return ok({ data: [[{ name: "テスト店", place_id: "PID1", photos_count: 30, verified: true, reviews_per_score: { "5": 5 }, posts: null }]], status: "Success" });
+          if (second === "throw") throw new Error("network");
+          return ok({ data: [[{ name: "別の店", place_id: "OTHER", photos_count: 9, verified: true, posts: [{ timestamp: Math.floor(Date.now() / 1000) }] }]], status: "Success" });
+        }
+        return base(url, init);
+      });
+      vi.stubGlobal("fetch", f);
+      const data: any = await (await handleDiagnose(makeReq({ name: "テスト店", area: "那覇市", compare: false, turnstileToken: "t" }), makeEnv())).json();
+      return { data, f };
+    };
+    const a = await run("other");
+    expect(a.data.photosCount).toBe(30); // 初回（対象の店）のデータのまま
+    expect(a.data.items.find((i: any) => i.key === "posts").v.has).toBe(false);
+    const b = await run("throw");
+    expect(b.data.photosCount).toBe(30);
+    expect(b.f.mock.calls.some((c: any) => String(c[0]).includes("reviews-v3"))).toBe(true);
+  });
+
+  it("2回続けて投稿が空なら投稿なしと確定し、以後は取り直さず通常どおり保存する", async () => {
+    const env = makeEnv();
+    const searchCalls = (f: any) => f.mock.calls.filter((c: any) => String(c[0]).includes("search-v3")).length;
+    const diag = async (area: string) => {
+      const f = routeFetch({ outscraper: { place_id: "PID1", posts: [] } });
+      vi.stubGlobal("fetch", f);
+      await handleDiagnose(makeReq({ name: "テスト店", area, compare: false, turnstileToken: "t" }), env);
+      const ttl = [...(env.CACHE as any)._ttl.entries()].filter(([k]: [string, number]) => k.startsWith("base:") && k.includes(area)).pop()![1];
+      return { calls: searchCalls(f), ttl };
+    };
+    expect(await diag("那覇市")).toEqual({ calls: 2, ttl: 6 * 3600 });   // 1回目：取り直す・短時間保存
+    expect(await diag("那覇")).toEqual({ calls: 2, ttl: 14 * 86400 });   // 2回目も空：投稿なしと確定
+    expect(await diag("沖縄県那覇市")).toEqual({ calls: 1, ttl: 14 * 86400 }); // 確定後は取り直さない
   });
 
   it("Outscraperの応答に写真数・認証が無いときは、結果でも null（0枚・未認証と断定しない）", async () => {

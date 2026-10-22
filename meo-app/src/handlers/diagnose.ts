@@ -94,7 +94,8 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
     // Places API の取得言語は選択中のUI言語に追従（店舗名・住所を選択言語で表示）
     const lang = ({ ja: "ja", en: "en", ko: "ko", zh: "zh-TW" } as Record<UiLang, string>)[uiLang] || "en";
 
-    const baseKey = "base:v1:" + JSON.stringify([body.name, body.area, uiLang]);
+    // v2: 投稿が欠けた応答を14日間保存していた不具合の修正に伴い、旧データを破棄
+    const baseKey = "base:v2:" + JSON.stringify([body.name, body.area, uiLang]);
     let base = await getCached<BaseData>(env.CACHE, baseKey);
     const baseCached = !!base;
     if (!base) {
@@ -105,6 +106,9 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
       // Outscraper enrichment（失敗時はnullにデグレード）
       let en: Enriched | null = null;
       let act: ReviewActivity | null = null;
+      // 投稿が無いことを確認済みの店（2回続けて空だった店）には、投稿の取り直しをしない
+      const noPostsKey = "noposts:v1:" + fetched.placeId;
+      const noPostsConfirmed = !!(await getCached(env.CACHE, noPostsKey));
       if (env.OUTSCRAPER_API_KEY) {
         try {
           // 出力前の再チェック：取得が不完全（実在店なのに写真もクチコミ分布も空）なら一度だけ取り直す
@@ -113,7 +117,20 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
           if (incomplete(en)) {
             const retry = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
             if (!incomplete(retry)) en = retry;
+          } else if (en && en.posts.length === 0 && !noPostsConfirmed) {
+            // 投稿だけ欠けた応答が一時的に返ることがある（写真・認証は取れているのに投稿が空）。一度だけ取り直す
+            try {
+              const retry = await fetchEnriched(body.name, body.area, env.OUTSCRAPER_API_KEY);
+              // 対象の店と照合（place_id が無い応答は初回と同じく照合できないものとして採用）
+              if (retry && retry.posts.length > 0 && (!retry.placeId || retry.placeId === fetched.placeId)) en = retry;
+            } catch {
+              // 取り直しに失敗しても、クチコミの取得へ進む
+            }
           }
+        } catch {
+          // 取れた分だけ使う
+        }
+        try {
           act = await fetchReviewActivity(body.name, body.area, env.OUTSCRAPER_API_KEY, 10);
         } catch {
           // 取れた分だけ使う
@@ -122,7 +139,19 @@ export async function handleDiagnose(req: Request, env: Env, ctx?: ExecutionCont
       // Outscraperが別の店を返していたら、その情報は使わない（他店のデータで採点しない）
       if (en && en.placeId && en.placeId !== fetched.placeId) { en = null; act = null; }
       base = { details: fetched, enriched: en, activity: act, fetchedAt: Date.now() };
-      await setCached(env.CACHE, baseKey, base);
+      // 投稿が取れなかったとき：初めてなら一時的な欠けの可能性があるので短時間だけ保存し、次の診断で取り直す。
+      // 2回続けて空なら「投稿が無い店」と確定し、以後は通常どおり保存する（毎回の取り直しで費用が膨らまないように）
+      let ttl: number | undefined;
+      if (en && en.posts.length === 0) {
+        if (noPostsConfirmed) ttl = undefined;
+        else if (await getCached(env.CACHE, "noposts-seen:v1:" + fetched.placeId)) {
+          await setCached(env.CACHE, noPostsKey, { at: Date.now() });
+        } else {
+          await setCached(env.CACHE, "noposts-seen:v1:" + fetched.placeId, { at: Date.now() }, 2 * 86400);
+          ttl = 6 * 3600;
+        }
+      }
+      await setCached(env.CACHE, baseKey, base, ttl);
     }
     const { details, enriched, activity } = base;
 
