@@ -1031,3 +1031,17 @@ body, button, input, select { font-family:var(--font-jp); }
 /* 濃紺の上では数字を白にする（ランクの色はリングと下のバッジで示す） */
 .cover .donut-num { fill:#fff; }
 .policy { margin-left:auto; margin-right:auto; }
+
+/* 判定なし（データが無い・当てはまらない項目）。色・記号・N/A の文字で区別する */
+.it-na, .it-lg-na { background:#f3f5f9; border-color:#d3dae6; color:#556377; }
+.it-na .it-mark, .it-lg-na .it-mark, .idl-na .it-mark { background:#8794a8; }
+.it-na .it-val, .it-na .it-st { color:#556377; }
+.it-na .it-label { color:#3d4b60; }
+.idl-na { border-top-color:#8794a8; }
+.idl-na .idl-badge { background:#eef1f6; color:#556377; }
+.idl-na .idl-val { color:#556377; }
+@media (max-width:560px){
+  /* 凡例は件数のある区分を横一列に並べる（判定なしが加わっても1行に収める） */
+  .it-legend { grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:5px; }
+  .it-lg { padding:6px 2px; }
+}

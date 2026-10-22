@@ -27,9 +27,12 @@ export function classifySite(uri: string | undefined): { kind: "none" | "own" | 
 const BOOKING_KINDS = new Set(["food", "beauty", "medical", "lodging", "fitness", "entertainment"]);
 
 /**
- * 項目別診断を作る。「取得したデータから確実に判定できる項目」だけを返す
- * （判定材料が無い項目は出さない＝推測で良し悪しを付けない）。
- * しきい値は採点（scoring.ts）と同じ考え方に合わせている。
+ * 項目別診断を作る。どの事業所でも同じ16項目を同じ順番で返す。
+ * 取得したデータから判定できない項目、その業種には当てはまらない項目は status="na"（判定なし）にし、
+ * 理由を v.reason に入れる（推測で良し悪しを付けない）。しきい値は採点（scoring.ts）と同じ考え方に合わせている。
+ *
+ * reason：nodata=データを取得できなかった / nosite=サイト未設定 / notown=自社サイトではない（SNS・ポータル） / noreviews=クチコミが無い /
+ *         few=件数が少なく割合を出せない / lodging=宿泊業には当てはまらない / notapplicable=この業種では導線にならない
  */
 export function buildItems(
   p: PlaceData,
@@ -40,6 +43,7 @@ export function buildItems(
 ): DiagItem[] {
   const out: DiagItem[] = [];
   const add = (key: string, cat: DiagItem["cat"], status: ItemStatus, v: DiagItem["v"] = {}) => out.push({ key, cat, status, v });
+  const na = (key: string, cat: DiagItem["cat"], reason: string) => add(key, cat, "na", { reason });
   const isLodging = biz.kind === "lodging";
 
   // ---- 基本情報 ----
@@ -47,12 +51,14 @@ export function buildItems(
   const site = classifySite(p.websiteUri);
   add("website", "nap", site.kind === "own" ? "good" : site.kind === "other" ? "warn" : "bad", { host: site.host });
   if (site.kind === "own") add("https", "nap", site.https ? "good" : "warn");
+  else na("https", "nap", site.kind === "other" ? "notown" : "nosite"); // SNS・ポータルのURLは店側でhttpsを選べない
   if (e && e.known.verified) add("verified", "nap", e.verified ? "good" : "bad");
+  else na("verified", "nap", "nodata");
   if (p.businessStatus) {
     add("status", "nap",
       p.businessStatus === "OPERATIONAL" ? "good" : p.businessStatus === "CLOSED_TEMPORARILY" ? "warn" : "bad",
       { state: p.businessStatus });
-  }
+  } else na("status", "nap", "nodata");
 
   // ---- カテゴリ ----
   const mainLabel = e?.category || p.primaryTypeLabel || "";
@@ -61,26 +67,24 @@ export function buildItems(
   if (e && e.category) {
     add("sub_category", "category", e.subCategories.length > 0 ? "good" : "warn",
       { n: e.subCategories.length, list: e.subCategories.slice(0, 4).join("、") });
-  }
+  } else na("sub_category", "category", "nodata");
 
   // ---- クチコミ ----
   const count = p.userRatingCount;
   add("review_count", "reviews", count >= 50 ? "good" : count >= 10 ? "warn" : "bad", { n: count });
   if (count > 0 && p.rating != null) {
     add("rating", "reviews", p.rating >= 4.0 ? "good" : p.rating >= 3.5 ? "warn" : "bad", { rating: Number(p.rating.toFixed(1)) });
-  }
+  } else na("rating", "reviews", count > 0 ? "nodata" : "noreviews");
   if (count > 0 && activity && activity.latestDays != null) {
     const d = activity.latestDays;
     add("review_fresh", "reviews", d <= 30 ? "good" : d <= 90 ? "warn" : "bad", { days: d, pace: activity.monthlyPace });
-  }
-  if (e) {
-    const total = Object.values(e.reviewsPerScore).reduce((a, b) => a + b, 0);
-    if (total >= 5) {
-      const low = (e.reviewsPerScore["1"] ?? 0) + (e.reviewsPerScore["2"] ?? 0);
-      const pct = Math.round((low / total) * 100);
-      add("low_ratings", "reviews", pct <= 10 ? "good" : pct <= 20 ? "warn" : "bad", { pct });
-    }
-  }
+  } else na("review_fresh", "reviews", count > 0 ? "nodata" : "noreviews");
+  const rpsTotal = e ? Object.values(e.reviewsPerScore).reduce((a, b) => a + b, 0) : 0;
+  if (e && rpsTotal >= 5) {
+    const low = (e.reviewsPerScore["1"] ?? 0) + (e.reviewsPerScore["2"] ?? 0);
+    const pct = Math.round((low / rpsTotal) * 100);
+    add("low_ratings", "reviews", pct <= 10 ? "good" : pct <= 20 ? "warn" : "bad", { pct });
+  } else na("low_ratings", "reviews", count === 0 ? "noreviews" : (e && rpsTotal > 0) || (count > 0 && count < 5) ? "few" : "nodata");
 
   // ---- 写真 ----
   if (e && e.known.photos) {
@@ -95,13 +99,14 @@ export function buildItems(
   // ---- 営業時間・最新情報 ----
   // 宿泊業はチェックイン制で営業時間を持たないことが多く、未登録を欠点と断定できない
   if (!isLodging) add("hours", "hours", p.hasRegularHours ? "good" : "bad");
+  else na("hours", "hours", "lodging");
   if (e) {
     const d = daysSinceLatestPost(e.posts, now);
     // 投稿データは反映が遅れることがある。「要改善」と言い切るのは、投稿が確認でき、かつ半年以上あいている場合だけ。
     // 投稿が1件も取れなかった場合は「無い」と断定できないので warn にとどめる。
     const has = e.posts.length > 0;
     add("posts", "hours", !has ? "warn" : d <= 30 ? "good" : d <= 180 ? "warn" : "bad", { has });
-  }
+  } else na("posts", "hours", "nodata");
 
   // ---- 付加情報 ----
   if (!isLodging) {
@@ -111,10 +116,20 @@ export function buildItems(
       ? (n >= 3 ? "good" : "warn")
       : (n >= 5 ? "good" : n >= 1 ? "warn" : "bad");
     add("attributes", "extras", status, { n, limited: biz.limitedAttrs });
-  }
+  } else na("attributes", "extras", "lodging");
   const hasLink = e ? (e.hasReservation || e.hasMenuLink) : false;
   if (hasLink) add("booking", "extras", "good");
-  else if (e && BOOKING_KINDS.has(biz.kind)) add("booking", "extras", "warn");
+  else if (!e) na("booking", "extras", "nodata");
+  else if (BOOKING_KINDS.has(biz.kind)) add("booking", "extras", "warn");
+  else na("booking", "extras", "notapplicable");
 
   return out;
 }
+
+/** 項目の並び（どの事業所でも同じ）。テストと画面の確認用。 */
+export const ITEM_KEYS = [
+  "phone", "website", "https", "verified", "status",
+  "main_category", "sub_category",
+  "review_count", "rating", "review_fresh", "low_ratings",
+  "photos", "hours", "posts", "attributes", "booking",
+] as const;

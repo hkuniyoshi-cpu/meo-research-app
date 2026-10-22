@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { handleDiagnose, trimAddress, bizProfile, type Env } from "../src/handlers/diagnose";
+import { ITEM_KEYS } from "../src/lib/items";
 
 describe("bizProfile", () => {
   it("飲食は料理・キャッシュレス系の例文", () => {
@@ -227,7 +228,8 @@ describe("handleDiagnose", () => {
     // エリアを行政区画として解決できないときは、対象中心の半径で比べる
     expect(data.ranking.scope).toEqual({ kind: "radius", km: 5 });
     expect(data.items.length).toBeGreaterThan(5);
-    for (const it of data.items) expect(["good", "warn", "bad"]).toContain(it.status);
+    for (const it of data.items) expect(["good", "warn", "bad", "na"]).toContain(it.status);
+    expect(data.items.map((i: any) => i.key)).toEqual([...ITEM_KEYS]); // 項目数・並びはどの店でも同じ
     expect(data.bizByLang.en.photos).toBeTruthy();
   });
 
@@ -468,7 +470,7 @@ describe("handleDiagnose", () => {
     const data: any = await res.json();
     expect(data.photosCount).toBeNull();
     expect(data.verified).toBeNull();
-    expect(data.items.find((i: any) => i.key === "verified")).toBeUndefined();
+    expect(data.items.find((i: any) => i.key === "verified")).toMatchObject({ status: "na", v: { reason: "nodata" } });
   });
 
   it("範囲内に同業がいなければ no_peers", async () => {

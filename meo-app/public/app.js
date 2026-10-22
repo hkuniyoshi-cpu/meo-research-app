@@ -1096,8 +1096,8 @@ function buildMailBody(d, url) {
 
 /* ===== 項目別診断（タイル → タップで詳細） =====
    判定（good / warn / bad）と実測値はサーバーが返す d.items。文言は items-i18n.js。 */
-const ST_MARK = { good: "✓", warn: "△", bad: "✕" };
-const ST_CODE = { good: "GOOD", warn: "NOT GOOD", bad: "BAD" };
+const ST_MARK = { good: "✓", warn: "△", bad: "✕", na: "−" };
+const ST_CODE = { good: "GOOD", warn: "NOT GOOD", bad: "BAD", na: "N/A" };
 let itemSeq = 0;
 const itemReg = new Map(); // タイルID → { it, d, group }（group は本診断="main"、競合は店ごとに別）
 
@@ -1107,12 +1107,17 @@ function itemText(d, it) {
   if (!def) return null;
   const biz = (d.bizByLang && (d.bizByLang[LANG] || d.bizByLang.ja)) || {};
   const call = (x) => (typeof x === "function" ? x(it.v || {}, it.status, biz) : x);
+  if (it.status === "na") {
+    // 判定なし：理由（データが無い／当てはまらない）を共通の文言で出す
+    const reason = (it.v && it.v.reason) || "nodata";
+    return { label: def.label, val: t("na_val_" + reason), now: t("na_now_" + reason), why: def.why, how: t("na_how_" + reason) };
+  }
   return { label: def.label, val: call(def.val), now: call(def.now), why: def.why, how: call(def.how) };
 }
 function itemLegendHTML(items) {
-  const n = { good: 0, warn: 0, bad: 0 };
+  const n = { good: 0, warn: 0, bad: 0, na: 0 };
   (items || []).forEach(i => { if (n[i.status] != null) n[i.status]++; });
-  return `<div class="it-legend">${["good", "warn", "bad"].map(st =>
+  return `<div class="it-legend">${["good", "warn", "bad", "na"].filter(st => st !== "na" || n.na > 0).map(st =>
     `<span class="it-lg it-lg-${st}"><span class="it-mark" aria-hidden="true">${ST_MARK[st]}</span>${ST_CODE[st]}<small>${esc(t("stl_" + st))}</small><b>${n[st]}</b></span>`).join("")}</div>`;
 }
 function itemsGridHTML(d, group) {
@@ -1139,7 +1144,7 @@ function priorityHTML(d) {
   const ratio = Object.fromEntries(d.profile.categories.map(c => [c.key, c.score / c.max]));
   const order = { bad: 0, warn: 1 };
   const picks = [...itemReg.entries()]
-    .filter(([, r]) => r.group === "main" && r.it.status !== "good")
+    .filter(([, r]) => r.group === "main" && (r.it.status === "bad" || r.it.status === "warn"))
     .sort((a, b) => order[a[1].it.status] - order[b[1].it.status] || (ratio[a[1].it.cat] ?? 1) - (ratio[b[1].it.cat] ?? 1))
     .slice(0, 3);
   const rows = picks.map(([id, r]) => {
@@ -1182,8 +1187,8 @@ function openItem(id, focusTo) {
     <p class="idl-val">${esc(tx.val)}</p>
     ${sec(t("dlg_now"), tx.now)}
     ${sec(t("dlg_why"), tx.why)}
-    ${sec(t(st === "good" ? "dlg_keep" : "dlg_how"), tx.how)}
-    ${st !== "good" && rec.group === "main" ? `<a class="idl-cta" href="${CTA.line || CTA.site}" target="_blank" rel="noopener">${esc(t("dlg_cta"))}</a>` : ""}
+    ${sec(t(st === "good" ? "dlg_keep" : st === "na" ? "dlg_na" : "dlg_how"), tx.how)}
+    ${(st === "bad" || st === "warn") && rec.group === "main" ? `<a class="idl-cta" href="${CTA.line || CTA.site}" target="_blank" rel="noopener">${esc(t("dlg_cta"))}</a>` : ""}
     <div class="idl-nav">
       <button type="button" data-act="go" data-dir="prev" data-to="${ids[pos - 1] || ""}" ${pos > 0 ? "" : "disabled"}>‹ ${esc(t("dlg_prev"))}</button>
       <span>${pos + 1} / ${ids.length}</span>

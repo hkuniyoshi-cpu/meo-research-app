@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildItems, classifySite } from "../src/lib/items";
+import { buildItems, classifySite, ITEM_KEYS } from "../src/lib/items";
 import type { PlaceData, DiagItem } from "../src/lib/types";
 import type { Enriched } from "../src/lib/outscraper";
 
@@ -61,24 +61,24 @@ describe("buildItems", () => {
     const m = byKey(buildItems(p, e, { latestDays: 400, monthlyPace: null, sample: 1 }, { kind: "education", limitedAttrs: true }, NOW));
     expect(m.phone.status).toBe("bad");
     expect(m.website.status).toBe("bad");
-    expect(m.https).toBeUndefined(); // サイトが無ければHTTPSは判定しない
+    expect(m.https).toMatchObject({ status: "na", v: { reason: "nosite" } }); // サイトが無ければHTTPSは判定しない
     expect(m.verified.status).toBe("bad");
     expect(m.sub_category.status).toBe("warn");
     expect(m.review_count.status).toBe("bad");
     expect(m.rating.status).toBe("bad");
     expect(m.review_fresh.status).toBe("bad");
-    expect(m.low_ratings).toBeUndefined(); // 評価分布が5件未満なら割合は出さない
+    expect(m.low_ratings).toMatchObject({ status: "na", v: { reason: "few" } }); // 件数が少なければ割合は判定しない
     expect(m.photos.status).toBe("bad");
     expect(m.hours.status).toBe("bad");
     expect(m.posts).toMatchObject({ status: "warn", v: { has: false } }); // 投稿が取れないだけでは「無い」と断定しない
     expect(m.attributes.status).toBe("warn"); // 属性の少ない業種は bad にしない
-    expect(m.booking).toBeUndefined();        // 予約リンクが導線にならない業種では指摘しない
+    expect(m.booking).toMatchObject({ status: "na", v: { reason: "notapplicable" } }); // 予約リンクが導線にならない業種では指摘しない
   });
 
-  it("判定材料が無い項目は出さない（Outscraper無し・クチコミ0件）", () => {
+  it("判定材料が無い項目は「判定なし」と理由を返す（Outscraper無し・クチコミ0件）", () => {
     const m = byKey(buildItems(place({ photoCount: 10 }), undefined, null, FOOD, NOW));
-    for (const k of ["verified", "sub_category", "rating", "review_fresh", "low_ratings", "posts", "booking", "status"]) {
-      expect(m[k], k).toBeUndefined();
+    for (const [k, r] of [["verified", "nodata"], ["sub_category", "nodata"], ["rating", "noreviews"], ["review_fresh", "noreviews"], ["low_ratings", "noreviews"], ["posts", "nodata"], ["booking", "nodata"], ["status", "nodata"]]) {
+      expect(m[k], k).toMatchObject({ status: "na", v: { reason: r } });
     }
     expect(m.main_category.status).toBe("warn");
     expect(m.photos).toMatchObject({ status: "good", v: { n: 10, capped: true } });
@@ -95,8 +95,8 @@ describe("buildItems", () => {
     const e = enriched({ posts: [{ timestamp: nowTs - 100 * 86400 }] });
     expect(byKey(buildItems(place(), e, null, FOOD, NOW)).posts.status).toBe("warn");
     const lodging = byKey(buildItems(place(), e, null, { kind: "lodging", limitedAttrs: false }, NOW));
-    expect(lodging.hours).toBeUndefined();
-    expect(lodging.attributes).toBeUndefined();
+    expect(lodging.hours).toMatchObject({ status: "na", v: { reason: "lodging" } });
+    expect(lodging.attributes).toMatchObject({ status: "na", v: { reason: "lodging" } });
   });
 
   it("投稿が確認でき、半年以上あいているときだけ bad", () => {
@@ -107,11 +107,35 @@ describe("buildItems", () => {
   it("Outscraperの応答に無かった項目は、未認証・0枚と断定しない", () => {
     const e = enriched({ known: { verified: false, photos: false }, verified: false, photosCount: 0 });
     const m = byKey(buildItems(place({ photoCount: 6 }), e, null, FOOD, NOW));
-    expect(m.verified).toBeUndefined();
+    expect(m.verified).toMatchObject({ status: "na", v: { reason: "nodata" } });
     expect(m.photos).toMatchObject({ status: "warn", v: { n: 6, rec: 10 } }); // Placesの取得値で判定
   });
 
   it("予約リンクが導線になる業種で未設定なら warn", () => {
     expect(byKey(buildItems(place(), enriched(), null, FOOD, NOW)).booking.status).toBe("warn");
+  });
+});
+
+describe("buildItems の項目数", () => {
+  it("整備状況・業種・データの有無にかかわらず、同じ16項目を同じ順番で返す", () => {
+    const cases = [
+      buildItems(place(), undefined, null, FOOD, NOW),
+      buildItems(place({ websiteUri: "https://x.jp", userRatingCount: 300, rating: 4.5, hasRegularHours: true }), enriched({ category: "居酒屋" }), { latestDays: 2, monthlyPace: 5, sample: 10 }, FOOD, NOW),
+      buildItems(place(), enriched(), null, { kind: "lodging", limitedAttrs: false }, NOW),
+      buildItems(place(), enriched({ known: { verified: false, photos: false } }), null, { kind: "professional", limitedAttrs: true }, NOW),
+    ];
+    for (const items of cases) {
+      expect(items.map(i => i.key)).toEqual([...ITEM_KEYS]);
+      for (const i of items) if (i.status === "na") expect(typeof i.v.reason).toBe("string");
+    }
+  });
+});
+
+describe("buildItems のhttps判定なしの理由", () => {
+  it("サイト未設定とSNS・ポータルのURLを区別する", () => {
+    const m1 = Object.fromEntries(buildItems(place(), undefined, null, FOOD, NOW).map(i => [i.key, i]));
+    const m2 = Object.fromEntries(buildItems(place({ websiteUri: "https://www.instagram.com/x/" }), undefined, null, FOOD, NOW).map(i => [i.key, i]));
+    expect(m1.https).toMatchObject({ status: "na", v: { reason: "nosite" } });
+    expect(m2.https).toMatchObject({ status: "na", v: { reason: "notown" } });
   });
 });

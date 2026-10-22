@@ -48,7 +48,7 @@ export interface RankResult {
 }
 
 /** 項目別診断の1項目。文言はフロントの辞書が持ち、ここは判定結果と数値だけを持つ。 */
-export type ItemStatus = "good" | "warn" | "bad";
+export type ItemStatus = "good" | "warn" | "bad" | "na"; // na=判定なし（データが無い・当てはまらない）
 export interface DiagItem {
   key: string;                                   // 項目ID（フロントの辞書キー）
   cat: "nap" | "category" | "reviews" | "photos" | "hours" | "extras";
