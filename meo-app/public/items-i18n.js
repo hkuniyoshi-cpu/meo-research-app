@@ -776,4 +776,52 @@
     },
   };
   for (const L of Object.keys(NA_TEXT)) Object.assign(window.MEO_I18N_EXTRA[L], NA_TEXT[L]);
+  // 3D表示の文言
+  const CITY_TEXT = {
+    "ja": {
+      "city_loading": "3Dマップを読み込み中…",
+      "city_legend": "建物が高いほど良好です。緑＝良好・黄＝改善の余地あり・赤＝要改善・灰色の更地＝判定なし",
+      "city_list": "全{n}項目を一覧で見る",
+      "city_hint": "建物をクリックで詳細・ドラッグで回転",
+      "city_hint_touch": "建物をタップで詳細",
+      "city_rotate": "回して見る",
+      "city_rotate_done": "操作を終える",
+      "city_zoom_in": "拡大",
+      "city_zoom_out": "縮小"
+    },
+    "en": {
+      "city_loading": "Loading 3D map…",
+      "city_legend": "Taller buildings mean better status. Green = good, yellow = room to improve, red = needs work, gray lot = not assessed",
+      "city_list": "See all {n} items as a list",
+      "city_hint": "Click a building for details · drag to rotate",
+      "city_hint_touch": "Tap a building for details",
+      "city_rotate": "Rotate",
+      "city_rotate_done": "Done",
+      "city_zoom_in": "Zoom in",
+      "city_zoom_out": "Zoom out"
+    },
+    "ko": {
+      "city_loading": "3D 지도를 불러오는 중…",
+      "city_legend": "건물이 높을수록 양호합니다. 초록=양호・노랑=개선 여지 있음・빨강=개선 필요・회색 공터=판정 없음",
+      "city_list": "전체 {n}개 항목을 목록으로 보기",
+      "city_hint": "건물을 클릭하면 상세・드래그로 회전",
+      "city_hint_touch": "건물을 탭하면 상세",
+      "city_rotate": "돌려 보기",
+      "city_rotate_done": "조작 끝내기",
+      "city_zoom_in": "확대",
+      "city_zoom_out": "축소"
+    },
+    "zh": {
+      "city_loading": "正在載入 3D 地圖…",
+      "city_legend": "建築越高代表越良好。綠＝良好・黃＝尚有改善空間・紅＝需要改善・灰色空地＝未判定",
+      "city_list": "以清單查看全部 {n} 個項目",
+      "city_hint": "點擊建築查看詳情・拖曳可旋轉",
+      "city_hint_touch": "點擊建築查看詳情",
+      "city_rotate": "旋轉查看",
+      "city_rotate_done": "結束操作",
+      "city_zoom_in": "放大",
+      "city_zoom_out": "縮小"
+    }
+  };
+  for (const L of Object.keys(CITY_TEXT)) Object.assign(window.MEO_I18N_EXTRA[L], CITY_TEXT[L]);
 })();

@@ -1330,6 +1330,62 @@ function coverKpisHTML(d) {
   return `<div class="cv-kpis cv-n${cells.length}">${cells.join("")}</div>`;
 }
 
+/* ===== 項目別診断の3D表示（Three.js） =====
+   WebGL と importmap が使える端末だけ。3D部品は項目別診断が画面に近づいてから読み込む。
+   読み込みに失敗したら、一覧を開いてタイル表示に戻す。 */
+const CAN_3D = (() => {
+  try {
+    if (!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports("importmap"))) return false;
+    const c = document.createElement("canvas");
+    return !!(c.getContext("webgl2") || c.getContext("webgl"));
+  } catch (e) { return false; }
+})();
+let city3d = null, cityWatch = null, citySeq = 0;
+function disposeCity() {
+  citySeq++;
+  if (cityWatch) { cityWatch.disconnect(); cityWatch = null; }
+  if (city3d) { try { city3d.dispose(); } catch (e) {} city3d = null; }
+}
+function mountCityWhenVisible() {
+  const host = document.getElementById("city3d");
+  if (!host) return;
+  const seq = citySeq;
+  // 3D部品は結果の表示と同時に読み込みを始める（CDNからの初回取得に数秒かかるため）
+  const loading = import("/city3d.js?v=20261023");
+  loading.catch(() => {});
+  cityWatch = new IntersectionObserver(async (es) => {
+    if (!es.some(e => e.isIntersecting)) return;
+    cityWatch.disconnect(); cityWatch = null;
+    const fail = () => {
+      if (seq !== citySeq) return;
+      host.remove();
+      document.querySelector(".c3-legend")?.remove();
+      const list = document.querySelector(".items-card .it-list");
+      if (list) list.open = true;
+    };
+    try {
+      // 回線が遅いときは待ち続けず、一覧表示に切り替える
+      const mod = await Promise.race([loading, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 20000))]);
+      if (seq !== citySeq || !host.isConnected) return; // 読み込み中に再描画された
+      const d = currentResult;
+      const entries = [...itemReg.entries()].filter(([, r]) => r.group === "main").map(([id, r]) => {
+        const tx = itemText(r.d, r.it) || {};
+        return { id, cat: r.it.cat, status: r.it.status, label: tx.label || r.it.key, val: tx.val || "" };
+      });
+      host.querySelector(".c3-loading")?.remove();
+      city3d = mod.mountCity(host, entries, {
+        catLabels: SHORT(),
+        youLabel: d && d.name ? d.name : t("comp_you_badge"),
+        onPick: (id) => openItem(id),
+        text: { hint: t("city_hint"), hintTouch: t("city_hint_touch"), rotate: t("city_rotate"), rotateDone: t("city_rotate_done"), zoomIn: t("city_zoom_in"), zoomOut: t("city_zoom_out") },
+      });
+    } catch (e) {
+      fail();
+    }
+  }, { rootMargin: "300px 0px" });
+  cityWatch.observe(host);
+}
+
 /* ===== メイン描画 ===== */
 function renderResult(d) {
   const r = rankOf(d.profile.total);
@@ -1337,6 +1393,7 @@ function renderResult(d) {
 
   // 再描画のたびに項目の登録を作り直す（開いたままの詳細は閉じる）
   itemReg.clear(); itemSeq = 0; compSeq = 0;
+  disposeCity();
   const openDlg = document.getElementById("item-dlg");
   if (openDlg && openDlg.open) openDlg.close();
   // シェアデータ（入力した名称・業種で再現できるURL）。メール本文にも使うので先に作る
@@ -1501,8 +1558,13 @@ function renderResult(d) {
     <div class="glass items-card">
       <div class="g-head"><span class="g-ico">📋</span>${t("items_head")}</div>
       ${itemLegendHTML(d.items)}
-      <p class="it-sub">${t("items_sub")}</p>
-      ${itemsHTML}
+      ${CAN_3D ? `<div class="city3d" id="city3d"><div class="c3-loading">${t("city_loading")}</div></div>
+      <p class="c3-legend">${t("city_legend")}</p>` : ""}
+      <details class="it-list"${CAN_3D ? "" : " open"}>
+        <summary>${t("city_list", { n: (d.items || []).length })}</summary>
+        <p class="it-sub">${t("items_sub")}</p>
+        ${itemsHTML}
+      </details>
       <div class="note it-note">${t("items_note")}</div>
     </div>
 
@@ -1614,6 +1676,7 @@ function renderResult(d) {
   document.querySelectorAll(".comp-diag").forEach(b => b.addEventListener("click", () => diagnoseCompetitor(b.dataset.name, b)));
   renderCompare();
   initCompMap(d);
+  if (CAN_3D) mountCityWhenVisible();
 
   // 業種を指定して比べ直す
   const recmp = document.getElementById("recmp-form");
@@ -1895,6 +1958,7 @@ function toast(msg) { const t = $("sh-toast"); if (!t) return; t.textContent = m
 window.reSearch = () => backToTop(false); // 入力値を残して再調査
 window.goTop = () => backToTop(true);      // 入力をクリアしてTOPへ
 function backToTop(clear) {
+  disposeCity(); // 結果画面を離れたら3Dを片付ける
   hide("result-view"); hide("loading-view"); show("input-view"); setHeaderTop(false);
   if (clear) { $("f-name").value = ""; $("f-area").value = ""; $("f-compare").checked = true; if ($("f-industry")) $("f-industry").value = ""; }
   syncIndustryField();
