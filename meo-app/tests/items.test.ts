@@ -139,3 +139,65 @@ describe("buildItems のhttps判定なしの理由", () => {
     expect(m2.https).toMatchObject({ status: "na", v: { reason: "notown" } });
   });
 });
+
+describe("達成率と次の目標までの不足分", () => {
+  const all = (p: Partial<PlaceData>, e?: Partial<Enriched>, act: any = null, biz = FOOD) =>
+    Object.fromEntries(buildItems(place(p), e ? enriched(e) : undefined, act, biz, NOW).map(i => [i.key, i]));
+
+  it("良好の項目は達成率100%で不足なし、それ以外は100%未満で不足分あり（判定と一致）", () => {
+    const cases = [
+      all({ userRatingCount: 14, rating: 3.6, nationalPhoneNumber: "1", hasRegularHours: true, attributeCount: 2 },
+        { photosCount: 183, category: "建設会社", subCategories: [], reviewsPerScore: { "5": 8, "1": 2 }, posts: [{ timestamp: nowTs - 60 * 86400 }] },
+        { latestDays: 70, monthlyPace: 1, sample: 5 }),
+      all({ userRatingCount: 300, rating: 4.7, nationalPhoneNumber: "1", websiteUri: "https://x.jp", hasRegularHours: true, attributeCount: 9, businessStatus: "OPERATIONAL" },
+        { verified: true, photosCount: 500, category: "居酒屋", subCategories: ["和食"], reviewsPerScore: { "5": 300 }, posts: [{ timestamp: nowTs - 86400 }], hasReservation: true },
+        { latestDays: 2, monthlyPace: 9, sample: 10 }),
+    ];
+    for (const m of cases) for (const it of Object.values(m) as any[]) {
+      if (it.status === "na") { expect(it.rate, it.key).toBeNull(); expect(it.gap, it.key).toBeNull(); continue; }
+      if (it.rate == null) continue; // 不明（投稿を確認できない等）
+      if (it.status === "good") { expect(it.rate, it.key).toBe(1); expect(it.gap, it.key).toBeNull(); }
+      else { expect(it.rate, it.key).toBeLessThan(1); expect(it.gap, it.key).not.toBeNull(); }
+    }
+  });
+
+  it("数値の項目は実測値に応じた達成率と、目標までの不足分を返す", () => {
+    const m = all({ userRatingCount: 14, rating: 3.6, attributeCount: 2 },
+      { photosCount: 183, category: "x", subCategories: [], reviewsPerScore: { "5": 8, "1": 2 }, posts: [{ timestamp: nowTs - 60 * 86400 }] },
+      { latestDays: 70, monthlyPace: 1, sample: 5 });
+    expect(m.review_count).toMatchObject({ rate: 0.28, gap: { kind: "count", need: 36, target: 50 } });
+    expect(m.rating).toMatchObject({ rate: 0.6, gap: { kind: "rating", need: 0.4, target: 4 } });
+    expect(m.photos).toMatchObject({ rate: 0.92, gap: { kind: "photos", need: 17, target: 200 } });
+    expect(m.review_fresh).toMatchObject({ rate: 0.73, gap: { kind: "fresh", need: 40, target: 30 } });
+    expect(m.low_ratings).toMatchObject({ rate: 0.5, gap: { kind: "lowpct", need: 10, target: 10 } });
+    expect(m.posts).toMatchObject({ rate: 0.8, gap: { kind: "post", need: 30 } });
+    expect(m.attributes).toMatchObject({ rate: 0.4, gap: { kind: "attrs", need: 3, target: 5 } });
+    expect(m.sub_category).toMatchObject({ rate: 0, gap: { kind: "subcat", need: 1 } });
+    expect(m.phone).toMatchObject({ rate: 0, gap: { kind: "setup" } });
+  });
+
+  it("投稿を確認できないときは達成率を出さない（0%と断定しない）", () => {
+    const m = all({}, { posts: [] });
+    expect(m.posts).toMatchObject({ status: "warn", rate: null, gap: { kind: "post" } });
+  });
+});
+
+describe("達成率と判定のずれが起きない（境界値）", () => {
+  const all = (p: Partial<PlaceData>, e?: Partial<Enriched>, act: any = null) =>
+    Object.fromEntries(buildItems(place(p), e ? enriched(e) : undefined, act, FOOD, NOW).map(i => [i.key, i]));
+  it("写真199枚／目標200枚は100%にならず、あと1枚", () => {
+    expect(all({}, { photosCount: 199 }).photos).toMatchObject({ status: "warn", rate: 0.99, gap: { kind: "photos", need: 1 } });
+  });
+  it("★3.96（表示は★4.0）は未達のまま、あと★0.1", () => {
+    expect(all({ userRatingCount: 20, rating: 3.96 }).rating).toMatchObject({ status: "warn", rate: 0.99, gap: { kind: "rating", need: 0.1 } });
+  });
+  it("投稿から30.4日（表示は30日）は未達のまま、あと1日ぶんの不足として扱う", () => {
+    const m = all({}, { posts: [{ timestamp: nowTs - Math.round(30.4 * 86400) }] });
+    expect(m.posts.status).toBe("warn");
+    expect(m.posts.rate).toBeLessThan(1);
+    expect(m.posts.gap).toMatchObject({ kind: "post", need: 1, target: 30 });
+  });
+  it("投稿を確認できないときの目標は30日以内", () => {
+    expect(all({}, { posts: [] }).posts.gap).toMatchObject({ kind: "post", target: 30 });
+  });
+});

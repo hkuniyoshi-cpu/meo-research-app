@@ -1,4 +1,4 @@
-import type { PlaceData, DiagItem, ItemStatus } from "./types";
+import type { PlaceData, DiagItem, ItemStatus, ItemGap } from "./types";
 import type { Enriched, ReviewActivity } from "./outscraper";
 import { REC_PHOTOS, daysSinceLatestPost } from "./scoring";
 
@@ -42,7 +42,7 @@ export function buildItems(
   now: Date,
 ): DiagItem[] {
   const out: DiagItem[] = [];
-  const add = (key: string, cat: DiagItem["cat"], status: ItemStatus, v: DiagItem["v"] = {}) => out.push({ key, cat, status, v });
+  const add = (key: string, cat: DiagItem["cat"], status: ItemStatus, v: DiagItem["v"] = {}) => out.push({ key, cat, status, v, rate: null, gap: null });
   const na = (key: string, cat: DiagItem["cat"], reason: string) => add(key, cat, "na", { reason });
   const isLodging = biz.kind === "lodging";
 
@@ -105,7 +105,7 @@ export function buildItems(
     // 投稿データは反映が遅れることがある。「要改善」と言い切るのは、投稿が確認でき、かつ半年以上あいている場合だけ。
     // 投稿が1件も取れなかった場合は「無い」と断定できないので warn にとどめる。
     const has = e.posts.length > 0;
-    add("posts", "hours", !has ? "warn" : d <= 30 ? "good" : d <= 180 ? "warn" : "bad", { has });
+    add("posts", "hours", !has ? "warn" : d <= 30 ? "good" : d <= 180 ? "warn" : "bad", { has, days: has ? Math.max(0, Math.round(d)) : null });
   } else na("posts", "hours", "nodata");
 
   // ---- 付加情報 ----
@@ -123,7 +123,76 @@ export function buildItems(
   else if (BOOKING_KINDS.has(biz.kind)) add("booking", "extras", "warn");
   else na("booking", "extras", "notapplicable");
 
-  return out;
+  return out.map(measure);
+}
+
+/** 目標（良好の基準）。達成率100%＝この値に到達。 */
+export const TARGETS = { reviews: 50, rating: 4.0, freshDays: 30, lowPct: 10, attrs: 5, attrsLimited: 3, subcats: 1 } as const;
+
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+const r2 = (x: number) => Math.round(x * 100) / 100;
+/** 日数が目標（30日）を過ぎたら下がり、さらに150日たつと0になる */
+const freshRate = (days: number) => (days <= TARGETS.freshDays ? 1 : clamp01(1 - (days - TARGETS.freshDays) / 150));
+
+/**
+ * 達成率（0〜1）と、次の目標までの不足分を付ける。
+ * 達成率1＝判定の「良好」と同じ基準に届いた状態になるよう、目標は判定のしきい値にそろえている。
+ */
+function measure(it: DiagItem): DiagItem {
+  if (it.status === "na") return it;
+  const v = it.v as Record<string, any>;
+  const gap = (kind: ItemGap["kind"], need: number, target: number): ItemGap | null => (need > 0 ? { kind, need, target } : null);
+  const binary = it.status === "good" ? 1 : it.status === "warn" ? 0.5 : 0;
+  let rate: number | null = binary;
+  let g: ItemGap | null = it.status === "good" ? null : { kind: "setup", need: 1, target: 1 };
+  switch (it.key) {
+    case "sub_category":
+      rate = clamp01(v.n / TARGETS.subcats);
+      g = gap("subcat", TARGETS.subcats - v.n, TARGETS.subcats);
+      break;
+    case "review_count":
+      rate = clamp01(v.n / TARGETS.reviews);
+      g = gap("count", TARGETS.reviews - v.n, TARGETS.reviews);
+      break;
+    case "rating":
+      rate = clamp01((v.rating - 3) / (TARGETS.rating - 3));
+      g = it.status === "good" ? null : { kind: "rating", need: Math.round((TARGETS.rating - v.rating) * 10) / 10, target: TARGETS.rating };
+      break;
+    case "review_fresh":
+      rate = freshRate(v.days);
+      g = it.status === "good" ? null : { kind: "fresh", need: v.days - TARGETS.freshDays, target: TARGETS.freshDays };
+      break;
+    case "low_ratings":
+      rate = v.pct <= TARGETS.lowPct ? 1 : clamp01(1 - (v.pct - TARGETS.lowPct) / 20);
+      g = gap("lowpct", v.pct - TARGETS.lowPct, TARGETS.lowPct);
+      break;
+    case "photos":
+      rate = clamp01(v.n / v.rec);
+      g = gap("photos", v.rec - v.n, v.rec);
+      break;
+    case "posts":
+      // 投稿を確認できなかったときは、0%と断定せず「不明」にする
+      rate = v.has ? freshRate(v.days) : null;
+      g = !v.has ? { kind: "post", need: 1, target: TARGETS.freshDays }
+        : it.status === "good" ? null : { kind: "fresh", need: v.days - TARGETS.freshDays, target: TARGETS.freshDays };
+      if (g && g.kind === "fresh") g = { ...g, kind: "post" };
+      break;
+    case "attributes": {
+      const target = v.limited ? TARGETS.attrsLimited : TARGETS.attrs;
+      rate = clamp01(v.n / target);
+      g = gap("attrs", target - v.n, target);
+      break;
+    }
+  }
+  // 表示用に丸めた値（★3.96→4.0、30.1日→30日など）で計算すると、判定は未達なのに100%・不足0になることがある。
+  // 判定を正として、未達の項目は100%未満・不足分は最小単位以上にそろえる
+  if (it.status !== "good") {
+    if (rate != null) rate = Math.min(rate, 0.99);
+    const unit = (k: ItemGap["kind"]) => (k === "rating" ? 0.1 : 1);
+    if (g) g = { ...g, need: Math.max(unit(g.kind), g.need) };
+    else if (rate != null) g = { kind: "setup", need: 1, target: 1 };
+  }
+  return { ...it, rate: rate == null ? null : r2(rate), gap: g };
 }
 
 /** 項目の並び（どの事業所でも同じ）。テストと画面の確認用。 */

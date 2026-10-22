@@ -1120,6 +1120,18 @@ function itemLegendHTML(items) {
   return `<div class="it-legend">${["good", "warn", "bad", "na"].filter(st => st !== "na" || n.na > 0).map(st =>
     `<span class="it-lg it-lg-${st}"><span class="it-mark" aria-hidden="true">${ST_MARK[st]}</span>${ST_CODE[st]}<small>${esc(t("stl_" + st))}</small><b>${n[st]}</b></span>`).join("")}</div>`;
 }
+// 次の目標までの不足分を文章にする（到達済み・判定なしは空）
+function gapText(it) {
+  const g = it && it.gap;
+  if (!g) return "";
+  return t("gap_" + g.kind, { n: g.need, t: g.target });
+}
+// 達成率のバー（一覧・詳細で共通）。判定なし・不明は出さない
+function rateBarHTML(it, cls) {
+  if (it.rate == null) return "";
+  const p = Math.round(it.rate * 100);
+  return `<span class="${cls}" role="img" aria-label="${esc(t("rate_label", { p }))}"><i style="width:${p}%"></i></span>`;
+}
 function itemsGridHTML(d, group) {
   const tiles = (d.items || []).map(it => {
     const tx = itemText(d, it);
@@ -1129,6 +1141,7 @@ function itemsGridHTML(d, group) {
     return `<button type="button" class="it it-${it.status}" data-iid="${id}" aria-haspopup="dialog">
       <span class="it-top"><span class="it-mark" aria-hidden="true">${ST_MARK[it.status]}</span><span class="it-label">${esc(tx.label)}</span></span>
       <span class="it-val">${esc(tx.val)}</span>
+      ${rateBarHTML(it, "it-rate")}
       <span class="it-st">${ST_CODE[it.status]}<span class="sr"> ${esc(t("stl_" + it.status))}</span></span>
     </button>`;
   }).join("");
@@ -1151,7 +1164,7 @@ function priorityHTML(d) {
     const tx = itemText(d, r.it);
     return `<button type="button" class="prio-row" data-iid="${id}" aria-haspopup="dialog">
       <span class="pri ${r.it.status === "bad" ? "pri-high" : "pri-mid"}">${esc(t("stl_" + r.it.status))}</span>
-      <span class="prio-txt"><b>${esc(tx.label)}</b><small>${esc(tx.val)}</small></span>
+      <span class="prio-txt"><b>${esc(tx.label)}</b><small>${esc(tx.val)}${gapText(r.it) ? " ・ " + esc(gapText(r.it)) : ""}</small></span>
       <span class="prio-go">${esc(t("prio_open"))} ›</span>
     </button>`;
   }).join("");
@@ -1185,6 +1198,11 @@ function openItem(id, focusTo) {
     </div>
     <h3 class="idl-title">${esc(tx.label)}</h3>
     <p class="idl-val">${esc(tx.val)}</p>
+    ${rec.it.rate != null ? `<div class="idl-goal">
+      <div class="idl-goal-head"><span>${esc(t("dlg_goal"))}</span><b>${esc(t("rate_label", { p: Math.round(rec.it.rate * 100) }))}</b></div>
+      ${rateBarHTML(rec.it, "idl-rate")}
+      <p>${esc(gapText(rec.it) || t("gap_done"))}</p>
+    </div>` : ""}
     ${sec(t("dlg_now"), tx.now)}
     ${sec(t("dlg_why"), tx.why)}
     ${sec(t(st === "good" ? "dlg_keep" : st === "na" ? "dlg_na" : "dlg_how"), tx.how)}
@@ -1351,7 +1369,7 @@ function mountCityWhenVisible() {
   if (!host) return;
   const seq = citySeq;
   // 3D部品は結果の表示と同時に読み込みを始める（CDNからの初回取得に数秒かかるため）
-  const loading = import("/city3d.js?v=20261023");
+  const loading = import("/chart3d.js?v=20261024");
   loading.catch(() => {});
   cityWatch = new IntersectionObserver(async (es) => {
     if (!es.some(e => e.isIntersecting)) return;
@@ -1367,17 +1385,16 @@ function mountCityWhenVisible() {
       // 回線が遅いときは待ち続けず、一覧表示に切り替える
       const mod = await Promise.race([loading, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 20000))]);
       if (seq !== citySeq || !host.isConnected) return; // 読み込み中に再描画された
-      const d = currentResult;
       const entries = [...itemReg.entries()].filter(([, r]) => r.group === "main").map(([id, r]) => {
         const tx = itemText(r.d, r.it) || {};
-        return { id, cat: r.it.cat, status: r.it.status, label: tx.label || r.it.key, val: tx.val || "" };
+        return { id, cat: r.it.cat, status: r.it.status, rate: r.it.rate ?? null, label: tx.label || r.it.key, val: tx.val || "", gap: gapText(r.it) };
       });
       host.querySelector(".c3-loading")?.remove();
-      city3d = mod.mountCity(host, entries, {
+      city3d = mod.mountChart(host, entries, {
         catLabels: SHORT(),
-        youLabel: d && d.name ? d.name : t("comp_you_badge"),
         onPick: (id) => openItem(id),
-        text: { hint: t("city_hint"), hintTouch: t("city_hint_touch"), rotate: t("city_rotate"), rotateDone: t("city_rotate_done"), zoomIn: t("city_zoom_in"), zoomOut: t("city_zoom_out") },
+        onError: () => { city3d = null; fail(); }, // 描画中に失敗したら一覧表示に切り替える
+        text: { hint: t("city_hint"), hintTouch: t("city_hint_touch"), rotate: t("city_rotate"), rotateDone: t("city_rotate_done"), zoomIn: t("city_zoom_in"), zoomOut: t("city_zoom_out"), target: t("chart_target") },
       });
     } catch (e) {
       fail();
@@ -1559,7 +1576,7 @@ function renderResult(d) {
       <div class="g-head"><span class="g-ico">📋</span>${t("items_head")}</div>
       ${itemLegendHTML(d.items)}
       ${CAN_3D ? `<div class="city3d" id="city3d"><div class="c3-loading">${t("city_loading")}</div></div>
-      <p class="c3-legend">${t("city_legend")}</p>` : ""}
+      <p class="c3-legend">${t("chart_legend")}</p>` : ""}
       <details class="it-list"${CAN_3D ? "" : " open"}>
         <summary>${t("city_list", { n: (d.items || []).length })}</summary>
         <p class="it-sub">${t("items_sub")}</p>

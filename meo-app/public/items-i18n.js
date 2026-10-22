@@ -824,4 +824,80 @@
     }
   };
   for (const L of Object.keys(CITY_TEXT)) Object.assign(window.MEO_I18N_EXTRA[L], CITY_TEXT[L]);
+  // 3D棒グラフと「次の目標まで」の文言
+  const CHART_TEXT = {
+    "ja": {
+      "chart_target": "目標",
+      "chart_legend": "棒の高さ＝達成率。上の青い面が目標（良好の基準）で、届いていない分は半透明で示しています。点線の枠は判定なし・不明の項目です。",
+      "city_hint": "棒をクリックで詳細・ドラッグで回転",
+      "city_hint_touch": "棒をタップで詳細",
+      "rate_label": "達成率 {p}%",
+      "dlg_goal": "次の目標まで",
+      "gap_done": "目標を達成しています。",
+      "gap_setup": "登録・設定すると達成します。",
+      "gap_count": "あと{n}件で目標（{t}件）です。",
+      "gap_rating": "あと★{n}で目標（★{t}）です。",
+      "gap_fresh": "最新のクチコミから目標（{t}日以内）を{n}日過ぎています。新しいクチコミが1件入れば達成です。",
+      "gap_lowpct": "低評価の割合をあと{n}ポイント下げると目標（{t}%以下）です。",
+      "gap_photos": "あと{n}枚で目標（{t}枚）です。",
+      "gap_post": "最新情報を投稿すると達成です（目標：{t}日以内に1件）。",
+      "gap_attrs": "あと{n}件で目標（{t}件）です。",
+      "gap_subcat": "追加カテゴリを{n}件登録すると達成です。"
+    },
+    "en": {
+      "chart_target": "goal",
+      "chart_legend": "Bar height = progress. The blue plane on top is the goal (the “good” level); the translucent part is what's left. Dashed frames are items not assessed or unknown.",
+      "city_hint": "Click a bar for details · drag to rotate",
+      "city_hint_touch": "Tap a bar for details",
+      "rate_label": "{p}% of goal",
+      "dlg_goal": "To the next goal",
+      "gap_done": "You've reached the goal.",
+      "gap_setup": "Set this up to reach the goal.",
+      "gap_count": "{n} more to reach the goal ({t}).",
+      "gap_rating": "★{n} more to reach the goal (★{t}).",
+      "gap_fresh": "Your latest review is {n} days past the goal (within {t} days). One new review reaches it.",
+      "gap_lowpct": "Lower the share of low ratings by {n} points to reach the goal ({t}% or less).",
+      "gap_photos": "{n} more photos to reach the goal ({t}).",
+      "gap_post": "Post an update to reach the goal (one within {t} days).",
+      "gap_attrs": "{n} more to reach the goal ({t}).",
+      "gap_subcat": "Add {n} additional category to reach the goal."
+    },
+    "ko": {
+      "chart_target": "목표",
+      "chart_legend": "막대 높이＝달성률. 위의 파란 면이 목표(양호 기준)이며, 닿지 않은 부분은 반투명으로 표시합니다. 점선 틀은 판정 없음·불명 항목입니다.",
+      "city_hint": "막대를 클릭하면 상세・드래그로 회전",
+      "city_hint_touch": "막대를 탭하면 상세",
+      "rate_label": "달성률 {p}%",
+      "dlg_goal": "다음 목표까지",
+      "gap_done": "목표를 달성했습니다.",
+      "gap_setup": "등록・설정하면 달성합니다.",
+      "gap_count": "{n}건 더 있으면 목표({t}건)입니다.",
+      "gap_rating": "★{n} 더 오르면 목표(★{t})입니다.",
+      "gap_fresh": "최신 리뷰가 목표({t}일 이내)를 {n}일 넘었습니다. 새 리뷰가 1건 들어오면 달성입니다.",
+      "gap_lowpct": "낮은 평점 비율을 {n}포인트 더 낮추면 목표({t}% 이하)입니다.",
+      "gap_photos": "{n}장 더 있으면 목표({t}장)입니다.",
+      "gap_post": "최신 소식을 게시하면 달성입니다(목표: {t}일 이내 1건).",
+      "gap_attrs": "{n}개 더 있으면 목표({t}개)입니다.",
+      "gap_subcat": "추가 카테고리를 {n}개 등록하면 달성입니다."
+    },
+    "zh": {
+      "chart_target": "目標",
+      "chart_legend": "長條高度＝達成率。上方的藍色平面是目標（良好的基準），尚未達到的部分以半透明表示。虛線框為未判定・不明的項目。",
+      "city_hint": "點擊長條查看詳情・拖曳可旋轉",
+      "city_hint_touch": "點擊長條查看詳情",
+      "rate_label": "達成率 {p}%",
+      "dlg_goal": "距離下一個目標",
+      "gap_done": "已達成目標。",
+      "gap_setup": "登錄・設定後即可達成。",
+      "gap_count": "再 {n} 則即達目標（{t} 則）。",
+      "gap_rating": "再提升 ★{n} 即達目標（★{t}）。",
+      "gap_fresh": "最新評論已超過目標（{t} 天內）{n} 天。只要有 1 則新評論即可達成。",
+      "gap_lowpct": "低評分比例再降低 {n} 個百分點即達目標（{t}% 以下）。",
+      "gap_photos": "再 {n} 張即達目標（{t} 張）。",
+      "gap_post": "發布最新消息即可達成（目標：{t} 天內 1 則）。",
+      "gap_attrs": "再 {n} 項即達目標（{t} 項）。",
+      "gap_subcat": "再登錄 {n} 個次要類別即可達成。"
+    }
+  };
+  for (const L of Object.keys(CHART_TEXT)) Object.assign(window.MEO_I18N_EXTRA[L], CHART_TEXT[L]);
 })();

@@ -54,4 +54,13 @@ export interface DiagItem {
   cat: "nap" | "category" | "reviews" | "photos" | "hours" | "extras";
   status: ItemStatus;
   v: Record<string, string | number | boolean | null>; // 表示に使う実測値
+  rate: number | null;                           // 達成率 0〜1（1＝良好の基準に到達）。判定なし・不明は null
+  gap: ItemGap | null;                           // 次の目標までの不足分（到達済み・判定なしは null）
+}
+
+/** 次の目標までの不足分。文言はフロントの辞書が kind ごとに持つ。 */
+export interface ItemGap {
+  kind: "setup" | "count" | "rating" | "fresh" | "lowpct" | "photos" | "post" | "attrs" | "subcat";
+  need: number;   // あといくつ（件・枚・★・ポイントなど）
+  target: number; // 目標の値
 }
