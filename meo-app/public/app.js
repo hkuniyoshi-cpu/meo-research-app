@@ -1369,7 +1369,7 @@ function mountCityWhenVisible() {
   if (!host) return;
   const seq = citySeq;
   // 3D部品は結果の表示と同時に読み込みを始める（CDNからの初回取得に数秒かかるため）
-  const loading = import("/chart3d.js?v=20261024");
+  const loading = import("/chart3d.js?v=20261025");
   loading.catch(() => {});
   cityWatch = new IntersectionObserver(async (es) => {
     if (!es.some(e => e.isIntersecting)) return;
@@ -1390,8 +1390,11 @@ function mountCityWhenVisible() {
         return { id, cat: r.it.cat, status: r.it.status, rate: r.it.rate ?? null, label: tx.label || r.it.key, val: tx.val || "", gap: gapText(r.it) };
       });
       host.querySelector(".c3-loading")?.remove();
+      const d = currentResult || {};
       city3d = mod.mountChart(host, entries, {
         catLabels: SHORT(),
+        youLabel: d.name || t("comp_you_badge"),
+        seed: (d.name || "") + "|" + (d.address || d.area || ""), // 店ごとに地図の模様を変える
         onPick: (id) => openItem(id),
         onError: () => { city3d = null; fail(); }, // 描画中に失敗したら一覧表示に切り替える
         text: { hint: t("city_hint"), hintTouch: t("city_hint_touch"), rotate: t("city_rotate"), rotateDone: t("city_rotate_done"), zoomIn: t("city_zoom_in"), zoomOut: t("city_zoom_out"), target: t("chart_target") },
@@ -1577,7 +1580,7 @@ function renderResult(d) {
       ${itemLegendHTML(d.items)}
       ${CAN_3D ? `<div class="city3d" id="city3d"><div class="c3-loading">${t("city_loading")}</div></div>
       <p class="c3-legend">${t("chart_legend")}</p>` : ""}
-      <details class="it-list"${CAN_3D ? "" : " open"}>
+      <details class="it-list" open>
         <summary>${t("city_list", { n: (d.items || []).length })}</summary>
         <p class="it-sub">${t("items_sub")}</p>
         ${itemsHTML}

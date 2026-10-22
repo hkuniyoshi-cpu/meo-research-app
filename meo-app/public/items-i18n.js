@@ -828,7 +828,7 @@
   const CHART_TEXT = {
     "ja": {
       "chart_target": "目標",
-      "chart_legend": "棒の高さ＝達成率。上の青い面が目標（良好の基準）で、届いていない分は半透明で示しています。点線の枠は判定なし・不明の項目です。",
+      "chart_legend": "中央のピンがあなたのお店です。棒の高さ＝達成率で、半透明の部分が目標（良好の基準）までの不足分です。点線の枠は判定なし・不明の項目です。地面は地図風のイメージで、実際の地図ではありません。",
       "city_hint": "棒をクリックで詳細・ドラッグで回転",
       "city_hint_touch": "棒をタップで詳細",
       "rate_label": "達成率 {p}%",
@@ -846,7 +846,7 @@
     },
     "en": {
       "chart_target": "goal",
-      "chart_legend": "Bar height = progress. The blue plane on top is the goal (the “good” level); the translucent part is what's left. Dashed frames are items not assessed or unknown.",
+      "chart_legend": "The pin in the center is your business. Bar height = progress; the translucent part is what's left to reach the goal (the “good” level). Dashed frames are items not assessed or unknown. The ground is a map-style illustration, not a real map.",
       "city_hint": "Click a bar for details · drag to rotate",
       "city_hint_touch": "Tap a bar for details",
       "rate_label": "{p}% of goal",
@@ -864,7 +864,7 @@
     },
     "ko": {
       "chart_target": "목표",
-      "chart_legend": "막대 높이＝달성률. 위의 파란 면이 목표(양호 기준)이며, 닿지 않은 부분은 반투명으로 표시합니다. 점선 틀은 판정 없음·불명 항목입니다.",
+      "chart_legend": "가운데 핀이 귀하의 매장입니다. 막대 높이＝달성률이며, 반투명 부분은 목표(양호 기준)까지 부족한 만큼입니다. 점선 틀은 판정 없음·불명 항목입니다. 바닥은 지도 느낌의 이미지이며 실제 지도가 아닙니다.",
       "city_hint": "막대를 클릭하면 상세・드래그로 회전",
       "city_hint_touch": "막대를 탭하면 상세",
       "rate_label": "달성률 {p}%",
@@ -882,7 +882,7 @@
     },
     "zh": {
       "chart_target": "目標",
-      "chart_legend": "長條高度＝達成率。上方的藍色平面是目標（良好的基準），尚未達到的部分以半透明表示。虛線框為未判定・不明的項目。",
+      "chart_legend": "中央的圖釘是您的店家。長條高度＝達成率，半透明部分是距離目標（良好的基準）的不足。虛線框為未判定・不明的項目。地面為地圖風格的示意圖，並非實際地圖。",
       "city_hint": "點擊長條查看詳情・拖曳可旋轉",
       "city_hint_touch": "點擊長條查看詳情",
       "rate_label": "達成率 {p}%",
