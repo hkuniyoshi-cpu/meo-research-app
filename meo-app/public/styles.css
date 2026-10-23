@@ -1099,3 +1099,12 @@ body, button, input, select { font-family:var(--font-jp); }
 .c3-tip { z-index:5; }
 .c3-ui, .c3-hint { z-index:4; }
 @media (max-width:560px){ .city3d { height:470px; } }
+
+/* ===== ホームページ側の項目（Googleマップの登録ではない）：紫系・破線の枠で区別する ===== */
+.it-site-sec { margin-top:22px; padding:16px 14px 14px; border:2px dashed #b9a6e6; border-radius:18px; background:#f7f3ff; }
+.it-site-head { display:flex; align-items:center; gap:8px; margin:0 0 4px; font-size:15px; font-weight:800; color:#4b3a86; }
+.it-site-note { margin:0 0 12px; font-size:12.5px; line-height:1.7; color:#5d5378; }
+.it.it-site { border-style:dashed; padding-top:30px; }
+.it-chip { position:absolute; top:9px; left:12px; font-size:10.5px; font-weight:800; letter-spacing:.02em; color:#fff; background:#7a62c9; border-radius:999px; padding:2px 9px; }
+.idl-site { display:flex; gap:8px; align-items:flex-start; margin:14px 0 0; padding:10px 12px; border:1.5px dashed #b9a6e6; border-radius:12px; background:#f7f3ff; color:#4b3a86; font-size:13px; font-weight:700; line-height:1.6; }
+.c3-lbl.c3-lbl-site { color:#4b3a86; background:rgba(247,243,255,.95); border-color:#c9b8ef; }

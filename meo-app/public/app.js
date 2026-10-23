@@ -43,7 +43,7 @@ const T = {
     load_eta: (v) => `残り 約${v.sec}秒`,
 
     /* カテゴリ短縮ラベル */
-    cat_nap: "基本情報", cat_category: "カテゴリ", cat_reviews: "口コミ", cat_photos: "写真", cat_hours: "最新情報", cat_extras: "お店の特徴",
+    cat_nap: "基本情報", cat_category: "カテゴリ", cat_reviews: "口コミ", cat_photos: "写真", cat_hours: "最新情報", cat_extras: "お店の特徴", cat_site: "ホームページ（参考）",
 
     /* エラー */
     err_input: "事業名と住所/エリアを入力してください",
@@ -213,7 +213,7 @@ const T = {
     load_eta: (v) => `About ${v.sec}s left`,
 
     /* category labels */
-    cat_nap: "Basic info", cat_category: "Category", cat_reviews: "Reviews", cat_photos: "Photos", cat_hours: "Freshness", cat_extras: "Attributes",
+    cat_nap: "Basic info", cat_category: "Category", cat_reviews: "Reviews", cat_photos: "Photos", cat_hours: "Freshness", cat_extras: "Attributes", cat_site: "Website (reference)",
 
     /* errors */
     err_input: "Please enter a business name and address/area",
@@ -383,7 +383,7 @@ const T = {
     load_eta: (v) => `약 ${v.sec}초 남음`,
 
     /* category labels */
-    cat_nap: "기본 정보", cat_category: "카테고리", cat_reviews: "리뷰", cat_photos: "사진", cat_hours: "신선도", cat_extras: "부가정보",
+    cat_nap: "기본 정보", cat_category: "카테고리", cat_reviews: "리뷰", cat_photos: "사진", cat_hours: "신선도", cat_extras: "부가정보", cat_site: "홈페이지(참고)",
 
     /* errors */
     err_input: "상호명과 주소/지역을 입력해 주세요",
@@ -553,7 +553,7 @@ const T = {
     load_eta: (v) => `約剩 ${v.sec} 秒`,
 
     /* category labels */
-    cat_nap: "基本資訊", cat_category: "類別", cat_reviews: "評論", cat_photos: "照片", cat_hours: "新鮮度", cat_extras: "附加資訊",
+    cat_nap: "基本資訊", cat_category: "類別", cat_reviews: "評論", cat_photos: "照片", cat_hours: "新鮮度", cat_extras: "附加資訊", cat_site: "網站（參考）",
 
     /* errors */
     err_input: "請輸入商家名稱與地址/地區",
@@ -757,7 +757,9 @@ const LOAD_TARGET_MS = 20000; // 待ち時間の目安（約20秒）。1〜2分�
 const LOAD_MIN_MS = 7000;     // 最低表示時間（速くてもこの時間は演出を見せる）
 // ローディング段階・カテゴリ短縮ラベルは言語に追従（t()から導出）
 const LOAD_STEPS = () => t("load_steps");
-const SHORT = () => ({ nap: t("cat_nap"), category: t("cat_category"), reviews: t("cat_reviews"), photos: t("cat_photos"), hours: t("cat_hours"), extras: t("cat_extras") });
+const SHORT = () => ({ nap: t("cat_nap"), category: t("cat_category"), reviews: t("cat_reviews"), photos: t("cat_photos"), hours: t("cat_hours"), extras: t("cat_extras"), site: t("cat_site") });
+// ホームページ側の項目（Googleマップの登録ではなく、登録しているホームページの中身を見た項目）
+const isSiteItem = (it) => it && it.cat === "site";
 
 let currentShare = { url: "", text: "", title: "MEO無料診断" };
 let currentResult = null;
@@ -1053,7 +1055,8 @@ function buildMailBody(d, url) {
   const rating = num(d.rating);
 
   // 項目別診断のうち、良好でない項目の名前
-  const labelsOf = (st) => (d.items || []).filter(i => i.status === st).map(i => (itemText(d, i) || {}).label).filter(Boolean);
+  const labelsOf = (st) => (d.items || []).filter(i => i.status === st)
+    .map(i => { const l = (itemText(d, i) || {}).label; return l && isSiteItem(i) ? `${l}（${t("site_chip")}）` : l; }).filter(Boolean);
   const sep = L === "ja" || L === "zh" ? "、" : ", ";
   const itemLines = [["bad", t("mail_bad")], ["warn", t("mail_warn")]]
     .map(([st, head]) => [labelsOf(st), head])
@@ -1116,7 +1119,7 @@ function itemText(d, it) {
 }
 function itemLegendHTML(items) {
   const n = { good: 0, warn: 0, bad: 0, na: 0 };
-  (items || []).forEach(i => { if (n[i.status] != null) n[i.status]++; });
+  (items || []).filter(i => !isSiteItem(i)).forEach(i => { if (n[i.status] != null) n[i.status]++; });
   return `<div class="it-legend">${["good", "warn", "bad", "na"].filter(st => st !== "na" || n.na > 0).map(st =>
     `<span class="it-lg it-lg-${st}"><span class="it-mark" aria-hidden="true">${ST_MARK[st]}</span>${ST_CODE[st]}<small>${esc(t("stl_" + st))}</small><b>${n[st]}</b></span>`).join("")}</div>`;
 }
@@ -1124,6 +1127,8 @@ function itemLegendHTML(items) {
 function gapText(it) {
   const g = it && it.gap;
   if (!g) return "";
+  // ホームページ側の項目は、Googleの管理画面ではなくホームページ側で設定するもの
+  if (g.kind === "setup" && isSiteItem(it)) return t("gap_setup_site");
   return t("gap_" + g.kind, { n: g.need, t: g.target });
 }
 // 達成率のバー（一覧・詳細で共通）。判定なし・不明は出さない
@@ -1133,19 +1138,27 @@ function rateBarHTML(it, cls) {
   return `<span class="${cls}" role="img" aria-label="${esc(t("rate_label", { p }))}"><i style="width:${p}%"></i></span>`;
 }
 function itemsGridHTML(d, group) {
-  const tiles = (d.items || []).map(it => {
+  const tile = (it) => {
     const tx = itemText(d, it);
     if (!tx) return "";
     const id = "it" + (++itemSeq);
     itemReg.set(id, { it, d, group });
-    return `<button type="button" class="it it-${it.status}" data-iid="${id}" aria-haspopup="dialog">
+    return `<button type="button" class="it it-${it.status}${isSiteItem(it) ? " it-site" : ""}" data-iid="${id}" aria-haspopup="dialog">
+      ${isSiteItem(it) ? `<span class="it-chip">${esc(t("site_chip"))}</span>` : ""}
       <span class="it-top"><span class="it-mark" aria-hidden="true">${ST_MARK[it.status]}</span><span class="it-label">${esc(tx.label)}</span></span>
       <span class="it-val">${esc(tx.val)}</span>
       ${rateBarHTML(it, "it-rate")}
       <span class="it-st">${ST_CODE[it.status]}<span class="sr"> ${esc(t("stl_" + it.status))}</span></span>
     </button>`;
-  }).join("");
-  return `<div class="it-grid">${tiles}</div>`;
+  };
+  const items = d.items || [];
+  const gbp = items.filter(it => !isSiteItem(it)).map(tile).join("");
+  const site = items.filter(isSiteItem).map(tile).join("");
+  return `<div class="it-grid">${gbp}</div>${site ? `<section class="it-site-sec">
+    <h4 class="it-site-head"><span aria-hidden="true">🌐</span>${esc(t("site_sec_head"))}</h4>
+    <p class="it-site-note">${esc(t("site_sec_note"))}</p>
+    <div class="it-grid">${site}</div>
+  </section>` : ""}`;
 }
 // 比較範囲の言い方（「浦添市エリア」／「半径4km」）
 function scopeText(scope) {
@@ -1157,7 +1170,7 @@ function priorityHTML(d) {
   const ratio = Object.fromEntries(d.profile.categories.map(c => [c.key, c.score / c.max]));
   const order = { bad: 0, warn: 1 };
   const picks = [...itemReg.entries()]
-    .filter(([, r]) => r.group === "main" && (r.it.status === "bad" || r.it.status === "warn"))
+    .filter(([, r]) => r.group === "main" && !isSiteItem(r.it) && (r.it.status === "bad" || r.it.status === "warn"))
     .sort((a, b) => order[a[1].it.status] - order[b[1].it.status] || (ratio[a[1].it.cat] ?? 1) - (ratio[b[1].it.cat] ?? 1))
     .slice(0, 3);
   const rows = picks.map(([id, r]) => {
@@ -1196,6 +1209,7 @@ function openItem(id, focusTo) {
       <span class="idl-cat">${esc(SHORT()[rec.it.cat] || "")}</span>
       <button type="button" class="idl-x" data-act="close" aria-label="${esc(t("dlg_close"))}">×</button>
     </div>
+    ${isSiteItem(rec.it) ? `<p class="idl-site"><span aria-hidden="true">🌐</span>${esc(t("site_banner"))}</p>` : ""}
     <h3 class="idl-title">${esc(tx.label)}</h3>
     <p class="idl-val">${esc(tx.val)}</p>
     ${rec.it.rate != null ? `<div class="idl-goal">
@@ -1369,7 +1383,7 @@ function mountCityWhenVisible() {
   if (!host) return;
   const seq = citySeq;
   // 3D部品は結果の表示と同時に読み込みを始める（CDNからの初回取得に数秒かかるため）
-  const loading = import("/chart3d.js?v=20261029");
+  const loading = import("/chart3d.js?v=20261030");
   loading.catch(() => {});
   cityWatch = new IntersectionObserver(async (es) => {
     if (!es.some(e => e.isIntersecting)) return;
@@ -1581,7 +1595,7 @@ function renderResult(d) {
       ${CAN_3D ? `<div class="city3d" id="city3d"><div class="c3-loading">${t("city_loading")}</div></div>
       <p class="c3-legend">${t("chart_legend")}</p>` : ""}
       <details class="it-list" open>
-        <summary>${t("city_list", { n: (d.items || []).length })}</summary>
+        <summary>${t("city_list", { n: (d.items || []).filter(i => !isSiteItem(i)).length })}</summary>
         <p class="it-sub">${t("items_sub")}</p>
         ${itemsHTML}
       </details>

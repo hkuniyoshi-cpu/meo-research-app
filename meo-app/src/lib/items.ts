@@ -58,14 +58,14 @@ export function buildItems(
   else na("https", "nap", site.kind === "other" ? "notown" : "nosite"); // SNS・ポータルのURLは店側でhttpsを選べない
   // サイトの中身（店名・住所・電話の一致／店舗情報の構造化データ）。読めなかったときは推測で判定しない
   if (site.kind !== "own") {
-    na("site_nap", "nap", site.kind === "other" ? "notown" : "nosite");
-    na("site_schema", "nap", site.kind === "other" ? "notown" : "nosite");
+    na("site_nap", "site", site.kind === "other" ? "notown" : "nosite");
+    na("site_schema", "site", site.kind === "other" ? "notown" : "nosite");
   } else if (!sc || !sc.ok) {
     const reason = !sc ? "nodata" : sc.fail === "jsonly" ? "jsonly" : "sitefail";
-    na("site_nap", "nap", reason);
+    na("site_nap", "site", reason);
     // プログラムで表示するサイトでも、構造化データは埋め込まれていれば読める
     if (sc && sc.fail === "jsonly" && sc.schema !== "none") addSchema(sc);
-    else na("site_schema", "nap", reason);
+    else na("site_schema", "site", reason);
   } else {
     // Google側に電話・照合できる住所が無いときは、その項目を判定に入れない
     const parts = [sc.name ? 1 : 0];
@@ -73,14 +73,14 @@ export function buildItems(
     if (sc.phone !== "na") parts.push(sc.phone === "match" ? 1 : 0);
     const score = parts.reduce((a, b) => a + b, 0);
     // 読めなかった関連ページがあるときは、見つからない情報がそこに載っている可能性があるので、そろっていない限り判定しない
-    if (sc.unread && score < parts.length) na("site_nap", "nap", "sitefail");
-    else add("site_nap", "nap", score === parts.length ? "good" : score === 0 ? "bad" : "warn",
+    if (sc.unread && score < parts.length) na("site_nap", "site", "sitefail");
+    else add("site_nap", "site", score === parts.length ? "good" : score === 0 ? "bad" : "warn",
       { name: sc.name, addr: sc.address, phone: sc.phone, pages: sc.pages, score, max: parts.length, miss: parts.filter((x) => x < 1).length });
-    if (sc.unread && sc.schema !== "local") na("site_schema", "nap", "sitefail");
+    if (sc.unread && sc.schema !== "local") na("site_schema", "site", "sitefail");
     else addSchema(sc);
   }
   function addSchema(c: SiteCheck) {
-    add("site_schema", "nap", c.schema === "local" ? "good" : c.schema === "none" ? "bad" : "warn", { kind: c.schema, type: c.schemaType });
+    add("site_schema", "site", c.schema === "local" ? "good" : c.schema === "none" ? "bad" : "warn", { kind: c.schema, type: c.schemaType });
   }
   if (e && e.known.verified) add("verified", "nap", e.verified ? "good" : "bad");
   else na("verified", "nap", "nodata");
@@ -153,7 +153,8 @@ export function buildItems(
   else if (BOOKING_KINDS.has(biz.kind)) add("booking", "extras", "warn");
   else na("booking", "extras", "notapplicable");
 
-  return out.map(measure);
+  // ホームページ側の項目（Googleの登録ではない）は、Googleの登録項目のあとにまとめる
+  return [...out.filter((i) => i.cat !== "site"), ...out.filter((i) => i.cat === "site")].map(measure);
 }
 
 /** 目標（良好の基準）。達成率100%＝この値に到達。 */
@@ -231,8 +232,9 @@ function measure(it: DiagItem): DiagItem {
 
 /** 項目の並び（どの事業所でも同じ）。テストと画面の確認用。 */
 export const ITEM_KEYS = [
-  "phone", "website", "https", "site_nap", "site_schema", "verified", "status",
+  "phone", "website", "https", "verified", "status",
   "main_category", "sub_category",
   "review_count", "rating", "review_fresh", "low_ratings",
   "photos", "hours", "posts", "attributes", "booking",
+  "site_nap", "site_schema", // ホームページ側
 ] as const;

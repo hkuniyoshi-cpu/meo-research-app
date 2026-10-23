@@ -949,6 +949,38 @@
     }
   };
   for (const L of Object.keys(CITY_TEXT)) Object.assign(window.MEO_I18N_EXTRA[L], CITY_TEXT[L]);
+  // ホームページ側の項目（Googleマップの登録ではない）の見出し・説明
+  const SITE_TEXT = {
+    ja: {
+      site_chip: "ホームページ側",
+      gap_setup_site: "ホームページ側で設定すると達成します。",
+      site_sec_head: "参考：ホームページ側のチェック",
+      site_sec_note: "ここから下は、Googleマップの登録内容ではなく、登録しているホームページの中身を確認した項目です。直すのはGoogleの管理画面ではなく、ホームページ側（制作会社・担当者）です。",
+      site_banner: "Googleマップの登録ではなく、ホームページ側の項目です。Googleの管理画面では直せません。",
+    },
+    en: {
+      site_chip: "Website",
+      gap_setup_site: "Set this up on your website to reach the goal.",
+      site_sec_head: "Reference: checks on your website",
+      site_sec_note: "The items below are not part of your Google Maps listing. They check the content of the website you registered, so they are fixed on the website side (by your web vendor or staff), not in the Google dashboard.",
+      site_banner: "This item is about your website, not your Google Maps listing. It can't be fixed in the Google dashboard.",
+    },
+    ko: {
+      site_chip: "홈페이지",
+      gap_setup_site: "홈페이지 쪽에서 설정하면 달성입니다.",
+      site_sec_head: "참고: 홈페이지 쪽 점검",
+      site_sec_note: "아래 항목은 Google 지도 등록 내용이 아니라, 등록한 홈페이지의 내용을 확인한 항목입니다. Google 관리 화면이 아니라 홈페이지 쪽(제작 회사·담당자)에서 고칩니다.",
+      site_banner: "Google 지도 등록이 아니라 홈페이지 쪽 항목입니다. Google 관리 화면에서는 고칠 수 없습니다.",
+    },
+    zh: {
+      site_chip: "網站端",
+      gap_setup_site: "在網站端設定即可達成。",
+      site_sec_head: "參考：網站端的檢查",
+      site_sec_note: "以下項目不是Google地圖的登錄內容，而是檢查所登錄網站的內容。需要在網站端（製作公司・負責人）修改，而不是在Google管理畫面。",
+      site_banner: "這是網站端的項目，不是Google地圖的登錄內容，無法在Google管理畫面修改。",
+    },
+  };
+  for (const L of Object.keys(SITE_TEXT)) Object.assign(window.MEO_I18N_EXTRA[L], SITE_TEXT[L]);
   // 3D棒グラフと「次の目標まで」の文言
   const CHART_TEXT = {
     "ja": {

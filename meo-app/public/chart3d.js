@@ -9,7 +9,7 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 const COLORS = { good: 0x22b07d, warn: 0xf2a33a, bad: 0xe5534b, na: 0x9aa4b5 };
-const CAT_ORDER = ["nap", "category", "reviews", "photos", "hours", "extras"];
+const CAT_ORDER = ["nap", "category", "reviews", "photos", "hours", "extras", "site"]; // site=ホームページ側（Googleの登録ではない）
 const H = 3.2;        // 達成率100%の高さ
 const STEP = 1.0;     // 棒の間隔
 const BAR = 0.62;     // 棒の太さ
@@ -190,12 +190,14 @@ function buildChart(host, entries, opts) {
       const cx = Math.cos(ang) * RING, cz = Math.sin(ang) * RING;
 
       // 区画（地図の上に置いた半透明の白い台）
-      const plate = new THREE.Mesh(new RoundedBoxGeometry(w, 0.1, d, 2, 0.08), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.88, roughness: 0.6 }));
+      // ホームページ側の区画は、Googleの登録項目と区別できるよう色を変える
+      const isSite = g.key === "site";
+      const plate = new THREE.Mesh(new RoundedBoxGeometry(w, 0.1, d, 2, 0.08), new THREE.MeshStandardMaterial({ color: isSite ? 0xc9b8ef : 0xffffff, transparent: true, opacity: 0.88, roughness: 0.6 }));
       plate.position.set(cx, 0.05, cz);
       plate.receiveShadow = true;
       scene.add(plate);
       const lblDiv = document.createElement("div");
-      lblDiv.className = "c3-lbl";
+      lblDiv.className = isSite ? "c3-lbl c3-lbl-site" : "c3-lbl";
       lblDiv.textContent = opts.catLabels[g.key] || g.key;
       const lbl = new CSS2DObject(lblDiv);
       lbl.position.set(cx, 0.1, cz + d / 2 + 0.4);

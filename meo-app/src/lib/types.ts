@@ -51,7 +51,7 @@ export interface RankResult {
 export type ItemStatus = "good" | "warn" | "bad" | "na"; // na=判定なし（データが無い・当てはまらない）
 export interface DiagItem {
   key: string;                                   // 項目ID（フロントの辞書キー）
-  cat: "nap" | "category" | "reviews" | "photos" | "hours" | "extras";
+  cat: "nap" | "category" | "reviews" | "photos" | "hours" | "extras" | "site"; // site=ホームページ側の項目（Googleの登録ではない）
   status: ItemStatus;
   v: Record<string, string | number | boolean | null>; // 表示に使う実測値
   rate: number | null;                           // 達成率 0〜1（1＝良好の基準に到達）。判定なし・不明は null
