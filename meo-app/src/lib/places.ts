@@ -294,17 +294,20 @@ export function normalizeDetails(d: any): PlaceData {
   };
 }
 
-/** 公式Placesの実属性で「設定済み(true)」の数を数える。業種横断で信頼できる属性件数。 */
+/**
+ * 公式Placesの実属性で「登録済み」の数を数える。業種横断で信頼できる属性件数。
+ * 「駐車場なし」のように false で登録されたものも、プロフィールに載っている情報なので数える（値が無いものは未登録）。
+ */
 function countAttributes(d: any): number {
   const flatKeys = [
     "reservable", "servesLunch", "servesDinner", "servesBreakfast", "takeout", "delivery", "dineIn",
     "allowsDogs", "outdoorSeating", "restroom", "goodForChildren", "goodForGroups",
     "curbsidePickup", "liveMusic", "menuForChildren",
   ];
-  let n = flatKeys.filter(k => d[k] === true).length;
-  // 駐車場・決済・バリアフリーは入れ子オブジェクト（boolean子要素の true 数を加算）
+  let n = flatKeys.filter(k => typeof d[k] === "boolean").length;
+  // 駐車場・決済・バリアフリーは入れ子オブジェクト（boolean子要素の数を加算）
   for (const obj of [d.parkingOptions, d.paymentOptions, d.accessibilityOptions]) {
-    if (obj && typeof obj === "object") n += Object.values(obj).filter(v => v === true).length;
+    if (obj && typeof obj === "object") n += Object.values(obj).filter(v => typeof v === "boolean").length;
   }
   return n;
 }

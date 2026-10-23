@@ -42,8 +42,9 @@ describe("normalizeDetails", () => {
       allowsDogs: true,
       outdoorSeating: false,
     });
-    // reservable, servesLunch, allowsDogs(=3) + 駐車1 + 決済2 + バリアフリー1 = 7
-    expect(p.attributeCount).toBe(7);
+    // 「なし」(false) も登録済みとして数える
+    // DETAILS_SAMPLE の reservable, servesLunch + allowsDogs + outdoorSeating(false)(=4) + 駐車2 + 決済2 + バリアフリー1 = 9
+    expect(p.attributeCount).toBe(9);
   });
 });
 

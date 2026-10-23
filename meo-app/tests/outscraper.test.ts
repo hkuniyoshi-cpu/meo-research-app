@@ -18,7 +18,7 @@ describe("fetchEnriched", () => {
     expect(e!.photosCount).toBe(2682);
     expect(e!.verified).toBe(true);
     expect(e!.posts).toHaveLength(2);
-    expect(e!.attributeFilled).toBe(2);
+    expect(e!.attributeFilled).toBe(3); // 「車椅子：なし」も登録済み
     expect(e!.attributeTotal).toBe(3);
     expect(e!.hasMenuLink).toBe(true);
     expect(e!.hasReservation).toBe(true);

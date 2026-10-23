@@ -8,7 +8,7 @@ export interface Enriched {
   reviewCount: number | null;            // 実店舗ページのクチコミ総数（Placesの曖昧マッチより信頼）
   rating: number | null;                 // 実店舗ページの平均評価
   reviewsPerScore: Record<string, number>;
-  attributeFilled: number;               // about内で true の属性数
+  attributeFilled: number;               // about内で登録済み（あり/なし）の属性数
   attributeTotal: number;                // about内の全属性数
   hasMenuLink: boolean;
   hasReservation: boolean;
@@ -51,7 +51,8 @@ export async function fetchEnriched(query: string, apiKey: string, fetchFn: Fetc
   const about = p.about ?? {};
   for (const cat of Object.values(about)) {
     if (cat && typeof cat === "object") {
-      for (const v of Object.values(cat as Record<string, unknown>)) { total++; if (v === true) filled++; }
+      // 「なし」（false）と登録したものも、オーナーが登録した情報として数える
+      for (const v of Object.values(cat as Record<string, unknown>)) { total++; if (typeof v === "boolean") filled++; }
     }
   }
   const category = [p.type, p.category].map(x => (typeof x === "string" ? x.trim() : "")).find(Boolean) || null;

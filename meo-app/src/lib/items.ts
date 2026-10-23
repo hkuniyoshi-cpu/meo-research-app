@@ -54,8 +54,8 @@ export function buildItems(
   add("phone", "nap", p.nationalPhoneNumber ? "good" : "bad");
   const site = classifySite(p.websiteUri);
   add("website", "nap", site.kind === "own" ? "good" : site.kind === "other" ? "warn" : "bad", { host: site.host });
-  if (site.kind === "own") add("https", "nap", site.https ? "good" : "warn");
-  else na("https", "nap", site.kind === "other" ? "notown" : "nosite"); // SNS・ポータルのURLは店側でhttpsを選べない
+  if (site.kind === "own") add("https", "site", site.https ? "good" : "warn");
+  else na("https", "site", site.kind === "other" ? "notown" : "nosite"); // SNS・ポータルのURLは店側でhttpsを選べない
   // サイトの中身（店名・住所・電話の一致／店舗情報の構造化データ）。読めなかったときは推測で判定しない
   if (site.kind !== "own") {
     na("site_nap", "site", site.kind === "other" ? "notown" : "nosite");
@@ -232,9 +232,9 @@ function measure(it: DiagItem): DiagItem {
 
 /** 項目の並び（どの事業所でも同じ）。テストと画面の確認用。 */
 export const ITEM_KEYS = [
-  "phone", "website", "https", "verified", "status",
+  "phone", "website", "verified", "status",
   "main_category", "sub_category",
   "review_count", "rating", "review_fresh", "low_ratings",
   "photos", "hours", "posts", "attributes", "booking",
-  "site_nap", "site_schema", // ホームページ側
+  "https", "site_nap", "site_schema", // ホームページ側
 ] as const;
