@@ -43,7 +43,7 @@ const T = {
     load_eta: (v) => `残り 約${v.sec}秒`,
 
     /* カテゴリ短縮ラベル */
-    cat_nap: "基本情報", cat_category: "業種の登録", cat_reviews: "口コミ", cat_photos: "写真", cat_hours: "最新情報", cat_extras: "お店の特徴",
+    cat_nap: "基本情報", cat_category: "カテゴリ", cat_reviews: "口コミ", cat_photos: "写真", cat_hours: "最新情報", cat_extras: "お店の特徴",
 
     /* エラー */
     err_input: "事業名と住所/エリアを入力してください",
@@ -1369,7 +1369,7 @@ function mountCityWhenVisible() {
   if (!host) return;
   const seq = citySeq;
   // 3D部品は結果の表示と同時に読み込みを始める（CDNからの初回取得に数秒かかるため）
-  const loading = import("/chart3d.js?v=20261027");
+  const loading = import("/chart3d.js?v=20261028");
   loading.catch(() => {});
   cityWatch = new IntersectionObserver(async (es) => {
     if (!es.some(e => e.isIntersecting)) return;
